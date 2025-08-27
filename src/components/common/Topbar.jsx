@@ -19,9 +19,12 @@ const Topbar = () => {
         background: "#2e3a59",
         color: "#fff",
         fontSize: 15,
-        borderBottom: "2px solid #f9cd05"
+        borderBottom: "2px solid #f9cd05",
+        justifyContent: "space-between",
+        padding: "10px",
+
       }}
-    >
+    class="d-none d-lg-flex">
       {/* LEFT: Phone, Email */}
       <div className="d-flex align-items-center gap-3">
         {store.STORE_PHONE && (

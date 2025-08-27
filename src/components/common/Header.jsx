@@ -67,7 +67,7 @@ const Header = () => {
       case 3:
         return (
           <ul className={subnavCount > 1 ? "two-column icon-left-title" : ""}>
-            <li>
+            <li id={item.id}>
               <a href={item.page_link}>
                 {item.icon && (
                   <span
@@ -196,13 +196,11 @@ const Header = () => {
                                   {renderMenuContent(subnav, false, subColCount)}
                                   {subnav.child && (
                                     <div className="clear-both">
-                                      {subnav.child.map((childnav) =>
-                                        renderMenuContent(
-                                          childnav,
-                                          true,
-                                          subnav.sub_nav_col
-                                        )
-                                      )}
+                                      {subnav.child.map((childnav) => (
+                                        <div key={childnav.id}>
+                                          {renderMenuContent(childnav, true, subnav.sub_nav_col)}
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
                                 </div>
