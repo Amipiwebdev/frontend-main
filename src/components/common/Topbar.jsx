@@ -14,7 +14,7 @@ const Topbar = () => {
 
   return (
     <div
-      className="amipi-topbar py-2 px-3 d-flex justify-content-between align-items-center"
+      className="amipi-topbar py-2 px-3 d-flex justify-content-between align-items-center d-none d-lg-flex"
       style={{
         background: "#2e3a59",
         color: "#fff",
@@ -24,7 +24,7 @@ const Topbar = () => {
         padding: "10px",
 
       }}
-    class="d-none d-lg-flex">
+    >
       {/* LEFT: Phone, Email */}
       <div className="d-flex align-items-center gap-3">
         {store.STORE_PHONE && (

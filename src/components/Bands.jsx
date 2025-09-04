@@ -1,13 +1,15 @@
+// src/components/Bands.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Header from "./common/Header";
 import Footer from "./common/Footer";
-import axios from "axios";
 import Topbar from "./common/Topbar";
+import { api } from "../apiClient"; // axios instance with baseURL
 
-const API = "https://api.mydiamondsearch.com/api";
 const SEO_URL = "bands-test";
 
-/** Render nothing if the media fails to load (prevents broken boxes) */
+/* -------------------------------- Helpers -------------------------------- */
+
 function SafeImage({ src, alt, className, style }) {
   const [ok, setOk] = useState(true);
   if (!ok || !src) return null;
@@ -55,6 +57,19 @@ function pickFirstAvailable(val, allowed) {
   return allowed[0];
 }
 
+/** Resolve any image/video ref to an absolute URL */
+function toAbsoluteMediaUrl(type, input) {
+  const raw =
+    typeof input === "string"
+      ? input
+      : input?.url || input?.image || input?.src || input?.filename || "";
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const folder = type === "video" ? "product_video" : "product_images";
+  const base = `https://www.amipi.com/ampvd/${folder}`;
+  return `${base}/${raw}`.replace(/([^:]\/)\/+/g, "$1");
+}
+
 const FILTER_ORDER = [
   "stoneType",
   "design",
@@ -66,11 +81,234 @@ const FILTER_ORDER = [
   "ringSize",
 ];
 
+const formatNumber = (val) => {
+  const n = Number(val);
+  if (Number.isNaN(n)) return String(val ?? "");
+  return n.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+};
+
+/* -------------------------------- Lightbox -------------------------------- */
+
+function Lightbox({ items, index, onClose, onPrev, onNext }) {
+  const open = index >= 0 && items.length > 0;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") onNext();
+      if (e.key === "ArrowLeft") onPrev();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open, onClose, onPrev, onNext]);
+
+  if (!open) return null;
+  const item = items[index];
+
+  return createPortal(
+    <div
+      className="lb-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Product media viewer"
+      onClick={onClose}
+    >
+      <style>{`
+        .lb-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center}
+        .lb-dialog{position:relative;max-width:92vw;max-height:92vh}
+        .lb-content{max-width:92vw;max-height:92vh;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+        .lb-content img,.lb-content video{max-width:92vw;max-height:92vh;border-radius:8px;background:#000}
+        .lb-close{position:absolute;top:-44px;right:0;background:transparent;color:#fff;border:0;font-size:28px;cursor:pointer;padding:0 6px}
+        .lb-arrow{position:absolute;top:50%;transform:translateY(-50%);border:0;background:rgba(255,255,255,.15);color:#fff;width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:28px;line-height:44px}
+        .lb-arrow:hover{background:rgba(255,255,255,.3)}
+        .lb-prev{left:-60px}
+        .lb-next{right:-60px}
+        @media(max-width:768px){
+          .lb-prev{left:8px}
+          .lb-next{right:8px}
+          .lb-close{top:8px;right:8px;background:rgba(0,0,0,.5);border-radius:6px}
+        }
+      `}</style>
+
+      <div className="lb-dialog" onClick={(e) => e.stopPropagation()}>
+        <button className="lb-close" aria-label="Close" onClick={onClose}>
+          ×
+        </button>
+        {items.length > 1 && (
+          <>
+            <button className="lb-arrow lb-prev" aria-label="Previous" onClick={onPrev}>
+              ‹
+            </button>
+            <button className="lb-arrow lb-next" aria-label="Next" onClick={onNext}>
+              ›
+            </button>
+          </>
+        )}
+        <div className="lb-content">
+          {item.type === "video" ? (
+            <video
+              src={item.src}
+              controls
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{ background: "#000" }}
+            />
+          ) : (
+            <img src={item.src} alt="Product media" />
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ----------- Tiny 2-up carousel for the gallery (no libs) ----------- */
+
+function GalleryCarousel({ items, onOpen, itemsPerSlide = 2 }) {
+  const slides = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < items.length; i += itemsPerSlide) {
+      arr.push(items.slice(i, i + itemsPerSlide));
+    }
+    return arr;
+  }, [items, itemsPerSlide]);
+
+  const [idx, setIdx] = useState(0);
+  const total = slides.length;
+
+  useEffect(() => {
+    if (idx > total - 1) setIdx(0);
+  }, [total, idx]);
+
+  if (!items.length) {
+    return (
+      <div className="gallery-image-link" style={{ background: "#f5f5f8", minHeight: 300 }} />
+    );
+  }
+
+  return (
+    <div style={{ position: "relative", overflow: "hidden" }}>
+      <div
+        style={{
+          display: "flex",
+          width: `${total * 100}%`,
+          transform: `translateX(-${idx * (100 / total)}%)`,
+          transition: "transform .35s ease",
+        }}
+      >
+        {slides.map((slide, s) => (
+          <div key={s} style={{ width: `${100 / total}%`, padding: 0 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 0,
+                minHeight: 300,
+              }}
+            >
+              {slide.map((item, i) => {
+                const globalIndex = s * itemsPerSlide + i;
+                return item.type === "video" ? (
+                  <button
+                    key={`v-${globalIndex}`}
+                    type="button"
+                    className="gallery-image-link"
+                    title="View video"
+                    onClick={() => onOpen(globalIndex)}
+                    style={{ background: "transparent", border: 0, padding: 0 }}
+                  >
+                    <SafeVideo
+                      src={item.src}
+                      className="gallery-image"
+                      style={{ background: "#000" }}
+                    />
+                  </button>
+                ) : (
+                  <button
+                    key={`i-${globalIndex}`}
+                    type="button"
+                    className="gallery-image-link"
+                    title="View image"
+                    onClick={() => onOpen(globalIndex)}
+                    style={{ background: "transparent", border: 0, padding: 0 }}
+                  >
+                    <SafeImage
+                      src={item.src}
+                      alt={`Product view ${globalIndex + 1}`}
+                      className="gallery-image"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {total > 1 && (
+        <>
+          <button
+            type="button"
+            aria-label="Previous images"
+            onClick={() => setIdx((i) => (i - 1 + total) % total)}
+            style={{
+              position: "absolute",
+              left: 8,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "rgba(0,0,0,.4)",
+              color: "#fff",
+              border: 0,
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              cursor: "pointer",
+            }}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="Next images"
+            onClick={() => setIdx((i) => (i + 1) % total)}
+            style={{
+              position: "absolute",
+              right: 8,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "rgba(0,0,0,.4)",
+              color: "#fff",
+              border: 0,
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              cursor: "pointer",
+            }}
+          >
+            ›
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* =============================== MAIN =============================== */
+
 const Bands = () => {
   // Page title
   const [pageTitle, setPageTitle] = useState("Bands");
 
-  // Allowed IDs from catnav
+  // Allowed IDs
   const [allowed, setAllowed] = useState({
     stoneTypes: [],
     designs: [],
@@ -111,61 +349,49 @@ const Bands = () => {
   const [estCaratWt, setEstCaratWt] = useState(null);
   const [estPrice, setEstPrice] = useState(null);
 
-  // Keep browser tab title in sync
+  // Lightbox state
+  const [lbIndex, setLbIndex] = useState(-1);
+
   useEffect(() => {
     document.title = pageTitle;
   }, [pageTitle]);
 
-  // Helpers for images
+  // Image URLs for filter cards
   const getImageUrl = (file, folder) =>
     file?.startsWith("http")
       ? file
       : file
       ? `https://www.amipi.com/images/${folder}/${file}`
       : "";
-  const getGalleryImage = (file) =>
-    file?.startsWith("http")
-      ? file
-      : file
-      ? `https://www.amipi.com/ampvd/product_images/${file}`
-      : "";
-  const getGalleryVideo = (file) =>
-    file?.startsWith("http")
-      ? file
-      : file
-      ? `https://www.amipi.com/ampvd/product_video/${file}`
-      : "";
 
-  // 1) On mount: get allowed ids + initial defaults from catnav
+  /* 1) Initial: catnav -> allowed IDs + defaults */
   useEffect(() => {
-    axios.get(`${API}/catnav/${SEO_URL}`).then(async (res) => {
-      const nav = res.data[0];
+    api.get(`/catnav/${SEO_URL}`).then(async (res) => {
+      const nav = res.data?.[0];
 
-      // Set page title from nav
       setPageTitle(nav?.category_navigation_title || "Bands");
 
-      // All allowed IDs as arrays
-      const stoneTypeIds = nav.category_navigation_sub_stone_type
+      const stoneTypeIds = String(nav?.category_navigation_sub_stone_type || "")
         .split(",")
         .map(Number)
         .filter(Boolean);
-      const designIds = nav.category_navigation_sub_category_group
+      const designIds = String(nav?.category_navigation_sub_category_group || "")
         .split(",")
         .map(Number)
         .filter(Boolean);
-      const settingStyleIds = nav.category_navigation_sub_category
+      const settingStyleIds = String(nav?.category_navigation_sub_category || "")
         .split(",")
         .map(Number)
         .filter(Boolean);
-      const shapeIds = nav.shap_display
+      const shapeIds = String(nav?.shap_display || "")
         .split(",")
         .map(Number)
         .filter(Boolean);
-      const metalIds = nav.metal_type_display
+      const metalIds = String(nav?.metal_type_display || "")
         .split(",")
         .map(Number)
         .filter(Boolean);
-      const qualityIds = nav.qualities_display
+      const qualityIds = String(nav?.qualities_display || "")
         .split(",")
         .map(Number)
         .filter(Boolean);
@@ -177,10 +403,9 @@ const Bands = () => {
         settingStyles: settingStyleIds,
         metals: metalIds,
         qualities: qualityIds,
-        diamondSizes: [], // set after other filters!
+        diamondSizes: [],
       });
 
-      // Fetch display data for allowed
       const [
         stoneTypesRes,
         designsRes,
@@ -189,12 +414,12 @@ const Bands = () => {
         metalsRes,
         qualitiesRes,
       ] = await Promise.all([
-        axios.get(`${API}/productstonetype/byids/${stoneTypeIds.join(",")}`),
-        axios.get(`${API}/stylegroup/byids/${designIds.join(",")}`),
-        axios.get(`${API}/shapes/byids/${shapeIds.join(",")}`),
-        axios.get(`${API}/stylecategory/byids/${settingStyleIds.join(",")}`),
-        axios.get(`${API}/metaltype/byids/${metalIds.join(",")}`),
-        axios.get(`${API}/quality/byids/${qualityIds.join(",")}`),
+        api.get(`/productstonetype/byids/${stoneTypeIds.join(",")}`),
+        api.get(`/stylegroup/byids/${designIds.join(",")}`),
+        api.get(`/shapes/byids/${shapeIds.join(",")}`),
+        api.get(`/stylecategory/byids/${settingStyleIds.join(",")}`),
+        api.get(`/metaltype/byids/${metalIds.join(",")}`),
+        api.get(`/quality/byids/${qualityIds.join(",")}`),
       ]);
 
       setData({
@@ -210,31 +435,31 @@ const Bands = () => {
       setSelected((prev) => ({
         ...prev,
         stoneType: pickFirstAvailable(
-          Number(nav.category_navigation_default_sub_stone_type),
+          Number(nav?.category_navigation_default_sub_stone_type),
           stoneTypeIds
         ),
         design: pickFirstAvailable(
-          Number(nav.category_navigation_default_sub_category_group),
+          Number(nav?.category_navigation_default_sub_category_group),
           designIds
         ),
-        shape: pickFirstAvailable(Number(nav.shap_default), shapeIds),
+        shape: pickFirstAvailable(Number(nav?.shap_default), shapeIds),
         settingStyle: pickFirstAvailable(
-          Number(nav.category_navigation_default_sub_category),
+          Number(nav?.category_navigation_default_sub_category),
           settingStyleIds
         ),
-        metal: pickFirstAvailable(Number(nav.metal_type_default), metalIds),
-        quality: pickFirstAvailable(Number(nav.qualities_default), qualityIds),
+        metal: pickFirstAvailable(Number(nav?.metal_type_default), metalIds),
+        quality: pickFirstAvailable(Number(nav?.qualities_default), qualityIds),
         diamondSize: null,
         ringSize: null,
       }));
     });
   }, []);
 
-  // 2) StoneType => filter Designs
+  /* 2) StoneType => Designs */
   useEffect(() => {
     if (!selected.stoneType) return;
-    axios
-      .get(`${API}/designs`, { params: { stoneType: selected.stoneType } })
+    api
+      .get(`/designs`, { params: { stoneType: selected.stoneType } })
       .then((res) => {
         const allowedIds = allowed.designs;
         const filtered = res.data.filter((d) => allowedIds.includes(d.id));
@@ -246,11 +471,11 @@ const Bands = () => {
       });
   }, [selected.stoneType, allowed.designs]);
 
-  // 3) Design => Diamond Shape
+  /* 3) Design => Shapes */
   useEffect(() => {
     if (!selected.stoneType || !selected.design) return;
-    axios
-      .get(`${API}/shapesnew`, {
+    api
+      .get(`/shapesnew`, {
         params: { stoneType: selected.stoneType, design: selected.design },
       })
       .then((res) => {
@@ -264,11 +489,11 @@ const Bands = () => {
       });
   }, [selected.stoneType, selected.design, allowed.shapes]);
 
-  // 4) Diamond Shape => Setting Style
+  /* 4) Shape => Setting Styles */
   useEffect(() => {
     if (!selected.stoneType || !selected.design || !selected.shape) return;
-    axios
-      .get(`${API}/setting-styles`, {
+    api
+      .get(`/setting-styles`, {
         params: {
           stoneType: selected.stoneType,
           design: selected.design,
@@ -289,7 +514,7 @@ const Bands = () => {
       });
   }, [selected.stoneType, selected.design, selected.shape, allowed.settingStyles]);
 
-  // 5) Setting Style => Metal
+  /* 5) Setting Style => Metal */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -298,8 +523,8 @@ const Bands = () => {
       !selected.settingStyle
     )
       return;
-    axios
-      .get(`${API}/metals`, {
+    api
+      .get(`/metals`, {
         params: {
           stoneType: selected.stoneType,
           design: selected.design,
@@ -324,7 +549,7 @@ const Bands = () => {
     allowed.metals,
   ]);
 
-  // 6) Metal => Quality
+  /* 6) Metal => Quality */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -334,8 +559,8 @@ const Bands = () => {
       !selected.metal
     )
       return;
-    axios
-      .get(`${API}/qualities`, {
+    api
+      .get(`/qualities`, {
         params: {
           stoneType: selected.stoneType,
           design: selected.design,
@@ -362,7 +587,30 @@ const Bands = () => {
     allowed.qualities,
   ]);
 
-  // 7) Quality => Diamond Size
+  /* Decide unit (ct/mm) once for the chosen stone type */
+  const selectedStoneType = useMemo(
+    () => data.stoneTypes.find((st) => (st.pst_id || st.id) === selected.stoneType),
+    [data.stoneTypes, selected.stoneType]
+  );
+
+  // Fallback: Diamonds => ct, others => mm (in case flags are missing)
+  const fallbackUnit =
+    /diamond/i.test(String(selectedStoneType?.pst_name || selectedStoneType?.name || ""))
+      ? "ct"
+      : "mm";
+
+  const sizeUnit =
+    String(
+      selectedStoneType?.pst_ct_mm_flag ??
+        selectedStoneType?.ct_mm_flag ??
+        fallbackUnit
+    )
+      .trim()
+      .toLowerCase() === "mm"
+      ? "mm"
+      : "ct";
+
+  /* 7) Quality => Diamond Size (dynamic, unit-aware) */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -373,8 +621,9 @@ const Bands = () => {
       !selected.quality
     )
       return;
-    axios
-      .get(`${API}/diamond-sizesnew`, {
+
+    api
+      .get(`/diamond-sizesnew`, {
         params: {
           stoneType: selected.stoneType,
           design: selected.design,
@@ -382,12 +631,30 @@ const Bands = () => {
           settingStyle: selected.settingStyle,
           metal: selected.metal,
           quality: selected.quality,
+          unit: sizeUnit, // (optional) backend can sort using this
         },
       })
       .then((res) => {
-        const sizes = res.data.map((sz) =>
-          typeof sz === "object" ? sz.size : sz
-        );
+        const rows = Array.isArray(res.data) ? res.data : [];
+
+        // Pick ct or mm from object rows; also support legacy { size }
+        let sizes = rows.map((r) => {
+          if (typeof r === "object" && r !== null) {
+            const mm = r.size_mm ?? r.center_stone_mm ?? null;
+            const ct = r.size_ct ?? r.size ?? r.center_stone_weight ?? null;
+            return sizeUnit === "mm" ? mm : ct;
+          }
+          return r; // legacy numeric list
+        });
+
+        // Cleanup -> number -> de-dupe -> sort asc
+        sizes = sizes
+          .filter((v) => v !== null && v !== undefined && v !== "")
+          .map((v) => Number(v))
+          .filter((n) => !Number.isNaN(n));
+
+        sizes = Array.from(new Set(sizes)).sort((a, b) => a - b);
+
         setData((d) => ({ ...d, diamondSizes: sizes }));
         setSelected((sel) => ({
           ...sel,
@@ -401,9 +668,10 @@ const Bands = () => {
     selected.settingStyle,
     selected.metal,
     selected.quality,
+    sizeUnit, // re-run if ct/mm flips
   ]);
 
-  // 8) Diamond Size => Product
+  /* 8) Diamond Size => Product */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -418,8 +686,8 @@ const Bands = () => {
       setRingOptions([]);
       return;
     }
-    axios
-      .get(`${API}/productnew`, {
+    api
+      .get(`/productnew`, {
         params: {
           stoneType: selected.stoneType,
           design: selected.design,
@@ -428,6 +696,7 @@ const Bands = () => {
           metal: selected.metal,
           quality: selected.quality,
           diamondSize: selected.diamondSize,
+          unit: sizeUnit, // (optional) if your product query needs unit
         },
       })
       .then((res) => setProduct(res.data));
@@ -439,101 +708,66 @@ const Bands = () => {
     selected.metal,
     selected.quality,
     selected.diamondSize,
+    sizeUnit,
   ]);
 
-  // 9) Product => ring size options
+  /* 9) Product => Ring size options */
   useEffect(() => {
     if (!product?.products_id) {
       setRingOptions([]);
       setSelected((sel) => ({ ...sel, ringSize: null }));
       return;
     }
-    axios.get(`${API}/product-options/${product.products_id}`).then((res) => {
-      setRingOptions(res.data || []);
+    api.get(`/product-options/${product.products_id}`).then((res) => {
+      const opts = res.data || [];
+      setRingOptions(opts);
       setSelected((sel) => {
-        const found = res.data?.find((x) => x.value_id === sel.ringSize);
+        const found = opts.find((x) => x.value_id === sel.ringSize);
         return {
           ...sel,
-          ringSize: found ? found.value_id : res.data?.[0]?.value_id || null,
+          ringSize: found ? found.value_id : opts?.[0]?.value_id || null,
         };
       });
     });
   }, [product?.products_id]);
 
-  // 10) Product/ring size => estimated values
+  /* 10) Estimates */
   useEffect(() => {
     if (!product) return;
     let diamondPcs = Number(product.estimated_pcs || product.diamond_pics || 2);
     let caratWeight = Number(product.total_carat_weight || 0);
     let price = Number(product.products_price1 || product.products_price || 0);
-    const selectedRingOption = ringOptions.find(
-      (o) => o.value_id === selected.ringSize
-    );
+
+    const selectedRingOption = ringOptions.find((o) => o.value_id === selected.ringSize);
     if (selectedRingOption) {
-      if (
-        selectedRingOption.options_symbol &&
-        selectedRingOption.estimated_weight !== null
-      ) {
+      if (selectedRingOption.options_symbol && selectedRingOption.estimated_weight !== null) {
         const estW = Number(selectedRingOption.estimated_weight);
         switch (selectedRingOption.options_symbol) {
-          case "+":
-            diamondPcs += estW;
-            break;
-          case "-":
-            diamondPcs -= estW;
-            break;
-          case "*":
-            diamondPcs *= estW;
-            break;
-          case "/":
-            diamondPcs /= estW;
-            break;
-          default:
-            break;
+          case "+": diamondPcs += estW; break;
+          case "-": diamondPcs -= estW; break;
+          case "*": diamondPcs *= estW; break;
+          case "/": diamondPcs /= estW; break;
+          default: break;
         }
       }
-      if (
-        selectedRingOption.estimated_symbol &&
-        selectedRingOption.estimated_weight !== null
-      ) {
+      if (selectedRingOption.estimated_symbol && selectedRingOption.estimated_weight !== null) {
         const estW = Number(selectedRingOption.estimated_weight);
         switch (selectedRingOption.estimated_symbol) {
-          case "+":
-            caratWeight += estW;
-            break;
-          case "-":
-            caratWeight -= estW;
-            break;
-          case "*":
-            caratWeight *= estW;
-            break;
-          case "/":
-            caratWeight /= estW;
-            break;
-          default:
-            break;
+          case "+": caratWeight += estW; break;
+          case "-": caratWeight -= estW; break;
+          case "*": caratWeight *= estW; break;
+          case "/": caratWeight /= estW; break;
+          default: break;
         }
       }
-      if (
-        selectedRingOption.options_symbol &&
-        selectedRingOption.options_price !== null
-      ) {
+      if (selectedRingOption.options_symbol && selectedRingOption.options_price !== null) {
         const optPrice = Number(selectedRingOption.options_price);
         switch (selectedRingOption.options_symbol) {
-          case "+":
-            price += optPrice;
-            break;
-          case "-":
-            price -= optPrice;
-            break;
-          case "*":
-            price *= optPrice;
-            break;
-          case "/":
-            price /= optPrice;
-            break;
-          default:
-            break;
+          case "+": price += optPrice; break;
+          case "-": price -= optPrice; break;
+          case "*": price *= optPrice; break;
+          case "/": price /= optPrice; break;
+          default: break;
         }
       }
     }
@@ -542,24 +776,29 @@ const Bands = () => {
     setEstPrice(price);
   }, [product, ringOptions, selected.ringSize]);
 
-  // 11) Derived: selected stone type => unit to display with sizes
-  const selectedStoneType = useMemo(
-    () =>
-      data.stoneTypes.find(
-        (st) => (st.pst_id || st.id) === selected.stoneType
-      ),
-    [data.stoneTypes, selected.stoneType]
-  );
+  /* Gallery items */
+  const galleryItems = useMemo(() => {
+    const arr = [];
+    if (product?.videos?.length) {
+      product.videos.forEach((v) =>
+        arr.push({ type: "video", src: toAbsoluteMediaUrl("video", v) })
+      );
+    }
+    if (product?.images?.length) {
+      product.images.forEach((im) =>
+        arr.push({ type: "image", src: toAbsoluteMediaUrl("image", im) })
+      );
+    }
+    return arr;
+  }, [product]);
 
-  // Normalize ct/mm flag to either "ct" or "mm"
-  const sizeUnit =
-    String(
-      selectedStoneType?.pst_ct_mm_flag ?? selectedStoneType?.ct_mm_flag ?? "ct"
-    )
-      .trim()
-      .toLowerCase() === "mm"
-      ? "mm"
-      : "ct";
+  // Lightbox handlers
+  const openLightbox = (i) => setLbIndex(i);
+  const closeLightbox = () => setLbIndex(-1);
+  const prevLightbox = () =>
+    setLbIndex((i) => (i <= 0 ? galleryItems.length - 1 : i - 1));
+  const nextLightbox = () =>
+    setLbIndex((i) => (i + 1) % Math.max(galleryItems.length, 1));
 
   // Filter click handler
   function handleFilterChange(key, value) {
@@ -571,14 +810,8 @@ const Bands = () => {
     setSelected((prev) => ({ ...prev, [key]: value, ...cleared }));
   }
 
-  // GALLERY
-  let galleryMedia = [];
-  if (product?.videos?.length > 0)
-    galleryMedia.push({ type: "video", url: product.videos[0] });
-  if (product?.images?.length > 0)
-    product.images.forEach((url) => galleryMedia.push({ type: "image", url }));
+  /* --------------------------------- Render -------------------------------- */
 
-  // RENDER
   return (
     <div>
       <Topbar />
@@ -588,56 +821,23 @@ const Bands = () => {
           <h1>{pageTitle}</h1>
 
           <div className="main-content flex-wrap d-flex align-items-start">
-            {/* GALLERY */}
-            <div className="left-gallery-band col-12 col-lg-9 col-md-12 col-sm-12 p-3">
-              <div className="left-gallery-grid">
-                {galleryMedia.length === 0 && (
-                  <div
-                    className="gallery-image-link"
-                    style={{ background: "#f5f5f8", minHeight: 300 }}
-                  />
-                )}
-                {galleryMedia.map((item, i) =>
-                  item.type === "video" ? (
-                    <a
-                      key={i}
-                      href={getGalleryVideo(item.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="gallery-image-link"
-                      title="View video"
-                    >
-                      <SafeVideo
-                        src={getGalleryVideo(item.url)}
-                        className="gallery-image"
-                        style={{ background: "#000" }}
-                      />
-                    </a>
-                  ) : (
-                    <a
-                      key={i}
-                      href={getGalleryImage(item.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="gallery-image-link"
-                      title="View image"
-                    >
-                      <SafeImage
-                        src={getGalleryImage(item.url)}
-                        alt={`Product view ${i + 1}`}
-                        className="gallery-image"
-                      />
-                    </a>
-                  )
-                )}
-              </div>
+            {/* GALLERY: 2 per slide + lightbox */}
+            <div className="left-gallery-band col-12 p-3">
+              <GalleryCarousel items={galleryItems} onOpen={openLightbox} />
+              <Lightbox
+                items={galleryItems}
+                index={lbIndex}
+                onClose={closeLightbox}
+                onPrev={prevLightbox}
+                onNext={nextLightbox}
+              />
             </div>
 
             {/* FILTERS */}
-            <div className="right-filters col-12 col-lg-3 col-md-12 col-sm-12">
+            <div className="right-filters col-12 d-flex flex-wrap align-items-start">
               {/* Stone Type */}
-              <div className="filter-block stone-type">
-                <div className="filter-title">Stone Type</div>
+              <div className="filter-block stone-type col-12 col-lg-6 col-md-12 col-sm-12">
+                <div className="filter-title">STONE TYPE</div>
                 <div className="filter-options">
                   {data.stoneTypes.map((st) => (
                     <button
@@ -645,29 +845,23 @@ const Bands = () => {
                       type="button"
                       className={
                         "filter-card" +
-                        (selected.stoneType === (st.pst_id || st.id)
-                          ? " selected"
-                          : "")
+                        (selected.stoneType === (st.pst_id || st.id) ? " selected" : "")
                       }
-                      onClick={() =>
-                        handleFilterChange("stoneType", st.pst_id || st.id)
-                      }
+                      onClick={() => handleFilterChange("stoneType", st.pst_id || st.id)}
                     >
                       <SafeImage
                         src={getImageUrl(st.pst_image || st.image, "stone_type")}
                         alt={st.pst_name || st.name}
                       />
-                      <span className="filter-label">
-                        {st.pst_description || st.name}
-                      </span>
+                      <span className="filter-label">{st.pst_description || st.name}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Design */}
-              <div className="filter-block">
-                <div className="filter-title">Design</div>
+              <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12">
+                <div className="filter-title">DESIGN</div>
                 <div className="filter-options">
                   {data.designs.map((d) => (
                     <button
@@ -689,9 +883,9 @@ const Bands = () => {
                 </div>
               </div>
 
-              {/* Diamond Shape */}
-              <div className="filter-block diamond-shape-im">
-                <div className="filter-title">Stone Shape</div>
+              {/* Stone Shape */}
+              <div className="filter-block diamond-shape-im col-12 col-lg-3 col-md-12 col-sm-12">
+                <div className="filter-title">STONE SHAPE</div>
                 <div className="filter-options">
                   {data.shapes.map((sh) => (
                     <button
@@ -708,8 +902,8 @@ const Bands = () => {
               </div>
 
               {/* Setting Style */}
-              <div className="filter-block">
-                <div className="filter-title">Setting Style</div>
+              <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12">
+                <div className="filter-title">SETTING STYLE</div>
                 <div className="filter-options">
                   {data.settingStyles.map((sc) => (
                     <button
@@ -717,13 +911,9 @@ const Bands = () => {
                       type="button"
                       className={
                         "filter-card" +
-                        (selected.settingStyle === (sc.psc_id || sc.id)
-                          ? " selected"
-                          : "")
+                        (selected.settingStyle === (sc.psc_id || sc.id) ? " selected" : "")
                       }
-                      onClick={() =>
-                        handleFilterChange("settingStyle", sc.psc_id || sc.id)
-                      }
+                      onClick={() => handleFilterChange("settingStyle", sc.psc_id || sc.id)}
                     >
                       <SafeImage
                         src={getImageUrl(sc.psc_image || sc.image, "style_category")}
@@ -736,8 +926,8 @@ const Bands = () => {
               </div>
 
               {/* Metal */}
-              <div className="filter-block metal-icon">
-                <div className="filter-title">Metal</div>
+              <div className="filter-block metal-icon col-12 col-lg-3 col-md-12 col-sm-12">
+                <div className="filter-title">METAL</div>
                 <div className="filter-options metal-label">
                   {data.metals.map((m) => (
                     <button
@@ -759,18 +949,16 @@ const Bands = () => {
                           boxShadow: "0 2px 10px #22305213",
                         }}
                       >
-                        <span className="filter-label">
-                          {m.dmt_tooltip || m.dmt_tooltip}
-                        </span>
+                        <span className="filter-label">{m.dmt_tooltip || m.dmt_tooltip}</span>
                       </div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Diamond Quality */}
-              <div className="filter-block diamond-q">
-                <div className="filter-title">Stone Quality</div>
+              {/* Stone Quality */}
+              <div className="filter-block diamond-q col-12 col-lg-3 col-md-12 col-sm-12">
+                <div className="filter-title">STONE QUALITY</div>
                 <div className="filter-options" style={{ display: "flex", flexWrap: "wrap" }}>
                   {data.qualities.map((q) => (
                     <button
@@ -786,9 +974,7 @@ const Bands = () => {
                       <div
                         className={
                           "quality-origin " +
-                          ((q.dqg_origin || q.origin) === "Lab Grown"
-                            ? "lab-grown"
-                            : "earth-mined")
+                          ((q.dqg_origin || q.origin) === "Lab Grown" ? "lab-grown" : "earth-mined")
                         }
                       >
                         {q.dqg_origin || q.origin}
@@ -798,35 +984,33 @@ const Bands = () => {
                 </div>
               </div>
 
-              {/* Diamond Size */}
-              <div className="filter-block diamond-s">
-                <div className="filter-title">Stone Size</div>
+              {/* Stone Size (dynamic unit) */}
+              <div className="filter-block diamond-s col-12 col-lg-3 col-md-12 col-sm-12">
+                <div className="filter-title">STONE SIZE ({sizeUnit.toUpperCase()})</div>
                 <div className="filter-options diamond-size">
                   {data.diamondSizes.map((size) => (
                     <button
-                      key={size}
+                      key={String(size)}
                       type="button"
                       className={
                         "filter-card" + (selected.diamondSize === size ? " selected" : "")
                       }
                       onClick={() => handleFilterChange("diamondSize", size)}
                     >
-                      {size} {sizeUnit}
+                      {formatNumber(size)} {sizeUnit.toUpperCase()}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Ring Size Dropdown */}
+              {/* Ring Size */}
               {ringOptions.length > 0 && (
-                <div className="filter-block">
-                  <div className="filter-title">Choose Ring Size</div>
+                <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12">
+                  <div className="filter-title">CHOOSE RING SIZE</div>
                   <select
                     value={selected.ringSize || ""}
                     className="ring-size-select"
-                    onChange={(e) =>
-                      handleFilterChange("ringSize", Number(e.target.value))
-                    }
+                    onChange={(e) => handleFilterChange("ringSize", Number(e.target.value))}
                   >
                     {ringOptions.map((opt) => (
                       <option key={opt.value_id} value={opt.value_id}>
@@ -836,262 +1020,153 @@ const Bands = () => {
                   </select>
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* PRODUCT DETAILS */}
-          {product ? (
-            <div className="product-details">
-              <div className="detail">
-                <div className="box-grey table-responsive">
-                  <table width="100%" className="c_table_grey_box">
-                    <tbody>
-                      <tr className="c_table_row_grey-box">
-                        <td className="text-left">
-                          <div className="d-flex hig-head">
-                            <div className="col-size">
-                              <h2>YOUR SELECTION</h2>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="text-center">
-                          <div className="d-flex hig-head">
-                            <div className="col-size">
-                              <p className="higlight-heading c_font_weight_normal">
-                                Size:
-                                <span className="c_size_value">
-                                  {ringOptions.find(
-                                    (o) => o.value_id === selected.ringSize
-                                  )?.value_name || "--"}
+              {/* PRODUCT DETAILS */}
+              {product ? (
+                <>
+                  <div className="product-details col-12 col-lg-6 col-md-12 col-sm-12 filter-block">
+                    <div className="detail">
+                      <div className="box-grey table-responsive">
+                        <main className="wrap">
+                          <section className="selection-card" role="region" aria-labelledby="ys-title">
+                            <header className="card-head">
+                              <h2 id="ys-title" className="card-title">YOUR SELECTION</h2>
+                              <span className="order-no">#{product.products_style_no || "--"}</span>
+                            </header>
+
+                            <div className="pillbar" aria-label="Key attributes">
+                              <div className="pill" aria-label="Color and clarity">
+                                <strong>{product.dqg_alias || "--"}</strong>
+                                <span className="sub">{product.center_stone_name || "--"}</span>
+                              </div>
+                              <div className="pill small" aria-label="Ring size">
+                                <strong>Ring Size:</strong>
+                                <span>
+                                  {ringOptions.find((o) => o.value_id === selected.ringSize)?.value_name ||
+                                    "--"}
                                 </span>
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="text-right">
-                          <div className="d-flex hig-head">
-                            <div className="col-size">
-                              <p className="c_font_weight_normal" id="product-variation-style-no-AW27">
-                                #{product.products_style_no || "--"}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td colSpan={3}>
-                          <div className="c_band_design_update">
-                            <div className="d-flex c_flex_grey_box">
-                              <table width="100%">
-                                <tbody>
-                                  <tr>
-                                    <td width="33%" className="text-left">
-                                      <div className="font-size-14 img-text-earth" id="product-variation-name-quality-AW27">
-                                        <div className="d-flex c_flex_child_one">
-                                          <div>{/* SVG ICON HERE */}</div>
-                                          <div>
-                                            <p>{product.dqg_alias || "--"}</p>
-                                            <p className="c_font_weight_normal">{product.center_stone_name || "--"}</p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td width="33%" className="text-center">
-                                      <div className="c_flex_child_grey_box detail-bar band-ect">
-                                        <p>Est. Carat Wt*</p>
-                                        <p className="larger-f">
-                                          {estCaratWt !== null
-                                            ? Number(estCaratWt).toFixed(2)
-                                            : product.total_carat_weight || "--"}{" "}
-                                          CT <span style={{ fontSize: 12 }}>[+/- 5%]</span>
-                                        </p>
-                                      </div>
-                                    </td>
-                                    <td width="33%" className="text-right">
-                                      <div className="c_flex_child_grey_box detail-bar">
-                                        <p id="product-variation-price-AW27" className="c_flex_child_grey_box_price"></p>
-                                        <p>
-                                          ${" "}
-                                          {estPrice !== null
-                                            ? Number(estPrice).toFixed(0)
-                                            : product.products_price1 ||
-                                              product.products_price ||
-                                              "--"}
-                                        </p>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="c_table_grey_box_td text-left" width="33%">
-                          <table width="100%">
-                            <tbody>
-                              <tr>
-                                <th className="c_td_color_define">Metal</th>
-                              </tr>
-                              <tr>
-                                <td className="c_td_color_define">{product.metal_name || "--"}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                        <td className="c_table_grey_box_td text-center" width="33%">
-                          <table width="100%">
-                            <tbody>
-                              <tr>
-                                <th className="c_td_color_define">Design</th>
-                              </tr>
-                              <tr>
-                                <td className="c_td_color_define">{product.style_group_name || "--"}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                        <td className="c_table_grey_box_td  text-right" width="33%">
-                          <table width="100%">
-                            <tbody>
-                              <tr>
-                                <th className="c_td_color_define">Setting Style</th>
-                              </tr>
-                              <tr>
-                                <td className="c_td_color_define">{product.style_category_name || "--"}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="c_table_grey_box_td text-left" width="33%">
-                          <table width="100%">
-                            <tbody>
-                              <tr>
-                                <th className="c_td_color_define">Stone Shape</th>
-                              </tr>
-                              <tr>
-                                <td className="c_td_color_define">{product.diamond_shape_name || "--"}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                        <td className="c_table_grey_box_td text-center" width="33%">
-                          <table width="100%">
-                            <tbody>
-                              <tr>
-                                <th className="c_td_color_define">Stone Size</th>
-                              </tr>
-                              <tr>
-                                <td className="c_td_color_define">
-                                  {product.diamond_size || `${product.total_carat_weight || "--"} CT (Each)`}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                        <td className="c_table_grey_box_td text-right" width="33%">
-                          <table width="100%">
-                            <tbody>
-                              <tr>
-                                <th className="c_td_color_define">Est. Diamond Pcs*</th>
-                              </tr>
-                              <tr>
-                                <td className="c_td_color_define">
+                              </div>
+                              <div className="pill" aria-label="Estimated carat weight">
+                                <strong>Est. Carat Wt*</strong>
+                                <span className="sub l-pill">
+                                  {estCaratWt !== null
+                                    ? Number(estCaratWt).toFixed(2)
+                                    : product.total_carat_weight || "--"}{" "}
+                                  CT [+/− 5%]
+                                </span>
+                              </div>
+                              <div className="pill small" aria-label="Estimated diamond pieces">
+                                <strong>Est. Diamond Pcs*:</strong>
+                                <span>
                                   {estDiamondPcs !== null ? estDiamondPcs : product.estimated_pcs || "--"}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
+                                </span>
+                              </div>
+                              <div className="pill price" aria-label="Price">
+                                ${" "}
+                                {estPrice !== null
+                                  ? Number(estPrice).toFixed(0)
+                                  : product.products_price1 || product.products_price || "--"}
+                              </div>
+                            </div>
 
-                      <tr>
-                        <td className="c_table_grey_box_td text-left" width="33%">
-                          <table width="100%">
-                            <tbody>
-                              <tr>
-                                <th className="c_td_color_define">Stone Type</th>
-                              </tr>
-                              <tr>
-                                <td className="c_td_color_define">{product.stone_type_name || "--"}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td colSpan={3}>
-                          <div className="c_band_design_update">
-                            <p className="c_customize_left info">
+                            <div className="details">
+                              <div className="kv">
+                                <div className="k">Metal</div>
+                                <div className="v">{product.metal_name || "--"}</div>
+                              </div>
+                              <div className="kv">
+                                <div className="k">Design</div>
+                                <div className="v">{product.style_group_name || "--"}</div>
+                              </div>
+                              <div className="kv">
+                                <div className="k">Setting Style</div>
+                                <div className="v">{product.style_category_name || "--"}</div>
+                              </div>
+                              <div className="kv">
+                                <div className="k">Stone Shape</div>
+                                <div className="v">{product.diamond_shape_name || "--"}</div>
+                              </div>
+                              <div className="kv">
+                                <div className="k">Stone Size</div>
+                                <div className="v">
+                                  {selected.diamondSize != null
+                                    ? `${formatNumber(selected.diamondSize)} ${sizeUnit.toUpperCase()}`
+                                    : product.diamond_size ||
+                                      `${product.total_carat_weight || "--"} CT (Each)`}
+                                </div>
+                              </div>
+                              <div className="kv">
+                                <div className="k">Stone Type</div>
+                                <div className="v">{product.stone_type_name || "--"}</div>
+                              </div>
+                            </div>
+
+                            <p className="note">
                               *customization may cause some variation in final product.
                             </p>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="band-heading-type">
-                  <p className="product-description__title detail-three stud-para">
-                    <a id="product-title-link-AW27" href="#" target="_blank" style={{ cursor: "pointer" }}>
-                      {product.products_name || "--"}
-                    </a>
-                  </p>
-                  <p className="stud-subtitle" id="product-variation-products-name-AW27">
-                    {product.products_description || "--"}
-                  </p>
-                </div>
-
-                <div className="" id="productETABox"></div>
-                <div className="d-flex c_flex_box">
-                  <div
-                    id="product-description-variation-details-action-AW27"
-                    className="col-xs-12 col-sm-12 product-description-variation-details-action-AW27 stud-action-filter"
-                  >
-                    <ul className="action product-d-action">
-                      <li className="common-btn svg-design">
-                        <a
-                          href={`https://www.amipi.com/${product.products_seo_url || "--"}`}
-                          target="_blank"
-                          title="View Full Details"
-                        >
-                          <i className="fa fa-cog" aria-hidden="true"></i>
-                        </a>
-                      </li>
-                      <li className="common-btn" style={{ cursor: "pointer" }} title="Share With A Friend">
-                        <i className="fa fa-share-alt" aria-hidden="true"></i>
-                      </li>
-                      <li style={{ cursor: "pointer" }} title="Add to Wishlist" className="wishlist-btn common-btn">
-                        <i className="fa fa-heart" aria-hidden="true"></i>
-                      </li>
-                      <li style={{ cursor: "pointer", display: "none" }} className="wishlist-btn-active common-btn" title="Remove From Wishlist">
-                        <i className="fa fa-heart" aria-hidden="true"></i>
-                      </li>
-                      <li style={{ cursor: "pointer" }} className="AddCompareButtClass-3004929 wishlist-btn common-btn" title="Add To Compare">
-                        <i className="fa fa-compress" aria-hidden="true"></i>
-                      </li>
-                      <li style={{ cursor: "pointer", display: "none" }} className="RemoveCompareButtClass-3004929 wishlist-btn-active common-btn" title="Remove From Compare">
-                        <i className="fa fa-compress" aria-hidden="true"></i>
-                      </li>
-                      <li style={{ cursor: "pointer" }} className="hover-none">
-                        <div className="band-cart-btn">
-                          <div className="common-btn band-cart" style={{ cursor: "pointer" }} title="Add To Cart">
-                            <i className="fa fa-shopping-cart" aria-hidden="true"></i> ADD TO CART
-                          </div>
-                        </div>
-                      </li>
-                    </ul>
+                          </section>
+                        </main>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+
+                  <div className="col-12 col-lg-3 col-md-12 col-sm-12 filter-block">
+                    <div className="band-heading-type">
+                      <p className="product-description__title detail-three stud-para">
+                        <a
+                          id="product-title-link"
+                          href={`https://www.amipi.com/${product.products_seo_url || ""}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ cursor: "pointer" }}
+                        >
+                          {product.products_name || "--"}
+                        </a>
+                      </p>
+                      <p className="stud-subtitle">
+                        {product.products_description || "--"}
+                      </p>
+                    </div>
+
+                    <div className="d-flex c_flex_box">
+                      <div className="col-xs-12 col-sm-12 product-description-variation-details-action stud-action-filter">
+                        <ul className="action product-d-action">
+                          <li className="common-btn svg-design">
+                            <a
+                              href={`https://www.amipi.com/${product.products_seo_url || ""}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="View Full Details"
+                            >
+                              <i className="fa fa-cog" aria-hidden="true"></i>
+                            </a>
+                          </li>
+                          <li className="common-btn" style={{ cursor: "pointer" }} title="Share With A Friend">
+                            <i className="fa fa-share-alt" aria-hidden="true"></i>
+                          </li>
+                          <li style={{ cursor: "pointer" }} title="Add to Wishlist" className="wishlist-btn common-btn">
+                            <i className="fa fa-heart" aria-hidden="true"></i>
+                          </li>
+                          <li style={{ cursor: "pointer" }} className="AddCompareButtClass wishlist-btn common-btn" title="Add To Compare">
+                            <i className="fa fa-compress" aria-hidden="true"></i>
+                          </li>
+                          <li style={{ cursor: "pointer" }} className="hover-none">
+                            <div className="band-cart-btn">
+                              <div className="common-btn band-cart" style={{ cursor: "pointer" }} title="Add To Cart">
+                                <i className="fa fa-shopping-cart" aria-hidden="true"></i> ADD TO CART
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ padding: 24, color: "#888" }}>No product found.</div>
+              )}
             </div>
-          ) : (
-            <div style={{ padding: 24, color: "#888" }}>No product found.</div>
-          )}
+          </div>
         </div>
       </div>
       <Footer />

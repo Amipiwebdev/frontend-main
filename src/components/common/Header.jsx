@@ -1,19 +1,57 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+// src/components/common/Header.jsx
+import React, { useEffect, useRef, useState } from "react";
+import { api } from "../../apiClient"; // <-- use the shared client
 import logo from "../../assets/logo.png";
 
 const IMG_PATH = "https://www.amipi.com/images/category_navigation_image/";
 
 const Header = () => {
   const [menu, setMenu] = useState([]);
-  const [showCart, setShowCart] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
+  // Auth state (persisted in localStorage)
+  const [authUser, setAuthUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("amipiUser");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Login form state
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  // Fetch mega menu (no credentials)
   useEffect(() => {
-    axios.get("https://api.mydiamondsearch.com/api/mega-menu").then((res) => {
-      setMenu(res.data || []);
-    });
+    api
+      .get("/mega-menu")
+      .then((res) => setMenu(res.data || []))
+      .catch(() => setMenu([]));
   }, []);
 
+  // Close login on outside click / ESC
+  const popRef = useRef(null);
+  useEffect(() => {
+    if (!showLogin) return;
+    const onDoc = (e) => {
+      if (popRef.current && !popRef.current.contains(e.target)) {
+        setShowLogin(false);
+      }
+    };
+    const onEsc = (e) => e.key === "Escape" && setShowLogin(false);
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [showLogin]);
+
+  // Helpers
   const getColumnClass = (count) => {
     if (count === 1) return "col-sm-12";
     if (count === 2) return "col-sm-6";
@@ -137,6 +175,41 @@ const Header = () => {
     );
   };
 
+  // Submit login to your PHP (expects login_uname & login_pass)
+  async function handleLogin(e) {
+    e.preventDefault();
+    setErr("");
+    setBusy(true);
+    try {
+      const { data } = await api.post("/login", {
+        login_uname: email.trim(),
+        login_pass: pass,
+        login_type: "login_page",
+        // is_retailer and parent_retailer_id are optional in your PHP
+      });
+
+      if (data?.status === "success" && data?.user) {
+        localStorage.setItem("amipiUser", JSON.stringify(data.user));
+        setAuthUser(data.user);
+        setShowLogin(false);
+        setEmail("");
+        setPass("");
+      } else {
+        setErr(data?.message || "Login failed");
+      }
+    } catch (error) {
+      setErr(error?.response?.data?.message || "Login failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("amipiUser");
+    setAuthUser(null);
+  }
+
+  // UI
   return (
     <header className="main-header">
       <nav className="navbar navbar-expand-lg abg-secondary">
@@ -193,12 +266,20 @@ const Header = () => {
                                 className={`menu-item ${subcolClass}`}
                               >
                                 <div className="column-inner">
-                                  {renderMenuContent(subnav, false, subColCount)}
+                                  {renderMenuContent(
+                                    subnav,
+                                    false,
+                                    subColCount
+                                  )}
                                   {subnav.child && (
                                     <div className="clear-both">
                                       {subnav.child.map((childnav) => (
                                         <div key={childnav.id}>
-                                          {renderMenuContent(childnav, true, subnav.sub_nav_col)}
+                                          {renderMenuContent(
+                                            childnav,
+                                            true,
+                                            subnav.sub_nav_col
+                                          )}
                                         </div>
                                       ))}
                                     </div>
@@ -215,22 +296,126 @@ const Header = () => {
               })}
             </ul>
 
-            {/* Right: Login & Cart */}
-            <div
-              className="d-flex align-items-center gap-2 login-button position-relative list-group-item border aborder-primary rounded-pill bg-transparent"
-              onClick={() => setShowCart(!showCart)}
-              style={{ cursor: "pointer" }}
-            >
-              Welcome, Mr. Tarun K Pawar
-              <button className="btn btn-outline-dark btn-sm ms-2">LOGOUT</button>
-              <a
-                href="/cart"
-                className="btn btn-link text-dark ms-2"
-                style={{ fontSize: 22 }}
-              >
-                <i className="fas fa-shopping-cart"></i>
-              </a>
-            </div>
+            {/* Right: Login/Welcome & Cart */}
+            <ul className="d-flex align-items-center gap-3 m-0">
+              {!authUser ? (
+                <li className="position-relative">
+                  <button
+                    type="button"
+                    className="btn common-btn rounded-pill px-3"
+                    onClick={() => setShowLogin((v) => !v)}
+                    aria-haspopup="dialog"
+                    aria-expanded={showLogin ? "true" : "false"}
+                  >
+                    Login
+                  </button>
+
+                  {showLogin && (
+                    <div
+                      ref={popRef}
+                      className="h-login-form position-absolute"
+                      style={{ right: 0, zIndex: 9999, minWidth: 320 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <form onSubmit={handleLogin}>
+                        {err ? (
+                          <div className="error-msg" style={{ color: "#b00020" }}>
+                            {err}
+                          </div>
+                        ) : null}
+                        <ul className="sub-log">
+                          <li>
+                            <input
+                              type="email"
+                              placeholder="Email ID"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              autoComplete="email"
+                              maxLength={80}
+                              required
+                            />
+                          </li>
+                          <li>
+                            <input
+                              type="password"
+                              placeholder="Password"
+                              value={pass}
+                              onChange={(e) => setPass(e.target.value)}
+                              autoComplete="current-password"
+                              required
+                            />
+                          </li>
+                          <li className="d-flex justify-content-between form-sm-text">
+                            <a
+                              href="https://www.amipi.com/Create-Account/"
+                              className="for-pass"
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ cursor: "pointer" }}
+                            >
+                              New User
+                            </a>
+                            <a
+                              href="https://www.amipi.com/Forgot-Password/"
+                              className="for-pass"
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ cursor: "pointer" }}
+                            >
+                              Forgot Password?
+                            </a>
+                          </li>
+                          <li>
+                            <button
+                              className="go btn common-btn primary-black"
+                              type="submit"
+                              disabled={busy}
+                            >
+                              {busy ? "Please wait…" : "LOGIN"}
+                            </button>
+                          </li>
+                        </ul>
+                      </form>
+                    </div>
+                  )}
+                </li>
+              ) : (
+                <li className="list-group-item border aborder-primary rounded-pill bg-transparent d-flex align-items-center gap-2 px-3">
+                  <span className="small">
+                    Welcome,{" "}
+                    {authUser.fullname ||
+                      authUser.firstname ||
+                      authUser.email ||
+                      "User"}
+                  </span>
+                  <button
+                    className="btn btn-outline-dark btn-sm ms-1"
+                    onClick={handleLogout}
+                  >
+                    LOGOUT
+                  </button>
+                </li>
+              )}
+
+              <li>
+                <a href="/cart" className="btn btn-link text-dark cart-icon-head">
+                  <svg
+                    id="Layer_1"
+                    height="22"
+                    viewBox="0 0 28 28"
+                    width="22"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <g fill="rgb(0,0,0)">
+                      <path d="m20.94 19h-8.88c-1.38 0-2.58-.94-2.91-2.27l-2.12-8.49c-.13-.53.19-1.08.73-1.21.08-.02.16-.03.24-.03h17c.55 0 1 .45 1 1 0 .08-.01.16-.03.24l-2.12 8.48c-.33 1.34-1.53 2.28-2.91 2.28zm-11.66-10 1.81 7.24c.11.45.51.76.97.76h8.88c.46 0 .86-.31.97-.76l1.81-7.24z"></path>
+                      <path d="m8 9c-.46 0-.86-.31-.97-.76l-.81-3.24h-3.22c-.55 0-1-.45-1-1s.45-1 1-1h4c.46 0 .86.31.97.76l1 4c.13.53-.19 1.08-.73 1.21-.08.02-.16.03-.24.03z"></path>
+                      <path d="m11 25c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"></path>
+                      <path d="m22 25c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"></path>
+                    </g>
+                  </svg>
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
       </nav>
@@ -243,7 +428,9 @@ const Header = () => {
         aria-labelledby="mobileMenuLabel"
       >
         <div className="offcanvas-header">
-          <h5 className="offcanvas-title" id="mobileMenuLabel">Menu</h5>
+          <h5 className="offcanvas-title" id="mobileMenuLabel">
+            Menu
+          </h5>
           <button
             type="button"
             className="btn-close text-reset"
@@ -256,14 +443,34 @@ const Header = () => {
           {menu.map((main) => renderMobileSection(main))}
 
           <hr />
-          <div className="d-flex align-items-center justify-content-between">
-            <span className="small">Welcome, Mr. Tarun K Pawar</span>
-            <button className="btn btn-outline-dark btn-sm">LOGOUT</button>
-          </div>
-          <a href="/cart" className="d-inline-flex align-items-center mt-2 text-decoration-none">
-            <i className="fas fa-shopping-cart me-2" />
-            Cart
-          </a>
+          {!authUser ? (
+            <div className="d-flex align-items-center justify-content-between">
+              <button
+                className="btn btn-dark btn-sm"
+                onClick={() => setShowLogin(true)}
+                data-bs-dismiss="offcanvas"
+              >
+                Login
+              </button>
+              <a
+                href="/cart"
+                className="d-inline-flex align-items-center text-decoration-none"
+              >
+                <i className="fas fa-shopping-cart me-2" />
+                Cart
+              </a>
+            </div>
+          ) : (
+            <div className="d-flex align-items-center justify-content-between">
+              <span className="small">
+                Welcome,{" "}
+                {authUser.fullname || authUser.firstname || authUser.email}
+              </span>
+              <button className="btn btn-outline-dark btn-sm" onClick={handleLogout}>
+                LOGOUT
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
