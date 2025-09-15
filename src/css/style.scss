@@ -155,11 +155,13 @@ li.login-button {
     background: #f1f1f1;
     padding: 5px 10px;
     border-radius: 10px;
+    text-align: center;
 }
 .filter-options {
     display: flex;
     flex-wrap: wrap;
     gap: 12px 5px;
+    justify-content: center;
 }
 
 .filter-card {
@@ -349,14 +351,13 @@ li.login-button {
     display: block;
     border-radius: 0;
     overflow: hidden;
-    box-shadow: 0 2px 14px #22305218;
     background: #fff;
     transition: box-shadow 0.16s, transform 0.14s;
 }
-.gallery-image-link:hover {
-    box-shadow: 0 8px 24px #1e275a27;
-    transform: translateY(-3px) scale(1.04);
-}
+// .gallery-image-link:hover {
+//     box-shadow: 0 8px 24px #1e275a27;
+//     transform: translateY(-3px) scale(1.04);
+// }
 .gallery-image {
     display: block;
     width: 100%;
@@ -3192,7 +3193,7 @@ table.c_table_grey_box {margin-top: 0; }
 .c_flex_child_one .c_font_weight_normal{font-weight:normal !important;}
 .c_table_grey_box td.c_td_color_define{color:#606060;}
 .c_table_grey_box td.c_td_color_define,.c_table_grey_box th.c_td_color_define{padding:0px !important;}
-.band-heading-type {display: inline-block; width: 100%; margin: 0px 0; }
+.band-heading-type {display: inline-block; width: 100%; margin: 0px 0; text-align: center;}
 .d-flex.c_flex_box {margin-bottom: 15px !important; }
 .product-details .box-grey {
     background: #f1f1f1;
@@ -3327,7 +3328,7 @@ button.gallery-image-link {
     }
 
     /* Header */
-    .card-head{display:flex; align-items:center; justify-content:space-between; padding:5px 0 5px;color: #2c3b5b;}
+    .card-head{display:flex; align-items:center;padding:5px 0 5px;color: #2c3b5b;justify-content: center;gap: 0 20px;}
     .card-title{margin:0; font-size:clamp(16px, 2.2vw, 18px); letter-spacing:.2px; font-weight:700}
     .order-no{color:var(--muted); font-size:clamp(12px, 1.8vw, 14px)}
 
@@ -3405,3 +3406,9 @@ button.gallery-image-link {
       .pillbar{ grid-template-columns: 1fr; }
       .pill{width:100%;text-align: center;}
     }
+
+    @media (min-width: 1400px) {
+    .container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
+        max-width: 1400px;
+    }
+}

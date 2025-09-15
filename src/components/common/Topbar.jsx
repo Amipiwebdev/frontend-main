@@ -5,7 +5,7 @@ const Topbar = () => {
   const [store, setStore] = useState(null);
 
   useEffect(() => {
-    axios.get("https://api.mydiamondsearch.com/api/store-info").then(res => {
+    axios.get("https://jewelry.amipi.com/api/store-info").then(res => {
       setStore(res.data);
     });
   }, []);

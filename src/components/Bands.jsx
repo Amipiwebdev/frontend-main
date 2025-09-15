@@ -8,7 +8,81 @@ import { api } from "../apiClient"; // axios instance with baseURL
 
 const SEO_URL = "bands-test";
 
-/* -------------------------------- Helpers -------------------------------- */
+/* ------------------------------------------------------------------ */
+/*                              Helpers                                */
+/* ------------------------------------------------------------------ */
+
+/** Read customer/retailer ids from globals or localStorage so we can
+ *  send them along with wishlist requests. Falls back to 0. */
+function getClientIds() {
+  let customers_id = 0;
+  let parent_retailer_id = 0;
+
+  try {
+    const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
+
+    customers_id =
+      Number(g.CUST_ID ?? g.customer_id ?? g.customers_id ?? 0) || 0;
+    parent_retailer_id =
+      Number(g.ParentRetailerID ?? g.parent_retailer_id ?? 0) || 0;
+
+    // Also allow storing after login
+    if (!customers_id) {
+      const ls = JSON.parse(localStorage.getItem("amipi_auth") || "{}");
+      customers_id = Number(ls.customers_id ?? ls.customer_id ?? 0) || 0;
+      parent_retailer_id = Number(ls.parent_retailer_id ?? 0) || 0;
+    }
+  } catch (_) {}
+
+  return { customers_id, parent_retailer_id };
+}
+
+// NEW — pricing context you previously had in PHP sessions
+function getPricingParams() {
+  // try login payload first (what you store in Header.jsx as amipiUser)
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem("amipiUser") || "null");
+  } catch {}
+
+  const g = (window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {});
+
+  const customers_id = Number(
+    (user && (user.customer_id ?? user.customers_id)) ??
+      g.customers_id ??
+      g.customer_id ??
+      0
+  ) || 0;
+
+  // default 1 if unknown
+  const AMIPI_FRONT_Retailer_Jewelry_Level =
+    Number(
+      g.AMIPI_FRONT_Retailer_Jewelry_Level ??
+        user?.retailer_level_id ??
+        3
+    ) || 3;
+
+  // minima (fallback 0 if you don’t have them defined globally)
+  const AMIPI_FRONT_RetailerProductFlat =
+    Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
+  const AMIPI_FRONT_RetailerProductPer =
+    Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
+
+  // retailer flag (Yes/No)
+  const AMIPI_FRONT_IS_REATILER =
+    (g.AMIPI_FRONT_IS_REATILER ??
+      (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes"
+      ? "Yes"
+      : "No";
+
+  return {
+    customers_id,
+    AMIPI_FRONT_Retailer_Jewelry_Level,
+    AMIPI_FRONT_RetailerProductFlat,
+    AMIPI_FRONT_RetailerProductPer,
+    AMIPI_FRONT_IS_REATILER,
+  };
+}
 
 function SafeImage({ src, alt, className, style }) {
   const [ok, setOk] = useState(true);
@@ -57,7 +131,7 @@ function pickFirstAvailable(val, allowed) {
   return allowed[0];
 }
 
-/** Resolve any image/video ref to an absolute URL */
+/** Resolve any image/video ref to an absolute URL used by the CDN */
 function toAbsoluteMediaUrl(type, input) {
   const raw =
     typeof input === "string"
@@ -87,7 +161,9 @@ const formatNumber = (val) => {
   return n.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
 };
 
-/* -------------------------------- Lightbox -------------------------------- */
+/* ------------------------------------------------------------------ */
+/*                             Lightbox                                */
+/* ------------------------------------------------------------------ */
 
 function Lightbox({ items, index, onClose, onPrev, onNext }) {
   const open = index >= 0 && items.length > 0;
@@ -171,27 +247,55 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
   );
 }
 
-/* ----------- Tiny 2-up carousel for the gallery (no libs) ----------- */
+/* ------------------------------------------------------------------ */
+/*     Infinity carousel that repeats from the start if short          */
+/* ------------------------------------------------------------------ */
 
-function GalleryCarousel({ items, onOpen, itemsPerSlide = 2 }) {
+function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
+  const [perSlide, setPerSlide] = useState(2); // desktop: 2-up, mobile: 1-up
+
+  // Responsive columns: <768 => 1, else 3
+  useEffect(() => {
+    const handle = () => setPerSlide(window.innerWidth < 768 ? 1 : 3);
+    handle();
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
+
+  // Build padded slides so there's never an empty slide
   const slides = useMemo(() => {
+    if (!Array.isArray(items) || items.length === 0) return [];
+
+    const nPer = Math.max(1, Math.min(perSlide, items.length));
+    const targetLen = Math.max(items.length, nPer * minSlides);
+
+    // Pad by repeating from the start; keep the original index for lightbox
+    const padded = Array.from({ length: targetLen }, (_, i) => ({
+      ...items[i % items.length],
+      __origIndex: i % items.length,
+    }));
+
     const arr = [];
-    for (let i = 0; i < items.length; i += itemsPerSlide) {
-      arr.push(items.slice(i, i + itemsPerSlide));
+    for (let i = 0; i < padded.length; i += nPer) {
+      arr.push(padded.slice(i, i + nPer));
     }
     return arr;
-  }, [items, itemsPerSlide]);
+  }, [items, perSlide, minSlides]);
 
   const [idx, setIdx] = useState(0);
   const total = slides.length;
 
   useEffect(() => {
-    if (idx > total - 1) setIdx(0);
+    if (total === 0) setIdx(0);
+    else if (idx > total - 1) setIdx(0);
   }, [total, idx]);
 
-  if (!items.length) {
+  if (!items?.length) {
     return (
-      <div className="gallery-image-link" style={{ background: "#f5f5f8", minHeight: 300 }} />
+      <div
+        className="gallery-image-link"
+        style={{ background: "#f5f5f8", minHeight: height }}
+      />
     );
   }
 
@@ -200,51 +304,75 @@ function GalleryCarousel({ items, onOpen, itemsPerSlide = 2 }) {
       <div
         style={{
           display: "flex",
-          width: `${total * 100}%`,
-          transform: `translateX(-${idx * (100 / total)}%)`,
+          width: `${Math.max(total, 1) * 100}%`,
+          transform: `translateX(-${idx * (100 / Math.max(total, 1))}%)`,
           transition: "transform .35s ease",
         }}
       >
         {slides.map((slide, s) => (
-          <div key={s} style={{ width: `${100 / total}%`, padding: 0 }}>
+          <div key={s} style={{ width: `${100 / Math.max(total, 1)}%` }}>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: `repeat(${Math.min(perSlide, slide.length)}, 1fr)`,
                 gap: 0,
-                minHeight: 300,
+                minHeight: height,
               }}
             >
               {slide.map((item, i) => {
-                const globalIndex = s * itemsPerSlide + i;
+                const open = () => onOpen(item.__origIndex ?? 0);
+                const commonBtnStyle = {
+                  background: "transparent",
+                  border: 0,
+                  padding: 0,
+                  height,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                };
+
                 return item.type === "video" ? (
                   <button
-                    key={`v-${globalIndex}`}
+                    key={`v-${s}-${i}`}
                     type="button"
                     className="gallery-image-link"
                     title="View video"
-                    onClick={() => onOpen(globalIndex)}
-                    style={{ background: "transparent", border: 0, padding: 0 }}
+                    onClick={open}
+                    style={commonBtnStyle}
                   >
                     <SafeVideo
                       src={item.src}
+                      controls={false}
                       className="gallery-image"
-                      style={{ background: "#000" }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        background: "#000",
+                        pointerEvents: "none",
+                      }}
                     />
                   </button>
                 ) : (
                   <button
-                    key={`i-${globalIndex}`}
+                    key={`i-${s}-${i}`}
                     type="button"
                     className="gallery-image-link"
                     title="View image"
-                    onClick={() => onOpen(globalIndex)}
-                    style={{ background: "transparent", border: 0, padding: 0 }}
+                    onClick={open}
+                    style={commonBtnStyle}
                   >
                     <SafeImage
                       src={item.src}
-                      alt={`Product view ${globalIndex + 1}`}
+                      alt="Product view"
                       className="gallery-image"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        background: "#fff",
+                      }}
                     />
                   </button>
                 );
@@ -302,13 +430,14 @@ function GalleryCarousel({ items, onOpen, itemsPerSlide = 2 }) {
   );
 }
 
-/* =============================== MAIN =============================== */
+/* ===================================================================== */
+/*                               MAIN PAGE                               */
+/* ===================================================================== */
 
 const Bands = () => {
-  // Page title
   const [pageTitle, setPageTitle] = useState("Bands");
 
-  // Allowed IDs
+  // Allowed ID lists (from catnav)
   const [allowed, setAllowed] = useState({
     stoneTypes: [],
     designs: [],
@@ -316,8 +445,12 @@ const Bands = () => {
     settingStyles: [],
     metals: [],
     qualities: [],
+    vendors: [],        // keep vendors in state
     diamondSizes: [],
   });
+
+  // String CSV we will actually send to /productnew
+  const [vendorParam, setVendorParam] = useState(""); // e.g. "16,23"
 
   // Display data
   const [data, setData] = useState({
@@ -349,14 +482,26 @@ const Bands = () => {
   const [estCaratWt, setEstCaratWt] = useState(null);
   const [estPrice, setEstPrice] = useState(null);
 
-  // Lightbox state
+  // Lightbox
   const [lbIndex, setLbIndex] = useState(-1);
+
+  // Wishlist UI state
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [wishLoading, setWishLoading] = useState(false);
+
+  // Compare items
+const [isCompared, setIsCompared] = useState(false);
+const [comparLoading, setComparLoading] = useState(false);
+
+  // Add to cart
+const [isInCart, setIsInCart] = useState(false);
+const [cartLoading, setCartLoading] = useState(false);
 
   useEffect(() => {
     document.title = pageTitle;
   }, [pageTitle]);
 
-  // Image URLs for filter cards
+  // Helpers for filter card images
   const getImageUrl = (file, folder) =>
     file?.startsWith("http")
       ? file
@@ -364,37 +509,62 @@ const Bands = () => {
       ? `https://www.amipi.com/images/${folder}/${file}`
       : "";
 
-  /* 1) Initial: catnav -> allowed IDs + defaults */
+  /* 1) Initial: fetch catnav + display lists + defaults */
   useEffect(() => {
     api.get(`/catnav/${SEO_URL}`).then(async (res) => {
-      const nav = res.data?.[0];
+      const nav = res.data?.[0] || {};
 
-      setPageTitle(nav?.category_navigation_title || "Bands");
+      setPageTitle(nav.category_navigation_title || "Bands");
 
-      const stoneTypeIds = String(nav?.category_navigation_sub_stone_type || "")
+      const stoneTypeIds = String(nav.category_navigation_sub_stone_type ?? "")
         .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
         .map(Number)
-        .filter(Boolean);
-      const designIds = String(nav?.category_navigation_sub_category_group || "")
+        .filter((n) => !Number.isNaN(n));
+
+      const designIds = String(nav.category_navigation_sub_category_group ?? "")
         .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
         .map(Number)
-        .filter(Boolean);
-      const settingStyleIds = String(nav?.category_navigation_sub_category || "")
+        .filter((n) => !Number.isNaN(n));
+
+      const settingStyleIds = String(nav.category_navigation_sub_category ?? "")
         .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
         .map(Number)
-        .filter(Boolean);
-      const shapeIds = String(nav?.shap_display || "")
+        .filter((n) => !Number.isNaN(n));
+
+      const shapeIds = String(nav.shap_display ?? "")
         .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
         .map(Number)
-        .filter(Boolean);
-      const metalIds = String(nav?.metal_type_display || "")
+        .filter((n) => !Number.isNaN(n));
+
+      const metalIds = String(nav.metal_type_display ?? "")
         .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
         .map(Number)
-        .filter(Boolean);
-      const qualityIds = String(nav?.qualities_display || "")
+        .filter((n) => !Number.isNaN(n));
+
+      const qualityIds = String(nav.qualities_display ?? "")
         .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
         .map(Number)
-        .filter(Boolean);
+        .filter((n) => !Number.isNaN(n));
+
+      // IMPORTANT: your API returns "vendor_display" (singular) in some places
+      const vendorIds = String(nav.vendor_display ?? nav.vendors_display ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
+        .map(Number)
+        .filter((n) => !Number.isNaN(n));
 
       setAllowed({
         stoneTypes: stoneTypeIds,
@@ -403,8 +573,11 @@ const Bands = () => {
         settingStyles: settingStyleIds,
         metals: metalIds,
         qualities: qualityIds,
+        vendors: vendorIds,
         diamondSizes: [],
       });
+
+      setVendorParam(vendorIds.join(",")); // CSV we will send to /productnew
 
       const [
         stoneTypesRes,
@@ -423,46 +596,46 @@ const Bands = () => {
       ]);
 
       setData({
-        stoneTypes: stoneTypesRes.data,
-        designs: designsRes.data,
-        shapes: shapesRes.data,
-        settingStyles: settingStylesRes.data,
-        metals: metalsRes.data,
-        qualities: qualitiesRes.data,
+        stoneTypes: stoneTypesRes.data || [],
+        designs: designsRes.data || [],
+        shapes: shapesRes.data || [],
+        settingStyles: settingStylesRes.data || [],
+        metals: metalsRes.data || [],
+        qualities: qualitiesRes.data || [],
         diamondSizes: [],
       });
 
       setSelected((prev) => ({
         ...prev,
         stoneType: pickFirstAvailable(
-          Number(nav?.category_navigation_default_sub_stone_type),
+          Number(nav.category_navigation_default_sub_stone_type),
           stoneTypeIds
         ),
         design: pickFirstAvailable(
-          Number(nav?.category_navigation_default_sub_category_group),
+          Number(nav.category_navigation_default_sub_category_group),
           designIds
         ),
-        shape: pickFirstAvailable(Number(nav?.shap_default), shapeIds),
+        shape: pickFirstAvailable(Number(nav.shap_default), shapeIds),
         settingStyle: pickFirstAvailable(
-          Number(nav?.category_navigation_default_sub_category),
+          Number(nav.category_navigation_default_sub_category),
           settingStyleIds
         ),
-        metal: pickFirstAvailable(Number(nav?.metal_type_default), metalIds),
-        quality: pickFirstAvailable(Number(nav?.qualities_default), qualityIds),
+        metal: pickFirstAvailable(Number(nav.metal_type_default), metalIds),
+        quality: pickFirstAvailable(Number(nav.qualities_default), qualityIds),
         diamondSize: null,
         ringSize: null,
       }));
     });
   }, []);
 
-  /* 2) StoneType => Designs */
+  /* 2) StoneType => Design */
   useEffect(() => {
     if (!selected.stoneType) return;
     api
       .get(`/designs`, { params: { stoneType: selected.stoneType } })
       .then((res) => {
         const allowedIds = allowed.designs;
-        const filtered = res.data.filter((d) => allowedIds.includes(d.id));
+        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, designs: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -471,7 +644,7 @@ const Bands = () => {
       });
   }, [selected.stoneType, allowed.designs]);
 
-  /* 3) Design => Shapes */
+  /* 3) Design => Shape */
   useEffect(() => {
     if (!selected.stoneType || !selected.design) return;
     api
@@ -480,7 +653,7 @@ const Bands = () => {
       })
       .then((res) => {
         const allowedIds = allowed.shapes;
-        const filtered = res.data.filter((d) => allowedIds.includes(d.id));
+        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, shapes: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -502,7 +675,7 @@ const Bands = () => {
       })
       .then((res) => {
         const allowedIds = allowed.settingStyles;
-        const filtered = res.data.filter((d) => allowedIds.includes(d.id));
+        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, settingStyles: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -534,7 +707,7 @@ const Bands = () => {
       })
       .then((res) => {
         const allowedIds = allowed.metals;
-        const filtered = res.data.filter((d) => allowedIds.includes(d.id));
+        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, metals: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -571,7 +744,7 @@ const Bands = () => {
       })
       .then((res) => {
         const allowedIds = allowed.qualities;
-        const filtered = res.data.filter((d) => allowedIds.includes(d.id));
+        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, qualities: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -587,15 +760,21 @@ const Bands = () => {
     allowed.qualities,
   ]);
 
-  /* Decide unit (ct/mm) once for the chosen stone type */
+  /* Decide size unit (ct/mm) from stone type. Fallback: Diamonds => ct; others => mm */
   const selectedStoneType = useMemo(
     () => data.stoneTypes.find((st) => (st.pst_id || st.id) === selected.stoneType),
     [data.stoneTypes, selected.stoneType]
   );
 
-  // Fallback: Diamonds => ct, others => mm (in case flags are missing)
   const fallbackUnit =
-    /diamond/i.test(String(selectedStoneType?.pst_name || selectedStoneType?.name || ""))
+    /diamond/i.test(
+      String(
+        selectedStoneType?.pst_name ||
+          selectedStoneType?.pst_description ||
+          selectedStoneType?.name ||
+          ""
+      )
+    )
       ? "ct"
       : "mm";
 
@@ -610,7 +789,7 @@ const Bands = () => {
       ? "mm"
       : "ct";
 
-  /* 7) Quality => Diamond Size (dynamic, unit-aware) */
+  /* 7) Quality => Stone Size (dynamic values from weight or mm) */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -631,23 +810,29 @@ const Bands = () => {
           settingStyle: selected.settingStyle,
           metal: selected.metal,
           quality: selected.quality,
-          unit: sizeUnit, // (optional) backend can sort using this
+          unit: sizeUnit, // optional backend hint
         },
       })
       .then((res) => {
         const rows = Array.isArray(res.data) ? res.data : [];
 
-        // Pick ct or mm from object rows; also support legacy { size }
+        // Each row can be a number (legacy) or an object. Prefer unit-specific fields.
         let sizes = rows.map((r) => {
           if (typeof r === "object" && r !== null) {
-            const mm = r.size_mm ?? r.center_stone_mm ?? null;
-            const ct = r.size_ct ?? r.size ?? r.center_stone_weight ?? null;
+            const mm =
+              r.size_mm ?? r.center_stone_mm ?? r.mm ?? null;
+            const ct =
+              r.size_ct ??
+              r.size ??
+              r.center_stone_weight ??
+              r.weight ??
+              null;
             return sizeUnit === "mm" ? mm : ct;
           }
-          return r; // legacy numeric list
+          return r;
         });
 
-        // Cleanup -> number -> de-dupe -> sort asc
+        // Clean -> numeric -> unique -> sort
         sizes = sizes
           .filter((v) => v !== null && v !== undefined && v !== "")
           .map((v) => Number(v))
@@ -668,10 +853,10 @@ const Bands = () => {
     selected.settingStyle,
     selected.metal,
     selected.quality,
-    sizeUnit, // re-run if ct/mm flips
+    sizeUnit, // re-run if unit flips
   ]);
 
-  /* 8) Diamond Size => Product */
+  /* 8) Stone Size => Product (ALWAYS include vendors CSV + pricing context) */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -686,20 +871,22 @@ const Bands = () => {
       setRingOptions([]);
       return;
     }
-    api
-      .get(`/productnew`, {
-        params: {
-          stoneType: selected.stoneType,
-          design: selected.design,
-          shape: selected.shape,
-          settingStyle: selected.settingStyle,
-          metal: selected.metal,
-          quality: selected.quality,
-          diamondSize: selected.diamondSize,
-          unit: sizeUnit, // (optional) if your product query needs unit
-        },
-      })
-      .then((res) => setProduct(res.data));
+
+    const pricing = getPricingParams(); // NEW
+    const params = {
+      stoneType: selected.stoneType,
+      design: selected.design,
+      shape: selected.shape,
+      settingStyle: selected.settingStyle,
+      metal: selected.metal,
+      quality: selected.quality,
+      diamondSize: selected.diamondSize,
+      unit: sizeUnit,
+      vendors: vendorParam || "",  // send even if empty
+      ...pricing,                  // NEW — send pricing context
+    };
+
+    api.get(`/productnew`, { params }).then((res) => setProduct(res.data));
   }, [
     selected.stoneType,
     selected.design,
@@ -709,9 +896,10 @@ const Bands = () => {
     selected.quality,
     selected.diamondSize,
     sizeUnit,
+    vendorParam, // rerun if vendors csv changes
   ]);
 
-  /* 9) Product => Ring size options */
+  /* 9) Product => Ring options */
   useEffect(() => {
     if (!product?.products_id) {
       setRingOptions([]);
@@ -731,12 +919,16 @@ const Bands = () => {
     });
   }, [product?.products_id]);
 
-  /* 10) Estimates */
+  /* 10) Estimates for pcs / carat / price w.r.t ring size */
   useEffect(() => {
     if (!product) return;
-    let diamondPcs = Number(product.estimated_pcs || product.diamond_pics || 2);
+    let diamondPcs = Number(product.estimated_pcs || product.diamond_pics || 0);
     let caratWeight = Number(product.total_carat_weight || 0);
-    let price = Number(product.products_price1 || product.products_price || 0);
+
+    // CHANGED — prefer computed price from API, fallback to base price or legacy field
+    let price = Number(
+      product.products_price ?? product.base_price ?? product.products_price1 ?? 0
+    );
 
     const selectedRingOption = ringOptions.find((o) => o.value_id === selected.ringSize);
     if (selectedRingOption) {
@@ -776,7 +968,7 @@ const Bands = () => {
     setEstPrice(price);
   }, [product, ringOptions, selected.ringSize]);
 
-  /* Gallery items */
+  /* Build media items for gallery/lightbox */
   const galleryItems = useMemo(() => {
     const arr = [];
     if (product?.videos?.length) {
@@ -800,17 +992,161 @@ const Bands = () => {
   const nextLightbox = () =>
     setLbIndex((i) => (i + 1) % Math.max(galleryItems.length, 1));
 
-  // Filter click handler
+  // Filter click handler (don't clear all downstream — only invalidate if needed)
   function handleFilterChange(key, value) {
-    const idx = FILTER_ORDER.indexOf(key);
-    const cleared = FILTER_ORDER.slice(idx + 1).reduce(
-      (acc, k) => ({ ...acc, [k]: null }),
-      {}
-    );
-    setSelected((prev) => ({ ...prev, [key]: value, ...cleared }));
+    setSelected((prev) => {
+      const updated = { ...prev, [key]: value };
+
+      // Map each filter key to its available options
+      const dataMap = {
+        stoneType: data.stoneTypes.map((x) => x.pst_id || x.id),
+        design: data.designs.map((x) => x.psg_id || x.id),
+        shape: data.shapes.map((x) => x.id),
+        settingStyle: data.settingStyles.map((x) => x.psc_id || x.id),
+        metal: data.metals.map((x) => x.dmt_id || x.id),
+        quality: data.qualities.map((x) => x.dqg_id || x.id),
+        diamondSize: data.diamondSizes, // already numbers
+        ringSize: ringOptions.map((x) => x.value_id),
+      };
+
+      // Walk down the filter order after the changed one
+      const idx = FILTER_ORDER.indexOf(key);
+      for (const k of FILTER_ORDER.slice(idx + 1)) {
+        if (updated[k] !== null && !dataMap[k]?.includes(updated[k])) {
+          updated[k] = null;
+        }
+      }
+      return updated;
+    });
   }
 
-  /* --------------------------------- Render -------------------------------- */
+  /* -------------------- Wishlist state + actions -------------------- */
+
+  // Query current wishlist state whenever product changes
+  useEffect(() => {
+    if (!product?.products_id) {
+      setIsWishlisted(false);
+      return;
+    }
+    const { customers_id, parent_retailer_id } = getClientIds();
+    api
+      .get("/wishlist/check", {
+        params: {
+          products_id: product.products_id,
+          customers_id,
+          parent_retailer_id,
+        },
+      })
+      .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
+      .catch(() => setIsWishlisted(false));
+  }, [product?.products_id]);
+
+  async function handleWishlistToggle() {
+     const pricing = getPricingParams();
+    if (!product?.products_id || wishLoading) return;
+    const { customers_id, parent_retailer_id } = getClientIds();
+    try {
+      setWishLoading(true);
+      const { data } = await api.post("/wishlist/toggle", {
+        products_id: product.products_id,
+        customers_id,
+        parent_retailer_id,
+        ...pricing, // NEW — send pricing context
+      });
+      setIsWishlisted(data?.status === "added");
+    } catch (e) {
+      console.error("Wishlist toggle failed", e);
+    } finally {
+      setWishLoading(false);
+    }
+  }
+
+  /* -------------------- compare state + actions -------------------- */
+useEffect(() => {
+  if (!product?.products_id) {
+    setIsCompared(false);
+    return;
+  }
+
+  const { customers_id, parent_retailer_id } = getClientIds();
+  api
+    .get("/compare/check_product", {
+      params: {
+        products_id: product.products_id,
+        customers_id,
+        parent_retailer_id,
+      },
+    })
+    .then((res) => setIsCompared(Boolean(res.data?.compared)))
+    .catch(() => setIsCompared(false));
+}, [product?.products_id]);
+
+async function handleCompareToggle() {
+  const pricing = getPricingParams();
+  if (!product?.products_id || comparLoading) return;
+
+  const { customers_id, parent_retailer_id } = getClientIds();
+  try {
+    setComparLoading(true);
+    const { data } = await api.post("/compare/toggle_product", {
+      products_id: product.products_id,
+      customers_id,
+      parent_retailer_id,
+      ...pricing, // NEW — send pricing context
+    });
+    setIsCompared(data?.status === "added");
+  } catch (e) {
+    console.error("Compare toggle failed", e);
+  } finally {
+    setComparLoading(false);
+  }
+}
+
+
+/* -------------------- Add to cart state + actions -------------------- */
+
+  // Query current cart state whenever product changes
+  useEffect(() => {
+    if (!product?.products_id) {
+      setIsInCart(false);
+      return;
+    }
+    const { customers_id, parent_retailer_id } = getClientIds();
+    api
+      .get("/cartcheck", {
+        params: {
+          products_id: product.products_id,
+          customers_id,
+          parent_retailer_id,
+        },
+      })
+      .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+      .catch(() => setIsInCart(false));
+  }, [product?.products_id]);
+
+  async function handleCartToggle() {
+    const pricing = getPricingParams();
+    if (!product?.products_id || cartLoading) return;
+    const { customers_id, parent_retailer_id } = getClientIds();
+    try {
+      setCartLoading(true);
+      const { data } = await api.post("/carttoggle", {
+        products_id: product.products_id,
+        customers_id,
+        parent_retailer_id,
+        ...pricing, // NEW — send pricing context
+      });
+      setIsInCart(data?.status === "added");
+    } catch (e) {
+      console.error("Wishlist toggle failed", e);
+    } finally {
+      setWishLoading(false);
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*                               Render                                */
+  /* ------------------------------------------------------------------ */
 
   return (
     <div>
@@ -820,9 +1156,9 @@ const Bands = () => {
         <div className="row">
           <h1>{pageTitle}</h1>
 
-          <div className="main-content flex-wrap d-flex align-items-start">
-            {/* GALLERY: 2 per slide + lightbox */}
-            <div className="left-gallery-band col-12 p-3">
+          <div className="main-content flex-wrap d-flex align-items-start p-0">
+            {/* GALLERY */}
+            <div className="left-gallery-band row col-12 p-3">
               <GalleryCarousel items={galleryItems} onOpen={openLightbox} />
               <Lightbox
                 items={galleryItems}
@@ -834,7 +1170,7 @@ const Bands = () => {
             </div>
 
             {/* FILTERS */}
-            <div className="right-filters col-12 d-flex flex-wrap align-items-start">
+            <div className="right-filters row col-12 d-flex flex-wrap align-items-start">
               {/* Stone Type */}
               <div className="filter-block stone-type col-12 col-lg-6 col-md-12 col-sm-12">
                 <div className="filter-title">STONE TYPE</div>
@@ -984,7 +1320,7 @@ const Bands = () => {
                 </div>
               </div>
 
-              {/* Stone Size (dynamic unit) */}
+              {/* Stone Size (unit-aware) */}
               <div className="filter-block diamond-s col-12 col-lg-3 col-md-12 col-sm-12">
                 <div className="filter-title">STONE SIZE ({sizeUnit.toUpperCase()})</div>
                 <div className="filter-options diamond-size">
@@ -1021,7 +1357,7 @@ const Bands = () => {
                 </div>
               )}
 
-              {/* PRODUCT DETAILS */}
+              {/* PRODUCT DETAILS / ACTIONS */}
               {product ? (
                 <>
                   <div className="product-details col-12 col-lg-6 col-md-12 col-sm-12 filter-block">
@@ -1030,7 +1366,9 @@ const Bands = () => {
                         <main className="wrap">
                           <section className="selection-card" role="region" aria-labelledby="ys-title">
                             <header className="card-head">
-                              <h2 id="ys-title" className="card-title">YOUR SELECTION</h2>
+                              <h2 id="ys-title" className="card-title">
+                                YOUR SELECTION
+                              </h2>
                               <span className="order-no">#{product.products_style_no || "--"}</span>
                             </header>
 
@@ -1042,8 +1380,8 @@ const Bands = () => {
                               <div className="pill small" aria-label="Ring size">
                                 <strong>Ring Size:</strong>
                                 <span>
-                                  {ringOptions.find((o) => o.value_id === selected.ringSize)?.value_name ||
-                                    "--"}
+                                  {ringOptions.find((o) => o.value_id === selected.ringSize)
+                                    ?.value_name || "--"}
                                 </span>
                               </div>
                               <div className="pill" aria-label="Estimated carat weight">
@@ -1065,7 +1403,11 @@ const Bands = () => {
                                 ${" "}
                                 {estPrice !== null
                                   ? Number(estPrice).toFixed(0)
-                                  : product.products_price1 || product.products_price || "--"}
+                                  : // CHANGED — prefer computed products_price from API
+                                    (product.products_price ??
+                                      product.base_price ??
+                                      product.products_price1 ??
+                                      "--")}
                               </div>
                             </div>
 
@@ -1123,9 +1465,7 @@ const Bands = () => {
                           {product.products_name || "--"}
                         </a>
                       </p>
-                      <p className="stud-subtitle">
-                        {product.products_description || "--"}
-                      </p>
+                      <p className="stud-subtitle">{product.products_description || "--"}</p>
                     </div>
 
                     <div className="d-flex c_flex_box">
@@ -1141,22 +1481,83 @@ const Bands = () => {
                               <i className="fa fa-cog" aria-hidden="true"></i>
                             </a>
                           </li>
-                          <li className="common-btn" style={{ cursor: "pointer" }} title="Share With A Friend">
+
+                          <li
+                            className="common-btn"
+                            style={{ cursor: "pointer" }}
+                            title="Share With A Friend"
+                          >
                             <i className="fa fa-share-alt" aria-hidden="true"></i>
                           </li>
-                          <li style={{ cursor: "pointer" }} title="Add to Wishlist" className="wishlist-btn common-btn">
-                            <i className="fa fa-heart" aria-hidden="true"></i>
+
+                          {/* Wishlist toggle */}
+                          <li
+                            className="common-btn"
+                            title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
+                            style={{ cursor: wishLoading ? "wait" : "pointer" }}
+                          >
+                            <button
+                              type="button"
+                              onClick={handleWishlistToggle}
+                              disabled={wishLoading}
+                              className="btn btn-link p-0"
+                              aria-pressed={isWishlisted}
+                              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                            >
+                              <i
+                                className="fa fa-heart"
+                                aria-hidden="true"
+                                style={{ color: isWishlisted ? "#e74c3c" : "#2c3b5b" }}
+                              />
+                            </button>
                           </li>
-                          <li style={{ cursor: "pointer" }} className="AddCompareButtClass wishlist-btn common-btn" title="Add To Compare">
-                            <i className="fa fa-compress" aria-hidden="true"></i>
+
+                          {/* Compare placeholder */}
+                           <li
+                            className="AddCompareButtClass wishlist-btn common-btn"
+                            title={isCompared ? "Remove From Compare" : "Add to Compare"}
+                            style={{ cursor: comparLoading ? "wait" : "pointer" }}
+                          >
+                            <button
+                              type="button"
+                              onClick={handleCompareToggle}
+                              disabled={comparLoading}
+                              className="btn btn-link p-0"
+                              aria-pressed={isCompared}
+                              aria-label={isCompared ? "Remove from compare" : "Add to compare"}
+                            >
+                              <i
+                                className="fa fa-compress"
+                                aria-hidden="true"
+                                style={{ color: isCompared  ? "#e74c3c" : "#2c3b5b" }}
+                              />
+                            </button>
                           </li>
-                          <li style={{ cursor: "pointer" }} className="hover-none">
-                            <div className="band-cart-btn">
-                              <div className="common-btn band-cart" style={{ cursor: "pointer" }} title="Add To Cart">
-                                <i className="fa fa-shopping-cart" aria-hidden="true"></i> ADD TO CART
-                              </div>
+                         
+
+                          {/* Add to cart button placeholder */}
+                           <li 
+                            className="hover-none"
+                            title={isInCart ? "Remove From Cart" : "Add to Cart"}
+                            style={{ cursor: cartLoading ? "wait" : "pointer" }}
+                          ><div className="band-cart-btn">
+                            <button
+                              type="button"
+                              onClick={handleCartToggle}
+                              disabled={cartLoading}
+                              className="common-btn band-cart"
+                              aria-pressed={isInCart}
+                              aria-label={isInCart ? "Remove from cart" : "Add to cart"}
+                            > 
+                              <i
+                                className="fa fa-shopping-cart"
+                                aria-hidden="true"
+                                style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
+                              />  Add To Cart
+                            </button>
                             </div>
                           </li>
+
                         </ul>
                       </div>
                     </div>

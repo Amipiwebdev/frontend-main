@@ -68,23 +68,27 @@ const Header = () => {
     switch (item.menu_type) {
       case 1:
         return (
-          <div className={colClass}>
-            <a href={item.page_link}>
-              {item.image && (
-                <img
-                  src={IMG_PATH + item.image}
-                  className="img-fluid"
-                  alt={item.alias}
-                />
-              )}
-              <h3 className="amipi-list-heading">{item.alias}</h3>
-              <span className="ruby-list-desc">{item.sub_title}</span>
-            </a>
+          <div className="col-sm-12">
+            <div className="row">
+                <div className="col-sm-12">
+                    <a href={item.page_link}>
+                      {item.image && (
+                        <img
+                          src={IMG_PATH + item.image}
+                          className="img-fluid"
+                          alt={item.alias}
+                        />
+                      )}
+                      <h3 className="amipi-list-heading">{item.alias}</h3>
+                      <span className="ruby-list-desc">{item.sub_title}</span>
+                    </a>
+                </div>
+            </div>
           </div>
         );
       case 2:
         return (
-          <div className={colClass}>
+          <div className="col-sm-12">
             <div className="row title-left-image d-flex">
               {item.image && (
                 <div className="col-sm-5">
