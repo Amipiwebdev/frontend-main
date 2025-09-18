@@ -1,15 +1,57 @@
 // src/components/common/Header.jsx
 import React, { useEffect, useRef, useState } from "react";
-import { api } from "../../apiClient"; // <-- use the shared client
+import { api } from "../../apiClient";
 import logo from "../../assets/logo.png";
 
+/**
+ * Mirrors the original PHP logic:
+ * - main.sub_nav_col            -> how many columns in the mega dropdown
+ * - subnav.display_in_col (1+)  -> which column this subnav lives in
+ * - subnav.sub_nav_col (>1)     -> item is "two-up" (col-sm-6) otherwise full (col-sm-12)
+ * - menu_type (1..4)            -> block layout per your cases
+ */
+
 const IMG_PATH = "https://www.amipi.com/images/category_navigation_image/";
+const THUMB_BASE =
+  "https://www.amipi.com/product_thumb.php?img=images/category_navigation_image/";
+
+// ---------- Small helpers ----------
+const toInt = (v, d = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : d;
+};
+
+const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+const getColumnClass = (count) => {
+  if (count === 1) return "col-sm-12";
+  if (count === 2) return "col-sm-6";
+  if (count === 3) return "col-sm-4";
+  if (count === 4) return "col-sm-3";
+  if (count >= 5) return "col-sm-3"; // we'll add an inline 20% fix below for exactly 5 cols
+  return "col-sm-3";
+};
+
+// Get the highest "display_in_col" present among a list of items (top-level only)
+const getMaxDisplayColUsed = (items = []) =>
+  items.reduce((max, it) => Math.max(max, toInt(it?.display_in_col, 0)), 0);
+
+// Group subnav items by display_in_col = 1..N, default invalid to last col
+const groupByDisplayColumn = (items = [], colCount = 5) => {
+  const cols = Array.from({ length: colCount }, () => []);
+  items.forEach((it) => {
+    let di = toInt(it?.display_in_col, 0);
+    di = di >= 1 && di <= colCount ? di : colCount; // put invalid ones into the last column
+    cols[di - 1].push(it);
+  });
+  return cols;
+};
 
 const Header = () => {
   const [menu, setMenu] = useState([]);
   const [showLogin, setShowLogin] = useState(false);
 
-  // Auth state (persisted in localStorage)
+  // Auth state (persisted)
   const [authUser, setAuthUser] = useState(() => {
     try {
       const raw = localStorage.getItem("amipiUser");
@@ -19,17 +61,57 @@ const Header = () => {
     }
   });
 
-  // Login form state
+  // Detect hover-capable device
+  const [isHoverable, setIsHoverable] = useState(() => {
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+      return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => setIsHoverable(mq.matches);
+    update();
+    if (mq.addEventListener) mq.addEventListener("change", update);
+    else mq.addListener(update);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
+      else mq.removeListener(update);
+    };
+  }, []);
+
+  // Programmatic dropdown toggle (Bootstrap-like)
+  const openDropdown = (liEl) => {
+    if (!liEl) return;
+    liEl.classList.add("show");
+    const toggle = liEl.querySelector(".nav-link.dropdown-toggle");
+    const menu = liEl.querySelector(".dropdown-menu");
+    if (toggle) toggle.setAttribute("aria-expanded", "true");
+    if (menu) menu.classList.add("show");
+  };
+
+  const closeDropdown = (liEl) => {
+    if (!liEl) return;
+    liEl.classList.remove("show");
+    const toggle = liEl.querySelector(".nav-link.dropdown-toggle");
+    const menu = liEl.querySelector(".dropdown-menu");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+    if (menu) menu.classList.remove("show");
+  };
+
+  // Login state
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  // Fetch mega menu (no credentials)
+  // Fetch mega menu
   useEffect(() => {
     api
       .get("/mega-menu")
-      .then((res) => setMenu(res.data || []))
+      .then((res) => setMenu(Array.isArray(res.data) ? res.data : []))
       .catch(() => setMenu([]));
   }, []);
 
@@ -51,135 +133,183 @@ const Header = () => {
     };
   }, [showLogin]);
 
-  // Helpers
-  const getColumnClass = (count) => {
-    if (count === 1) return "col-sm-12";
-    if (count === 2) return "col-sm-6";
-    if (count === 3) return "col-sm-4";
-    if (count >= 4) return "col-sm-3";
-    return "col-sm-3";
-  };
+  // ---------- Renderers that mirror PHP "cases" ----------
 
-  // Renders one item exactly like desktop (images + SVG), used in both desktop and mobile
-  const renderMenuContent = (item, isChild = false, subnavCount = 1) => {
-    const colClass = subnavCount > 1 ? "col-sm-6" : "col-sm-12";
-    const thumb = `https://www.amipi.com/product_thumb.php?img=images/category_navigation_image/${item.image}&w=150&h=150`;
+  /**
+   * CASES 7–9 & type=4: render one menu item
+   * - For type 1/2 we respect item.sub_nav_col to decide col-sm-6 vs 12.
+   * - For type 3/4 we output UL and (if sub_nav_col > 1) add "two-column icon-left-title".
+   */
+  const renderMenuContent = (item) => {
+    const itemTwoUp = toInt(item?.sub_nav_col, 1) > 1;
+    const colClass = itemTwoUp ? "col-sm-6" : "col-sm-12";
+    const thumb = item?.image ? `${THUMB_BASE}${item.image}&w=150&h=150` : "";
 
-    switch (item.menu_type) {
+    switch (toInt(item?.menu_type, 4)) {
+      // --- 1) Text with Top Image + Desc ---
       case 1:
         return (
-          <div className="col-sm-12">
+          <div className={colClass} key={`m1-${item.id}`}>
             <div className="row">
-                <div className="col-sm-12">
-                    <a href={item.page_link}>
-                      {item.image && (
-                        <img
-                          src={IMG_PATH + item.image}
-                          className="img-fluid"
-                          alt={item.alias}
-                        />
-                      )}
-                      <h3 className="amipi-list-heading">{item.alias}</h3>
-                      <span className="ruby-list-desc">{item.sub_title}</span>
-                    </a>
-                </div>
+              <a href={item.page_link}>
+                {item.image ? (
+                  <img
+                    src={IMG_PATH + item.image}
+                    className="img-responsive img-fluid"
+                    title={item.alias}
+                    alt={item.alias}
+                  />
+                ) : null}
+                <p className="amipi-list-heading">{item.alias}</p>
+                <span className="ruby-list-desc">{item.sub_title}</span>
+              </a>
             </div>
           </div>
         );
+
+      // --- 2) Text with Side Image + Desc ---
       case 2:
         return (
-          <div className="col-sm-12">
-            <div className="row title-left-image d-flex">
-              {item.image && (
+          <div className={colClass} key={`m2-${item.id}`}>
+            <div className="title-left-image d-flex row">
+              {item.image ? (
                 <div className="col-sm-5">
                   <a href={item.page_link}>
-                    <img src={thumb} className="img-fluid" alt={item.alias} />
+                    <img
+                      src={thumb}
+                      className="img-responsive img-fluid"
+                      title={item.alias}
+                      alt={item.alias}
+                    />
                   </a>
                 </div>
-              )}
+              ) : null}
               <div className={item.image ? "col-sm-7" : "col-sm-12"}>
                 <a href={item.page_link}>
-                  <h3 className="amipi-list-heading">{item.alias}</h3>
+                  <p className="amipi-list-heading">{item.alias}</p>
                 </a>
                 <span className="ruby-list-desc">{item.sub_title}</span>
               </div>
             </div>
           </div>
         );
-      case 3:
+
+      // --- 3) Text with Icon ---
+      case 3: {
+        const twoColClass = itemTwoUp ? "two-column icon-left-title" : "";
         return (
-          <ul className={subnavCount > 1 ? "two-column icon-left-title" : ""}>
-            <li id={item.id}>
-              <a href={item.page_link}>
-                {item.icon && (
-                  <span
-                    className="me-2 align-middle"
-                    dangerouslySetInnerHTML={{ __html: item.icon }}
-                  />
-                )}
-                {item.alias}
-              </a>
-            </li>
-          </ul>
-        );
-      case 4:
-        return (
-          <div className="single-text-menu">
-            <ul className={subnavCount > 1 ? "two-column icon-left-title" : ""}>
-              <li className="new-li-mt">
+          <div className="col-sm-12" key={`m3-${item.id}`}>
+            <ul className={twoColClass}>
+              <li>
                 <a href={item.page_link}>
-                  <h3
-                    className={`amipi-list-heading ${
-                      [31, 32, 162].includes(item.id) ? "text-left" : ""
-                    }`}
-                  >
-                    {item.alias}
-                  </h3>
+                  {item.icon ? (
+                    <span
+                      className="me-2 align-middle"
+                      dangerouslySetInnerHTML={{ __html: item.icon }}
+                    />
+                  ) : null}
+                  {item.alias}
                 </a>
               </li>
             </ul>
           </div>
         );
-      default:
-        return null;
+      }
+
+      // --- 4) Plain Text ---
+      default: {
+        const twoColClass = itemTwoUp ? "two-column icon-left-title" : "";
+        const needsTextLeft = [31, 32, 162].includes(toInt(item?.id, -1));
+        return (
+          <div className="col-sm-12" key={`m4-${item.id}`}>
+            <div className="single-text-menu">
+              <ul className={twoColClass}>
+                <li className="new-li-mt">
+                  <a href={item.page_link}>
+                    <p className={`amipi-list-heading ${needsTextLeft ? "text-left" : ""}`}>
+                      {item.alias}
+                    </p>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        );
+      }
     }
   };
 
-  // Mobile: reuse the SAME renderer so images/SVGs match desktop
-  const renderMobileSection = (main) => {
-    const subColCount = main.sub_nav_col || 4;
+  /**
+   * Render one top-level *column* inside the mega menu:
+   * - Mirrors CASE 6 by rendering only items whose display_in_col === this column index.
+   * - Wraps content with a `.row` so the nested col-sm-* (types 1/2) work correctly.
+   * - When colCount === 5, add inline style to make exactly 5 equal columns (20% each).
+   */
+  const renderDesktopColumn = (itemsInThisCol, subcolClass, mainId, colIndex, colCount) => {
+    if (!itemsInThisCol?.length) return null;
+
+    const fiveColFix =
+      colCount === 5 ? { flex: "0 0 20%", maxWidth: "20%" } : undefined;
+
     return (
-      <div key={main.id} className="mb-3">
-        <details>
-          <summary className="py-2 fw-semibold">{main.alias}</summary>
-          <div className="mt-2">
-            <ul className="list-unstyled m-0">
-              {main.child?.map((subnav) => {
-                if (!subnav.display_in_col) return null;
-                return (
-                  <li key={subnav.id} className="mb-2">
-                    {/* Force full-width inside offcanvas by passing subnavCount=1 */}
-                    {renderMenuContent(subnav, false, 1)}
-                    {subnav.child && (
-                      <div className="mt-2 ps-3">
-                        {subnav.child.map((childnav) => (
-                          <div key={childnav.id} className="mb-2">
-                            {renderMenuContent(childnav, true, 1)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+      <li
+        key={`${mainId}-col-${colIndex}`}
+        className={`menu-item ${subcolClass}`}
+        role="presentation"
+        style={fiveColFix}
+      >
+        <div className="column-inner">
+          <div className="row">
+            {itemsInThisCol.map((subnav) => (
+              <React.Fragment key={subnav.id}>
+                {renderMenuContent(subnav)}
+                {Array.isArray(subnav.child) && subnav.child.length > 0 ? (
+                  <div className="col-12 clear-both">
+                    {subnav.child.map((childnav) => (
+                      <div key={childnav.id}>{renderMenuContent(childnav)}</div>
+                    ))}
+                  </div>
+                ) : null}
+              </React.Fragment>
+            ))}
           </div>
-        </details>
-      </div>
+        </div>
+      </li>
     );
   };
 
-  // Submit login to your PHP (expects login_uname & login_pass)
+  // Mobile: use the same item renderer, but don’t enforce columns
+  const renderMobileSection = (main) => (
+    <div key={main.id}>
+      <details>
+        <summary>{main.alias}</summary>
+        <div className="mt-2">
+          <ul className="list-unstyled m-0 double-list">
+            {main.child?.map((subnav) => (
+              <li key={subnav.id} className="mb-2 clear-both">
+                <div className="row">
+                  {renderMenuContent({ ...subnav, sub_nav_col: 1 /* force full width */ })}
+                </div>
+                {subnav.child?.length ? (
+                  <div className="mt-2 ps-3 width-f">
+                    {subnav.child.map((childnav) => (
+                      <div key={childnav.id} className="mb-2 two-col">
+                        <div className="row">
+                          {renderMenuContent({ ...childnav, sub_nav_col: 1 })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </details>
+    </div>
+  );
+
+  // Login submit
   async function handleLogin(e) {
     e.preventDefault();
     setErr("");
@@ -189,9 +319,7 @@ const Header = () => {
         login_uname: email.trim(),
         login_pass: pass,
         login_type: "login_page",
-        // is_retailer and parent_retailer_id are optional in your PHP
       });
-
       if (data?.status === "success" && data?.user) {
         localStorage.setItem("amipiUser", JSON.stringify(data.user));
         setAuthUser(data.user);
@@ -213,7 +341,7 @@ const Header = () => {
     setAuthUser(null);
   }
 
-  // UI
+  // ---------- UI ----------
   return (
     <header className="main-header">
       <nav className="navbar navbar-expand-lg abg-secondary">
@@ -239,59 +367,49 @@ const Header = () => {
           <div className="collapse navbar-collapse d-none d-lg-block">
             <ul className="navbar-nav ms-auto me-auto mb-2 mb-lg-0">
               {menu.map((main) => {
-                const subColCount = main.sub_nav_col || 4;
-                const subcolClass = getColumnClass(subColCount);
-                const hasMany = main.child?.length > 4;
+                // ---- Determine how many columns to render ----
+                // Use the max between configured sub_nav_col and the highest display_in_col used by children.
+                const maxUsed = getMaxDisplayColUsed(main.child || []);
+                const configured = toInt(main?.sub_nav_col, 1);
+                const colCount = clamp(Math.max(configured, maxUsed), 1, 5);
+
+                const subcolClass = getColumnClass(colCount);
+
+                // For width tweaks (optional custom width when there are many items)
+                const menucnt = Array.isArray(main.child) ? main.child.length : 0;
+                const hasMany = menucnt > colCount;
+
+                // Group items into columns per CASE 6
+                const columns = groupByDisplayColumn(main.child || [], colCount);
 
                 return (
                   <li
                     key={main.id}
-                    className="nav-item dropdown position-static amipi-menu-mega"
+                    className={`nav-item dropdown amipi-menu-mega ${main.css_class || ""}`}
+                    onMouseEnter={isHoverable ? (e) => openDropdown(e.currentTarget) : undefined}
+                    onMouseLeave={isHoverable ? (e) => closeDropdown(e.currentTarget) : undefined}
                   >
                     <a
                       className="nav-link dropdown-toggle"
                       href={main.page_link || "#"}
-                      data-bs-toggle="dropdown"
+                      data-bs-toggle={isHoverable ? undefined : "dropdown"}
+                      aria-expanded="false"
                     >
                       {main.alias}
                     </a>
+
                     <div className="dropdown-menu w-100 mt-0 border-0 shadow p-4 mega-menu-fullwidth">
-                      <div
-                        className={`container ${
-                          hasMany ? "custom-menu-width" : ""
-                        }`}
-                      >
+                      <div className={`container ${hasMany ? "custom-menu-width" : ""}`}>
                         <ul className="row odd-even-bg">
-                          {main.child?.map((subnav) => {
-                            if (!subnav.display_in_col) return null;
-                            return (
-                              <li
-                                key={subnav.id}
-                                className={`menu-item ${subcolClass}`}
-                              >
-                                <div className="column-inner">
-                                  {renderMenuContent(
-                                    subnav,
-                                    false,
-                                    subColCount
-                                  )}
-                                  {subnav.child && (
-                                    <div className="clear-both">
-                                      {subnav.child.map((childnav) => (
-                                        <div key={childnav.id}>
-                                          {renderMenuContent(
-                                            childnav,
-                                            true,
-                                            subnav.sub_nav_col
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </li>
-                            );
-                          })}
+                          {columns.map((itemsInCol, idx) =>
+                            renderDesktopColumn(
+                              itemsInCol,
+                              subcolClass,
+                              main.id,
+                              idx + 1,
+                              colCount
+                            )
+                          )}
                         </ul>
                       </div>
                     </div>
@@ -300,8 +418,8 @@ const Header = () => {
               })}
             </ul>
 
-            {/* Right: Login/Welcome & Cart */}
-            <ul className="d-flex align-items-center gap-3 m-0">
+            {/* Right side: Login/Welcome & Cart */}
+            <ul className="d-flex align-items-center m-0">
               {!authUser ? (
                 <li className="position-relative">
                   <button
@@ -355,7 +473,6 @@ const Header = () => {
                               className="for-pass"
                               target="_blank"
                               rel="noreferrer"
-                              style={{ cursor: "pointer" }}
                             >
                               New User
                             </a>
@@ -364,7 +481,6 @@ const Header = () => {
                               className="for-pass"
                               target="_blank"
                               rel="noreferrer"
-                              style={{ cursor: "pointer" }}
                             >
                               Forgot Password?
                             </a>
@@ -384,19 +500,24 @@ const Header = () => {
                   )}
                 </li>
               ) : (
-                <li className="list-group-item border aborder-primary rounded-pill bg-transparent d-flex align-items-center gap-2 px-3">
+                <li className="list-group-item d-flex align-items-center gap-2">
                   <span className="small">
-                    Welcome,{" "}
-                    {authUser.fullname ||
-                      authUser.firstname ||
-                      authUser.email ||
-                      "User"}
+                    Welcome, {authUser.fullname || authUser.firstname || authUser.email || "User"}
                   </span>
                   <button
-                    className="btn btn-outline-dark btn-sm ms-1"
+                    className="btn btn-outline-dark btn-sm ms-1 login-btn"
                     onClick={handleLogout}
                   >
-                    LOGOUT
+                    LOGOUT{" "}
+                    <svg
+                      height="512pt"
+                      viewBox="-64 0 512 512"
+                      width="512pt"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="m336 512h-288c-26.453125 0-48-21.523438-48-48v-224c0-26.476562 21.546875-48 48-48h288c26.453125 0 48 21.523438 48 48v224c0 26.476562-21.546875 48-48 48zm-288-288c-8.8125 0-16 7.167969-16 16v224c0 8.832031 7.1875 16 16 16h288c8.8125 0 16-7.167969 16-16v-224c0-8.832031-7.1875-16-16-16zm0 0"></path>
+                      <path d="m304 224c-8.832031 0-16-7.167969-16-16v-80c0-52.929688-43.070312-96-96-96s-96 43.070312-96 96v80c0 8.832031-7.167969 16-16 16s-16-7.167969-16-16v-80c0-70.59375 57.40625-128 128-128s128 57.40625 128 128v80c0 8.832031-7.167969 16-16 16zm0 0"></path>
+                    </svg>
                   </button>
                 </li>
               )}
@@ -424,7 +545,7 @@ const Header = () => {
         </div>
       </nav>
 
-      {/* Mobile Offcanvas Menu (uses SAME renderer) */}
+      {/* Mobile Offcanvas Menu */}
       <div
         className="offcanvas offcanvas-start"
         tabIndex="-1"
@@ -433,22 +554,35 @@ const Header = () => {
       >
         <div className="offcanvas-header">
           <h5 className="offcanvas-title" id="mobileMenuLabel">
-            Menu
+            <img src={logo} alt="Amipi Logo" style={{ height: 48 }} />
           </h5>
           <button
             type="button"
-            className="btn-close text-reset"
+            className="text-reset"
             data-bs-dismiss="offcanvas"
             aria-label="Close"
-          ></button>
+          >
+            <svg
+              width="35"
+              height="35"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#000000"
+              strokeWidth="2"
+              strokeLinecap="butt"
+              strokeLinejoin="arcs"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
         <div className="offcanvas-body">
           {menu.map((main) => renderMobileSection(main))}
 
-          <hr />
           {!authUser ? (
-            <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center justify-content-between mt-2">
               <button
                 className="btn btn-dark btn-sm"
                 onClick={() => setShowLogin(true)}
@@ -456,19 +590,15 @@ const Header = () => {
               >
                 Login
               </button>
-              <a
-                href="/cart"
-                className="d-inline-flex align-items-center text-decoration-none"
-              >
+              <a href="/cart" className="d-inline-flex align-items-center text-decoration-none">
                 <i className="fas fa-shopping-cart me-2" />
                 Cart
               </a>
             </div>
           ) : (
-            <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center justify-content-between mt-2">
               <span className="small">
-                Welcome,{" "}
-                {authUser.fullname || authUser.firstname || authUser.email}
+                Welcome, {authUser.fullname || authUser.firstname || authUser.email}
               </span>
               <button className="btn btn-outline-dark btn-sm" onClick={handleLogout}>
                 LOGOUT

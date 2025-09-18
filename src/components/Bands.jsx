@@ -388,19 +388,7 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
             type="button"
             aria-label="Previous images"
             onClick={() => setIdx((i) => (i - 1 + total) % total)}
-            style={{
-              position: "absolute",
-              left: 8,
-              top: "50%",
-              transform: "translateY(-50%)",
-              background: "rgba(0,0,0,.4)",
-              color: "#fff",
-              border: 0,
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              cursor: "pointer",
-            }}
+            className="previous-btn"
           >
             ‹
           </button>
@@ -408,19 +396,7 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
             type="button"
             aria-label="Next images"
             onClick={() => setIdx((i) => (i + 1) % total)}
-            style={{
-              position: "absolute",
-              right: 8,
-              top: "50%",
-              transform: "translateY(-50%)",
-              background: "rgba(0,0,0,.4)",
-              color: "#fff",
-              border: 0,
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              cursor: "pointer",
-            }}
+            className="next-btn"
           >
             ›
           </button>
@@ -1154,7 +1130,9 @@ async function handleCompareToggle() {
       <Header />
       <div className="custom-container">
         <div className="row">
-          <h1>{pageTitle}</h1>
+          <div className="col-12">
+            <h1>{pageTitle}</h1>
+          </div>
 
           <div className="main-content flex-wrap d-flex align-items-start p-0">
             {/* GALLERY */}
@@ -1333,7 +1311,7 @@ async function handleCompareToggle() {
                       }
                       onClick={() => handleFilterChange("diamondSize", size)}
                     >
-                      {formatNumber(size)} {sizeUnit.toUpperCase()}
+                      {size} {sizeUnit.toUpperCase()}
                     </button>
                   ))}
                 </div>
@@ -1432,7 +1410,7 @@ async function handleCompareToggle() {
                                 <div className="k">Stone Size</div>
                                 <div className="v">
                                   {selected.diamondSize != null
-                                    ? `${formatNumber(selected.diamondSize)} ${sizeUnit.toUpperCase()}`
+                                    ? `${selected.diamondSize} ${sizeUnit.toUpperCase()}`
                                     : product.diamond_size ||
                                       `${product.total_carat_weight || "--"} CT (Each)`}
                                 </div>
