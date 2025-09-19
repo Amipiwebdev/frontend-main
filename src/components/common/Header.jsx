@@ -51,6 +51,11 @@ const Header = () => {
   const [menu, setMenu] = useState([]);
   const [showLogin, setShowLogin] = useState(false);
 
+   // Search state
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const searchRef = useRef(null);
+
   // Auth state (persisted)
   const [authUser, setAuthUser] = useState(() => {
     try {
@@ -132,6 +137,34 @@ const Header = () => {
       document.removeEventListener("keydown", onEsc);
     };
   }, [showLogin]);
+  
+    // Close search on outside click / ESC
+
+  useEffect(() => {
+    if (!showSearch) return;
+    const onDown = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowSearch(false);
+      }
+    };
+
+    const onEsc = (e) => e.key === "Escape" && setShowSearch(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [showSearch]);
+
+  // Search submit
+  function handleSearchSubmit(e) {
+    e.preventDefault();
+    const q = searchTerm.trim();
+    if (!q) return;
+    window.location.href = `https://www.amipi.com/Search?query=${encodeURIComponent(q)}`;
+
+  }
 
   // ---------- Renderers that mirror PHP "cases" ----------
 
@@ -150,7 +183,7 @@ const Header = () => {
       case 1:
         return (
           <div className={colClass} key={`m1-${item.id}`}>
-            <div className="row">
+            <div className="row title-below-image">
               <a href={item.page_link}>
                 {item.image ? (
                   <img
@@ -344,7 +377,7 @@ const Header = () => {
   // ---------- UI ----------
   return (
     <header className="main-header">
-      <nav className="navbar navbar-expand-lg abg-secondary">
+      <nav className="navbar navbar-expand-lg abg-secondary p-0">
         <div className="container-fluid">
           {/* Logo */}
           <a className="navbar-brand d-flex align-items-center" href="/">
@@ -399,7 +432,12 @@ const Header = () => {
                     </a>
 
                     <div className="dropdown-menu w-100 mt-0 border-0 shadow p-4 mega-menu-fullwidth">
-                      <div className={`container ${hasMany ? "custom-menu-width" : ""}`}>
+                      {/* <div className={`container ${hasMany ? "custom-menu-width" : ""}`}> */}
+                      <div
+                          className={`container ${hasMany ? "custom-menu-width" : ""} ${
+                            /fine jewelry/i.test(main?.alias || "") ? "custom-lg-width" : ""
+                          }`}
+                        >
                         <ul className="row odd-even-bg">
                           {columns.map((itemsInCol, idx) =>
                             renderDesktopColumn(
@@ -419,17 +457,101 @@ const Header = () => {
             </ul>
 
             {/* Right side: Login/Welcome & Cart */}
-            <ul className="d-flex align-items-center m-0">
+            <ul className="d-flex align-items-center m-0 gap-2">
+               <li className="circle-search position-relative">
+
+                <button
+
+                  type="button"
+
+                  className="search-toggle d-inline-flex align-items-center justify-content-center"
+
+                  title="Search"
+
+                  aria-haspopup="dialog"
+
+                  aria-expanded={showSearch ? "true" : "false"}
+
+                  onClick={() => setShowSearch((v) => !v)}
+
+                >
+
+                  <svg
+
+                    height="20"
+
+                    viewBox="0 0 461.516 461.516"
+
+                    width="20"
+
+                    xmlns="http://www.w3.org/2000/svg"
+
+                  >
+
+                    <path d="m185.746 371.332c41.251.001 81.322-13.762 113.866-39.11l122.778 122.778c9.172 8.858 23.787 8.604 32.645-.568 8.641-8.947 8.641-23.131 0-32.077l-122.778-122.778c62.899-80.968 48.252-197.595-32.716-260.494s-197.594-48.252-260.493 32.716-48.252 197.595 32.716 260.494c32.597 25.323 72.704 39.06 113.982 39.039zm-98.651-284.273c54.484-54.485 142.82-54.486 197.305-.002s54.486 142.82.002 197.305-142.82 54.486-197.305.002c-.001-.001-.001-.001-.002-.002-54.484-54.087-54.805-142.101-.718-196.585.239-.24.478-.479.718-.718z"></path>
+
+                  </svg>
+
+                  <span className="visually-hidden">Search</span>
+
+                </button>
+
+
+
+                {showSearch && (
+
+                  <div ref={searchRef} className="search-pop">
+
+                    <form onSubmit={handleSearchSubmit} className="search-form">
+
+                      <input
+
+                        type="text"
+
+                        className="form-control search-input"
+
+                        placeholder="Search"
+
+                        value={searchTerm}
+
+                        onChange={(e) => setSearchTerm(e.target.value)}
+
+                        autoFocus
+
+                      />
+
+                      <button type="submit" className="btn go-btn">
+
+                        GO!
+
+                      </button>
+
+                    </form>
+
+                  </div>
+
+                )}
+
+              </li>
               {!authUser ? (
                 <li className="position-relative">
                   <button
                     type="button"
-                    className="btn common-btn rounded-pill px-3"
+                    className="btn btn-outline-dark btn-sm ms-1 login-btn"
                     onClick={() => setShowLogin((v) => !v)}
                     aria-haspopup="dialog"
                     aria-expanded={showLogin ? "true" : "false"}
                   >
                     Login
+                    <svg
+                      height="512pt"
+                      viewBox="-64 0 512 512"
+                      width="512pt"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="m336 512h-288c-26.453125 0-48-21.523438-48-48v-224c0-26.476562 21.546875-48 48-48h288c26.453125 0 48 21.523438 48 48v224c0 26.476562-21.546875 48-48 48zm-288-288c-8.8125 0-16 7.167969-16 16v224c0 8.832031 7.1875 16 16 16h288c8.8125 0 16-7.167969 16-16v-224c0-8.832031-7.1875-16-16-16zm0 0"></path>
+                      <path d="m304 224c-8.832031 0-16-7.167969-16-16v-80c0-52.929688-43.070312-96-96-96s-96 43.070312-96 96v80c0 8.832031-7.167969 16-16 16s-16-7.167969-16-16v-80c0-70.59375 57.40625-128 128-128s128 57.40625 128 128v80c0 8.832031-7.167969 16-16 16zm0 0"></path>
+                    </svg>
                   </button>
 
                   {showLogin && (
@@ -500,7 +622,7 @@ const Header = () => {
                   )}
                 </li>
               ) : (
-                <li className="list-group-item d-flex align-items-center gap-2">
+                <li className="list-group-item d-flex align-items-center">
                   <span className="small">
                     Welcome, {authUser.fullname || authUser.firstname || authUser.email || "User"}
                   </span>
@@ -523,7 +645,7 @@ const Header = () => {
               )}
 
               <li>
-                <a href="/cart" className="btn btn-link text-dark cart-icon-head">
+                <a href="https://www.amipi.com/My-Cart/" className="cart-icon-head">
                   <svg
                     id="Layer_1"
                     height="22"

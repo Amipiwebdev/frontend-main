@@ -5,6 +5,7 @@ import Header from "./common/Header";
 import Footer from "./common/Footer";
 import Topbar from "./common/Topbar";
 import { api } from "../apiClient"; // axios instance with baseURL
+import ShareProductModal from "./share/ShareProductModal"; // NEW
 
 const SEO_URL = "bands-test";
 
@@ -13,14 +14,12 @@ const SEO_URL = "bands-test";
 /* ------------------------------------------------------------------ */
 
 /** Read customer/retailer ids from globals or localStorage so we can
- *  send them along with wishlist requests. Falls back to 0. */
+ *  send them along with wishlist/compare/cart requests. Falls back to 0. */
 function getClientIds() {
   let customers_id = 0;
   let parent_retailer_id = 0;
-
   try {
     const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
-
     customers_id =
       Number(g.CUST_ID ?? g.customer_id ?? g.customers_id ?? 0) || 0;
     parent_retailer_id =
@@ -33,42 +32,34 @@ function getClientIds() {
       parent_retailer_id = Number(ls.parent_retailer_id ?? 0) || 0;
     }
   } catch (_) {}
-
   return { customers_id, parent_retailer_id };
 }
 
 // NEW — pricing context you previously had in PHP sessions
 function getPricingParams() {
-  // try login payload first (what you store in Header.jsx as amipiUser)
   let user = null;
   try {
     user = JSON.parse(localStorage.getItem("amipiUser") || "null");
   } catch {}
 
-  const g = (window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {});
+  const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
 
-  const customers_id = Number(
-    (user && (user.customer_id ?? user.customers_id)) ??
-      g.customers_id ??
-      g.customer_id ??
-      0
-  ) || 0;
-
-  // default 1 if unknown
-  const AMIPI_FRONT_Retailer_Jewelry_Level =
+  const customers_id =
     Number(
-      g.AMIPI_FRONT_Retailer_Jewelry_Level ??
-        user?.retailer_level_id ??
-        3
-    ) || 3;
+      (user && (user.customer_id ?? user.customers_id)) ??
+        g.customers_id ??
+        g.customer_id ??
+        0
+    ) || 0;
 
-  // minima (fallback 0 if you don’t have them defined globally)
+  const AMIPI_FRONT_Retailer_Jewelry_Level =
+    Number(g.AMIPI_FRONT_Retailer_Jewelry_Level ?? user?.retailer_level_id ?? 3) || 3;
+
   const AMIPI_FRONT_RetailerProductFlat =
     Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
   const AMIPI_FRONT_RetailerProductPer =
     Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
 
-  // retailer flag (Yes/No)
   const AMIPI_FRONT_IS_REATILER =
     (g.AMIPI_FRONT_IS_REATILER ??
       (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes"
@@ -269,7 +260,6 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
     const nPer = Math.max(1, Math.min(perSlide, items.length));
     const targetLen = Math.max(items.length, nPer * minSlides);
 
-    // Pad by repeating from the start; keep the original index for lightbox
     const padded = Array.from({ length: targetLen }, (_, i) => ({
       ...items[i % items.length],
       __origIndex: i % items.length,
@@ -421,7 +411,7 @@ const Bands = () => {
     settingStyles: [],
     metals: [],
     qualities: [],
-    vendors: [],        // keep vendors in state
+    vendors: [],
     diamondSizes: [],
   });
 
@@ -461,17 +451,20 @@ const Bands = () => {
   // Lightbox
   const [lbIndex, setLbIndex] = useState(-1);
 
-  // Wishlist UI state
+  // Share modal
+  const [shareOpen, setShareOpen] = useState(false);
+
+  // Wishlist state
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [wishLoading, setWishLoading] = useState(false);
 
-  // Compare items
-const [isCompared, setIsCompared] = useState(false);
-const [comparLoading, setComparLoading] = useState(false);
+  // Compare state
+  const [isCompared, setIsCompared] = useState(false);
+  const [comparLoading, setComparLoading] = useState(false);
 
-  // Add to cart
-const [isInCart, setIsInCart] = useState(false);
-const [cartLoading, setCartLoading] = useState(false);
+  // Cart state
+  const [isInCart, setIsInCart] = useState(false);
+  const [cartLoading, setCartLoading] = useState(false);
 
   useEffect(() => {
     document.title = pageTitle;
@@ -534,7 +527,6 @@ const [cartLoading, setCartLoading] = useState(false);
         .map(Number)
         .filter((n) => !Number.isNaN(n));
 
-      // IMPORTANT: your API returns "vendor_display" (singular) in some places
       const vendorIds = String(nav.vendor_display ?? nav.vendors_display ?? "")
         .split(",")
         .map((s) => s.trim())
@@ -553,7 +545,7 @@ const [cartLoading, setCartLoading] = useState(false);
         diamondSizes: [],
       });
 
-      setVendorParam(vendorIds.join(",")); // CSV we will send to /productnew
+      setVendorParam(vendorIds.join(","));
 
       const [
         stoneTypesRes,
@@ -792,11 +784,9 @@ const [cartLoading, setCartLoading] = useState(false);
       .then((res) => {
         const rows = Array.isArray(res.data) ? res.data : [];
 
-        // Each row can be a number (legacy) or an object. Prefer unit-specific fields.
         let sizes = rows.map((r) => {
           if (typeof r === "object" && r !== null) {
-            const mm =
-              r.size_mm ?? r.center_stone_mm ?? r.mm ?? null;
+            const mm = r.size_mm ?? r.center_stone_mm ?? r.mm ?? null;
             const ct =
               r.size_ct ??
               r.size ??
@@ -808,7 +798,6 @@ const [cartLoading, setCartLoading] = useState(false);
           return r;
         });
 
-        // Clean -> numeric -> unique -> sort
         sizes = sizes
           .filter((v) => v !== null && v !== undefined && v !== "")
           .map((v) => Number(v))
@@ -829,10 +818,10 @@ const [cartLoading, setCartLoading] = useState(false);
     selected.settingStyle,
     selected.metal,
     selected.quality,
-    sizeUnit, // re-run if unit flips
+    sizeUnit,
   ]);
 
-  /* 8) Stone Size => Product (ALWAYS include vendors CSV + pricing context) */
+  /* 8) Stone Size => Product (include vendors CSV + pricing) */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -848,7 +837,7 @@ const [cartLoading, setCartLoading] = useState(false);
       return;
     }
 
-    const pricing = getPricingParams(); // NEW
+    const pricing = getPricingParams();
     const params = {
       stoneType: selected.stoneType,
       design: selected.design,
@@ -858,8 +847,8 @@ const [cartLoading, setCartLoading] = useState(false);
       quality: selected.quality,
       diamondSize: selected.diamondSize,
       unit: sizeUnit,
-      vendors: vendorParam || "",  // send even if empty
-      ...pricing,                  // NEW — send pricing context
+      vendors: vendorParam || "",
+      ...pricing,
     };
 
     api.get(`/productnew`, { params }).then((res) => setProduct(res.data));
@@ -872,7 +861,7 @@ const [cartLoading, setCartLoading] = useState(false);
     selected.quality,
     selected.diamondSize,
     sizeUnit,
-    vendorParam, // rerun if vendors csv changes
+    vendorParam,
   ]);
 
   /* 9) Product => Ring options */
@@ -901,7 +890,6 @@ const [cartLoading, setCartLoading] = useState(false);
     let diamondPcs = Number(product.estimated_pcs || product.diamond_pics || 0);
     let caratWeight = Number(product.total_carat_weight || 0);
 
-    // CHANGED — prefer computed price from API, fallback to base price or legacy field
     let price = Number(
       product.products_price ?? product.base_price ?? product.products_price1 ?? 0
     );
@@ -968,12 +956,11 @@ const [cartLoading, setCartLoading] = useState(false);
   const nextLightbox = () =>
     setLbIndex((i) => (i + 1) % Math.max(galleryItems.length, 1));
 
-  // Filter click handler (don't clear all downstream — only invalidate if needed)
+  // Filter click handler
   function handleFilterChange(key, value) {
     setSelected((prev) => {
       const updated = { ...prev, [key]: value };
 
-      // Map each filter key to its available options
       const dataMap = {
         stoneType: data.stoneTypes.map((x) => x.pst_id || x.id),
         design: data.designs.map((x) => x.psg_id || x.id),
@@ -981,11 +968,10 @@ const [cartLoading, setCartLoading] = useState(false);
         settingStyle: data.settingStyles.map((x) => x.psc_id || x.id),
         metal: data.metals.map((x) => x.dmt_id || x.id),
         quality: data.qualities.map((x) => x.dqg_id || x.id),
-        diamondSize: data.diamondSizes, // already numbers
+        diamondSize: data.diamondSizes,
         ringSize: ringOptions.map((x) => x.value_id),
       };
 
-      // Walk down the filter order after the changed one
       const idx = FILTER_ORDER.indexOf(key);
       for (const k of FILTER_ORDER.slice(idx + 1)) {
         if (updated[k] !== null && !dataMap[k]?.includes(updated[k])) {
@@ -996,9 +982,7 @@ const [cartLoading, setCartLoading] = useState(false);
     });
   }
 
-  /* -------------------- Wishlist state + actions -------------------- */
-
-  // Query current wishlist state whenever product changes
+  /* -------------------- Wishlist -------------------- */
   useEffect(() => {
     if (!product?.products_id) {
       setIsWishlisted(false);
@@ -1018,7 +1002,7 @@ const [cartLoading, setCartLoading] = useState(false);
   }, [product?.products_id]);
 
   async function handleWishlistToggle() {
-     const pricing = getPricingParams();
+    const pricing = getPricingParams();
     if (!product?.products_id || wishLoading) return;
     const { customers_id, parent_retailer_id } = getClientIds();
     try {
@@ -1027,7 +1011,7 @@ const [cartLoading, setCartLoading] = useState(false);
         products_id: product.products_id,
         customers_id,
         parent_retailer_id,
-        ...pricing, // NEW — send pricing context
+        ...pricing,
       });
       setIsWishlisted(data?.status === "added");
     } catch (e) {
@@ -1037,51 +1021,46 @@ const [cartLoading, setCartLoading] = useState(false);
     }
   }
 
-  /* -------------------- compare state + actions -------------------- */
-useEffect(() => {
-  if (!product?.products_id) {
-    setIsCompared(false);
-    return;
-  }
+  /* -------------------- Compare -------------------- */
+  useEffect(() => {
+    if (!product?.products_id) {
+      setIsCompared(false);
+      return;
+    }
+    const { customers_id, parent_retailer_id } = getClientIds();
+    api
+      .get("/compare/check_product", {
+        params: {
+          products_id: product.products_id,
+          customers_id,
+          parent_retailer_id,
+        },
+      })
+      .then((res) => setIsCompared(Boolean(res.data?.compared)))
+      .catch(() => setIsCompared(false));
+  }, [product?.products_id]);
 
-  const { customers_id, parent_retailer_id } = getClientIds();
-  api
-    .get("/compare/check_product", {
-      params: {
+  async function handleCompareToggle() {
+    const pricing = getPricingParams();
+    if (!product?.products_id || comparLoading) return;
+    const { customers_id, parent_retailer_id } = getClientIds();
+    try {
+      setComparLoading(true);
+      const { data } = await api.post("/compare/toggle_product", {
         products_id: product.products_id,
         customers_id,
         parent_retailer_id,
-      },
-    })
-    .then((res) => setIsCompared(Boolean(res.data?.compared)))
-    .catch(() => setIsCompared(false));
-}, [product?.products_id]);
-
-async function handleCompareToggle() {
-  const pricing = getPricingParams();
-  if (!product?.products_id || comparLoading) return;
-
-  const { customers_id, parent_retailer_id } = getClientIds();
-  try {
-    setComparLoading(true);
-    const { data } = await api.post("/compare/toggle_product", {
-      products_id: product.products_id,
-      customers_id,
-      parent_retailer_id,
-      ...pricing, // NEW — send pricing context
-    });
-    setIsCompared(data?.status === "added");
-  } catch (e) {
-    console.error("Compare toggle failed", e);
-  } finally {
-    setComparLoading(false);
+        ...pricing,
+      });
+      setIsCompared(data?.status === "added");
+    } catch (e) {
+      console.error("Compare toggle failed", e);
+    } finally {
+      setComparLoading(false);
+    }
   }
-}
 
-
-/* -------------------- Add to cart state + actions -------------------- */
-
-  // Query current cart state whenever product changes
+  /* -------------------- Cart -------------------- */
   useEffect(() => {
     if (!product?.products_id) {
       setIsInCart(false);
@@ -1110,13 +1089,13 @@ async function handleCompareToggle() {
         products_id: product.products_id,
         customers_id,
         parent_retailer_id,
-        ...pricing, // NEW — send pricing context
+        ...pricing,
       });
       setIsInCart(data?.status === "added");
     } catch (e) {
-      console.error("Wishlist toggle failed", e);
+      console.error("Cart toggle failed", e);
     } finally {
-      setWishLoading(false);
+      setCartLoading(false);
     }
   }
 
@@ -1147,7 +1126,7 @@ async function handleCompareToggle() {
               />
             </div>
 
-            {/* FILTERS */}
+            {/* FILTERS + DETAILS */}
             <div className="right-filters row col-12 d-flex flex-wrap align-items-start">
               {/* Stone Type */}
               <div className="filter-block stone-type col-12 col-lg-6 col-md-12 col-sm-12">
@@ -1298,7 +1277,7 @@ async function handleCompareToggle() {
                 </div>
               </div>
 
-              {/* Stone Size (unit-aware) */}
+              {/* Stone Size */}
               <div className="filter-block diamond-s col-12 col-lg-3 col-md-12 col-sm-12">
                 <div className="filter-title">STONE SIZE ({sizeUnit.toUpperCase()})</div>
                 <div className="filter-options diamond-size">
@@ -1381,8 +1360,7 @@ async function handleCompareToggle() {
                                 ${" "}
                                 {estPrice !== null
                                   ? Number(estPrice).toFixed(0)
-                                  : // CHANGED — prefer computed products_price from API
-                                    (product.products_price ??
+                                  : (product.products_price ??
                                       product.base_price ??
                                       product.products_price1 ??
                                       "--")}
@@ -1460,10 +1438,12 @@ async function handleCompareToggle() {
                             </a>
                           </li>
 
+                          {/* SHARE */}
                           <li
                             className="common-btn"
                             style={{ cursor: "pointer" }}
                             title="Share With A Friend"
+                            onClick={() => setShareOpen(true)}
                           >
                             <i className="fa fa-share-alt" aria-hidden="true"></i>
                           </li>
@@ -1490,8 +1470,8 @@ async function handleCompareToggle() {
                             </button>
                           </li>
 
-                          {/* Compare placeholder */}
-                           <li
+                          {/* Compare toggle */}
+                          <li
                             className="AddCompareButtClass wishlist-btn common-btn"
                             title={isCompared ? "Remove From Compare" : "Add to Compare"}
                             style={{ cursor: comparLoading ? "wait" : "pointer" }}
@@ -1507,35 +1487,35 @@ async function handleCompareToggle() {
                               <i
                                 className="fa fa-compress"
                                 aria-hidden="true"
-                                style={{ color: isCompared  ? "#e74c3c" : "#2c3b5b" }}
+                                style={{ color: isCompared ? "#e74c3c" : "#2c3b5b" }}
                               />
                             </button>
                           </li>
-                         
 
-                          {/* Add to cart button placeholder */}
-                           <li 
+                          {/* Cart toggle */}
+                          <li
                             className="hover-none"
                             title={isInCart ? "Remove From Cart" : "Add to Cart"}
                             style={{ cursor: cartLoading ? "wait" : "pointer" }}
-                          ><div className="band-cart-btn">
-                            <button
-                              type="button"
-                              onClick={handleCartToggle}
-                              disabled={cartLoading}
-                              className="common-btn band-cart"
-                              aria-pressed={isInCart}
-                              aria-label={isInCart ? "Remove from cart" : "Add to cart"}
-                            > 
-                              <i
-                                className="fa fa-shopping-cart"
-                                aria-hidden="true"
-                                style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
-                              />  Add To Cart
-                            </button>
+                          >
+                            <div className="band-cart-btn">
+                              <button
+                                type="button"
+                                onClick={handleCartToggle}
+                                disabled={cartLoading}
+                                className="common-btn band-cart"
+                                aria-pressed={isInCart}
+                                aria-label={isInCart ? "Remove from cart" : "Add to cart"}
+                              >
+                                <i
+                                  className="fa fa-shopping-cart"
+                                  aria-hidden="true"
+                                  style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
+                                />{" "}
+                                Add To Cart
+                              </button>
                             </div>
                           </li>
-
                         </ul>
                       </div>
                     </div>
@@ -1549,6 +1529,24 @@ async function handleCompareToggle() {
         </div>
       </div>
       <Footer />
+
+      {/* Share modal mounted at the end so it overlays everything */}
+      {shareOpen && (
+        <ShareProductModal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          productId={product?.products_id}
+          optionId={selected.ringSize}
+          productTitle={product?.products_name || ""}
+          productUrl={`https://www.amipi.com/${product?.products_seo_url || ""}`}
+          productImage={
+            Array.isArray(product?.images) && product.images[0]
+              ? toAbsoluteMediaUrl("image", product.images[0])
+              : ""
+          }
+          authUser={null} // will read from localStorage if present
+        />
+      )}
     </div>
   );
 };
