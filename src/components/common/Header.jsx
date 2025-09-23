@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../apiClient";
 import logo from "../../assets/logo.png";
+import smallogo from "../../assets/small-logo.png";
 
 /**
  * Mirrors the original PHP logic:
@@ -381,7 +382,7 @@ const Header = () => {
         <div className="container-fluid">
           {/* Logo */}
           <a className="navbar-brand d-flex align-items-center" href="/">
-            <img src={logo} alt="Amipi Logo" style={{ height: 48 }} />
+            <img src={smallogo} alt="Amipi Logo" style={{ height: 48 }} />
           </a>
 
           {/* Mobile Toggle (Bootstrap Offcanvas) */}
@@ -415,6 +416,9 @@ const Header = () => {
                 // Group items into columns per CASE 6
                 const columns = groupByDisplayColumn(main.child || [], colCount);
 
+                const isFineJewelry = /fine jewelry/i.test(main?.alias || "");
+                const isDiamonds = /diamonds/i.test(main?.alias || "");
+
                 return (
                   <li
                     key={main.id}
@@ -433,11 +437,15 @@ const Header = () => {
 
                     <div className="dropdown-menu w-100 mt-0 border-0 shadow p-4 mega-menu-fullwidth">
                       {/* <div className={`container ${hasMany ? "custom-menu-width" : ""}`}> */}
-                      <div
-                          className={`container ${hasMany ? "custom-menu-width" : ""} ${
-                            /fine jewelry/i.test(main?.alias || "") ? "custom-lg-width" : ""
-                          }`}
-                        >
+                       <div
+
+                        className={`container ${hasMany ? "custom-menu-width" : ""} ${
+
+                          isFineJewelry ? "custom-lg-width" : ""
+
+                        } ${isDiamonds ? "diamonds-menu" : ""}`}
+
+                      >
                         <ul className="row odd-even-bg">
                           {columns.map((itemsInCol, idx) =>
                             renderDesktopColumn(
