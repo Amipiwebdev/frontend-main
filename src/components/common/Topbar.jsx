@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+//import axios from "axios";
+import { api } from "../../apiClient"; // axios instance with baseURL
 
 const Topbar = () => {
   const [store, setStore] = useState(null);
 
   useEffect(() => {
-    axios.get("https://jewelry.amipi.com/api/store-info").then(res => {
+    api.get("/store-info").then(res => {
       setStore(res.data);
     });
   }, []);

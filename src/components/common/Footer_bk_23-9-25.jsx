@@ -6,306 +6,50 @@ const Footer = () => {
       <div className="width-1440">
         <div className="footer-row">
           {/* Newsletter */}
-          <div className="newsletter row hidden-small-newsletter">
-      <div className="hidden-lg hidden-md hidden-sm">
-        <div className="d-flex">
-          <div className="col-icon-left">
-            <div className="email-image">
-              <img
-                src="https://www.amipi.com/homepage/images/email.png"
-                title="AMIPI"
-                alt="AMIPI"
-              />
-            </div>
-          </div>
-          <div className="nes-head">
-            <h4>Subscribe to Our Newsletter</h4>
-          </div>
-        </div>
-      </div>
-
-      <div className="col-md-6 col-icon-left hidden-xs">
-        <div className="email-image">
-          <img
-            src="https://www.amipi.com/homepage/images/email.png"
-            title="AMIPI"
-            alt="AMIPI"
-          />
-        </div>
-      </div>
-
-      <div className="col-md-6 col-icon-right">
-        {/* Local styles for this block */}
-        <style>{`
-          #mc_embed_signup .mc-field-group{margin: 0 !important}
-          #mc_embed_signup h4 {
-            color: #2c3b5b;
-            margin-bottom: 10px;
-          }
-          #mc_embed_signup h3 { margin: 10px 0; }
-          .asterisk{color: red}
-          ul.diamond-list {
-            display: flex; list-style: none; padding-left: 0;
-            margin: 0 0 10px 0;
-          }
-          ul.diamond-list li { margin-right: 15px; }
-          input#mc-embedded-subscribe {
-            background: #2c3b5b 0 !important;
-            border: 0 !important;
-            padding: 2px 24px !important;
-            color: #fed700 !important;
-            text-transform: uppercase !important;
-            font-weight: bold !important;
-          }
-          input#mce-EMAIL {
-            border: 1px solid #CCC;
-            padding: 4px 10px;
-            border-radius: 5px;
-          }
-          .input-email{display: block;}
-          input#mce-EMAIL{width: 100%;}
-          .mc-field-group { margin: 12px 0; }
-          input#mce-MMERGE3-0 { height: auto !important; }
-          #mc_embed_signup .mc-field-group input {
-            display: block; width: 100%;
-            padding: 8px 0; text-indent: 2%;
-            background: none; border:1px solid #2C3C5B;
-            border-radius: 10px; height: 50px;
-          }
-          #mc_embed_signup .button{
-            background: #2C3C5B 0 !important;
-            border-radius: 25px 25px 0 25px !important;
-            width: 200px !important; font-size: 18px !important;
-            margin: 10px 0 !important; padding: 10px !important;
-            display: block; line-height: initial !important;
-            height: auto !important; color: #FFF !important;
-            font-weight: normal !important; text-transform: inherit !important;
-          }
-          #mc_embed_signup{ clear:left; font:14px Helvetica,Arial,sans-serif; }
-        `}</style>
-
-        {/* Mailchimp form */}
-        <div id="mc_embed_signup" className="footer-form">
-          <form
-            action="https://amipi.us19.list-manage.com/subscribe/post?u=91f57d397080494a0a49ccc7f&amp;id=25483f5eb3"
-            method="post"
-            id="mc-embedded-subscribe-form"
-            name="mc-embedded-subscribe-form"
-            className="validate"
-            target="_blank"
-            rel="noreferrer"
-            noValidate
+          <div
+            className="newsletter row hidden-small-newsletter"
+            style={{ background: "#2c3c5b" }}
           >
-            <div id="mc_embed_signup_scroll">
-              <h4 className="hidden-xs">Subscribe to Our Newsletter</h4>
+            <div className="hidden-lg hidden-md hidden-sm">
+              <div className="d-flex">
+                <div className="col-icon-left">
+                  <div className="email-image">
+                    <img
+                      src="https://www.amipi.com/homepage/images/email.png"
+                      title="AMIPI"
+                      alt="AMIPI"
+                    />
+                  </div>
+                </div>
+                <div className="nes-head">
+                  <h4>Subscribe to Our Newsletter</h4>
+                </div>
+              </div>
+            </div>
 
-              <div className="mc-field-group">
-                <label htmlFor="mce-EMAIL">
-                  Email Address <span className="asterisk">*</span>
-                </label>
-                <input
-                  type="email"
-                  name="EMAIL"
-                  className="required email"
-                  id="mce-EMAIL"
-                  aria-required="true"
-                  required
+            {/* <div className="col-sm-6 col-icon-left hidden-xs">
+              <div className="email-image">
+                <img
+                  src="https://www.amipi.com/homepage/images/email.png"
+                  title="AMIPI"
+                  alt="AMIPI"
                 />
               </div>
-
-              <div className="mc-field-group">
-                <label htmlFor="mce-COMPANY">
-                  Company <span className="asterisk">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="COMPANY"
-                  className="required"
-                  id="mce-COMPANY"
-                  aria-required="true"
-                  required
-                />
-              </div>
-
-              {/* Hidden tags field */}
-              <div className="mc-field-group" style={{ display: "none" }}>
-                <input type="hidden" name="tags" value="6249660" />
-              </div>
-
-              {/* Responses */}
-              <div id="mce-responses" className="clear">
-                <div className="response" id="mce-error-response" style={{ display: "none" }} />
-                <div className="response" id="mce-success-response" style={{ display: "none" }} />
-              </div>
-
-              {/* Honeypot */}
-              <div style={{ position: "absolute", left: "-5000px" }} aria-hidden="true">
-                <input
-                  type="text"
-                  name="b_91f57d397080494a0a49ccc7f_25483f5eb3"
-                  tabIndex={-1}
-                  defaultValue=""
-                />
-              </div>
-
-              <div className="clear">
-                <input
-                  type="submit"
-                  value="Subscribe"
-                  name="subscribe"
-                  id="mc-embedded-subscribe"
-                  className="button"
-                />
-              </div>
-            </div>
-
-            <small>
-              Your email will be managed in accordance with our{" "}
-              <a href="https://www.amipi.com/Privacy-Policy/" target="_blank" rel="noreferrer">
-                privacy policy
-              </a>{" "}
-              which you can view here. Unsubscribe at any time.
-            </small>
-          </form>
-        </div>
-      </div>
-    </div>  
-
-          <div className="row footer-flex m-0">
-            <div className="col-sm-3 col-md-3 col-lg-4 col-xl-3 hidden-small">
-      {/* Scoped styles for this widget */}
-      <style>{`
-        #mc_embed_signup .mc-field-group{margin: 0 !important}
-        #mc_embed_signup .form-hidden h2 {
-          color: #FFF;
-          margin-bottom: 10px;
-        }
-        #mc_embed_signup .form-hidden h3 { margin: 10px 0; }
-        .asterisk{color: red}
-        ul.diamond-list {
-          display: flex; list-style: none; padding-left: 0;
-          margin: 0 0 10px 0;
-        }
-        ul.diamond-list li { margin-right: 15px; }
-        input#mc-embedded-subscribe {
-          background: #2c3b5b !important;
-          border: 0 !important;
-          padding: 2px 24px !important;
-          color: #fed700 !important;
-          text-transform: uppercase !important;
-          font-weight: bold !important;
-        }
-        input#mce-EMAIL {
-          border: 1px solid #CCC;
-          padding: 4px 10px;
-          border-radius: 5px;
-        }
-        #mc_embed_signup .form-hidden .mc-field-group label { color: #FFF; }
-        .input-email{display: block;}
-        input#mce-EMAIL{width: 100%;}
-        .mc-field-group { margin: 12px 0; }
-        #mc_embed_signup .form-hidden .mc-field-group input {
-          display: block; width: 100%;
-          padding: 8px 0; text-indent: 2%;
-          background: #FFF; border-color: #2C3C5B;
-          border-radius: 10px; height: 50px;
-        }
-        #mc_embed_signup .form-hidden .button {
-          background: #fed700 !important;
-          color: #2c3b5c !important;
-        }
-        #mc_embed_signup{ clear: left; font: 14px Helvetica, Arial, sans-serif; }
-      `}</style>
-
-      <div id="mc_embed_signup" className="widget">
-        <form
-          action="https://amipi.us19.list-manage.com/subscribe/post?u=91f57d397080494a0a49ccc7f&amp;id=25483f5eb3"
-          method="post"
-          id="mc-embedded-subscribe-form"
-          name="mc-embedded-subscribe-form"
-          className="validate form-hidden"
-          target="_blank"
-          rel="noreferrer"
-          noValidate
-        >
-          <div id="mc_embed_signup_scroll">
-            <h4>Subscribe to Our Newsletter</h4>
-
-            <div className="mc-field-group">
-              <label htmlFor="mce-EMAIL">
-                Email Address <span className="asterisk">*</span>
-              </label>
-              <input
-                type="email"
-                name="EMAIL"
-                className="required email"
-                id="mce-EMAIL"
-                required
-              />
-            </div>
-
-            <div className="mc-field-group">
-              <label htmlFor="mce-COMPANY">
-                Company <span className="asterisk">*</span>
-              </label>
-              <input
-                type="text"
-                name="COMPANY"
-                className="required"
-                id="mce-COMPANY"
-                required
-              />
-            </div>
-
-            {/* Hidden tags field */}
-            <div className="mc-field-group" style={{ display: "none" }}>
-              <input type="hidden" name="tags" value="6249660" />
-            </div>
-
-            {/* Response containers (Mailchimp will control these on redirect) */}
-            <div id="mce-responses" className="clear">
-              <div className="response" id="mce-error-response" style={{ display: "none" }} />
-              <div className="response" id="mce-success-response" style={{ display: "none" }} />
-            </div>
-
-            {/* Honeypot */}
-            <div style={{ position: "absolute", left: "-5000px" }} aria-hidden="true">
-              <input
-                type="text"
-                name="b_91f57d397080494a0a49ccc7f_25483f5eb3"
-                tabIndex={-1}
-                defaultValue=""
-              />
-            </div>
-
-            <div className="clear">
-              <input
-                type="submit"
-                value="Subscribe"
-                name="subscribe"
-                id="mc-embedded-subscribe"
-                className="button"
-              />
-            </div>
-
-            <small className="text-white">
-              Your email will be managed in accordance with our{" "}
-              <a href="https://www.amipi.com/Privacy-Policy/" target="_blank" rel="noreferrer">
-                privacy policy
-              </a>{" "}
-              which you can view here. Unsubscribe at any time.
-            </small>
+            </div> */}
+            <div className="col-sm-6 col-icon-right" />
           </div>
-        </form>
-      </div>
-    </div>
 
-            <div className="col-sm-4 col-md-4 col-lg-4 col-xl-3">
+          <div className="row footer-flex">
+            {/* <div className="col-sm-3 col-md-3 col-lg-4 hidden-small"></div> */}
+
+            <div className="col-sm-4 col-md-4 col-lg-4">
               <div className="widget widget-1 align-none">
                 <h3>Contact Information</h3>
                 <ul>
                   <li className="footer-address">
-                    42 W 48th St, 15th Flr New York, NY 10036
+                    42 W 48th St, 15th Flr
+                    <br />
+                    New York, NY 10036
                   </li>
                   <li>
                     <i className="fa fa-phone" aria-hidden="true"></i> +1 (800)
@@ -324,7 +68,7 @@ const Footer = () => {
               </div>
             </div>
 
-            <div className="col-sm-4 col-md-4 col-lg-4 col-xl-3">
+            <div className="col-sm-4 col-md-4 col-lg-4">
               <div className="widget widget-2">
                 <ul>
                   <li className="heading-footer">
@@ -371,7 +115,7 @@ const Footer = () => {
               </div>
             </div>
 
-            <div className="col-sm-4 col-md-4 col-lg-4 col-xl-3">
+            <div className="col-sm-4 col-md-4 col-lg-4">
               <div className="widget widget-2 widget-border">
                 <ul>
                   <li className="heading-footer">
@@ -419,7 +163,7 @@ const Footer = () => {
             </div>
           </div>
 
-          <div className="row  m-0">
+          <div className="row">
             <div className="col-md-12">
               <div className="widget widget-3 footer-c-logo widget-border">
                 <ul style={{ textAlign: "center", width: "100%" }}>

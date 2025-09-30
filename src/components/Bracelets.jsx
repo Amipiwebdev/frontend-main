@@ -1,4 +1,4 @@
-// src/components/Bands.jsx
+// src/components/Bracelets.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Header from "./common/Header";
@@ -7,7 +7,7 @@ import Topbar from "./common/Topbar";
 import { api } from "../apiClient"; // axios instance with baseURL
 import ShareProductModal from "./share/ShareProductModal"; // NEW
 
-const SEO_URL = "bands-test";
+const SEO_URL = "br-test";
 
 /* ------------------------------------------------------------------ */
 /*                              Helpers                                */
@@ -477,8 +477,8 @@ function MobileTabs({ active, onChange }) {
 /*                               MAIN PAGE                               */
 /* ===================================================================== */
 
-const Bands = () => {
-  const [pageTitle, setPageTitle] = useState("Bands");
+const Bracelets = () => {
+  const [pageTitle, setPageTitle] = useState("Bracelets");
 
   // Allowed ID lists (from catnav)
   const [allowed, setAllowed] = useState({
@@ -574,7 +574,7 @@ const Bands = () => {
     api.get(`/catnav/${SEO_URL}`).then(async (res) => {
       const nav = res.data?.[0] || {};
 
-      setPageTitle(nav.category_navigation_title || "Bands");
+      setPageTitle(nav.category_navigation_title || "Bracelets");
 
       const stoneTypeIds = String(nav.category_navigation_sub_stone_type ?? "")
         .split(",")
@@ -1204,7 +1204,7 @@ const Bands = () => {
             <h1>{pageTitle}</h1>
           </div>
 
-          <div className="main-content flex-wrap d-flex align-items-start p-0 justify-content-center">
+          <div className="main-content flex-wrap d-flex align-items-start p-0">
             {/* GALLERY */}
             <div className="left-gallery-band row col-12 p-3">
               <GalleryCarousel items={galleryItems} onOpen={openLightbox} />
@@ -1568,7 +1568,7 @@ const Bands = () => {
                       <p className="stud-subtitle">{product.products_description || "--"}</p>
                     </div>
 
-                    <div className="d-flex c_flex_box justify-content-center">
+                    <div className="d-flex c_flex_box">
                       <div className="col-xs-12 col-sm-12 product-description-variation-details-action stud-action-filter">
                         <ul className="action product-d-action">
                           <li className="common-btn svg-design">
@@ -1695,4 +1695,4 @@ const Bands = () => {
   );
 };
 
-export default Bands;
+export default Bracelets;

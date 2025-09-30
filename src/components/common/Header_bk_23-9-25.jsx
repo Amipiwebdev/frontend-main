@@ -3,7 +3,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../apiClient";
 import logo from "../../assets/logo.png";
 import smallogo from "../../assets/small-logo.png";
-import { apiSession } from "../../apiClient"; // <- add this import
 
 /**
  * Mirrors the original PHP logic:
@@ -34,16 +33,6 @@ const getColumnClass = (count) => {
   return "col-sm-3";
 };
 
-// Slugify for class names based on a title/alias (mobile only)
-const toSlug = (s) =>
-  (s || "")
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
-    .replace(/^-+|-+$/g, "") || "untitled";
-
 // Get the highest "display_in_col" present among a list of items (top-level only)
 const getMaxDisplayColUsed = (items = []) =>
   items.reduce((max, it) => Math.max(max, toInt(it?.display_in_col, 0)), 0);
@@ -53,7 +42,7 @@ const groupByDisplayColumn = (items = [], colCount = 5) => {
   const cols = Array.from({ length: colCount }, () => []);
   items.forEach((it) => {
     let di = toInt(it?.display_in_col, 0);
-    di = di >= 1 && di <= colCount ? di : colCount;
+    di = di >= 1 && di <= colCount ? di : colCount; // put invalid ones into the last column
     cols[di - 1].push(it);
   });
   return cols;
@@ -63,7 +52,12 @@ const Header = () => {
   const [menu, setMenu] = useState([]);
   const [showLogin, setShowLogin] = useState(false);
 
-  // Auth state (persisted – your original logic)
+   // Search state
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const searchRef = useRef(null);
+
+  // Auth state (persisted)
   const [authUser, setAuthUser] = useState(() => {
     try {
       const raw = localStorage.getItem("amipiUser");
@@ -80,8 +74,6 @@ const Header = () => {
     }
     return false;
   });
-
-  
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
@@ -146,98 +138,53 @@ const Header = () => {
       document.removeEventListener("keydown", onEsc);
     };
   }, [showLogin]);
+  
+    // Close search on outside click / ESC
 
-  // ❶ On mount, read server session
-useEffect(() => {
-  let cancelled = false;
-  (async () => {
-    try {
-      const { data } = await apiSession.get("/api/me", {
-        headers: { Accept: "application/json" }
-      });
-      if (cancelled) return;
-      if (data?.auth && data?.user) {
-        localStorage.setItem("amipiUser", JSON.stringify(data.user));
-        setAuthUser(data.user);
-      } else {
-        localStorage.removeItem("amipiUser");
-        setAuthUser(null);
+  useEffect(() => {
+    if (!showSearch) return;
+    const onDown = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowSearch(false);
       }
-    } catch {
-      /* ignore */
-    }
-  })();
-  return () => { cancelled = true; };
-}, []);
+    };
 
-// ❷ React to changes from App (or another tab)
-useEffect(() => {
-  const onStorage = (e) => {
-    if (e.key === "amipiUser" || e.key === "amipi:auth-last") {
-      try {
-        const raw = localStorage.getItem("amipiUser");
-        setAuthUser(raw ? JSON.parse(raw) : null);
-      } catch {
-        setAuthUser(null);
-      }
-    }
-  };
-  window.addEventListener("storage", onStorage);
-  return () => window.removeEventListener("storage", onStorage);
-}, []);
+    const onEsc = (e) => e.key === "Escape" && setShowSearch(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [showSearch]);
 
-// ❸ On manual logout (your existing handler), also ping backend if needed:
-async function handleLogout() {
-  localStorage.removeItem("amipiUser");
-  setAuthUser(null);
-  localStorage.setItem("amipi:auth-last", String(Date.now()));
-  // (optional) await apiSession.post('/logout')
-}
-
-  // Login submit
-  async function handleLogin(e) {
+  // Search submit
+  function handleSearchSubmit(e) {
     e.preventDefault();
-    setErr("");
-    setBusy(true);
-    try {
-      const { data } = await api.post("/login", {
-        login_uname: email.trim(),
-        login_pass: pass,
-        login_type: "login_page",
-      });
-      if (data?.status === "success" && data?.user) {
-        localStorage.setItem("amipiUser", JSON.stringify(data.user));
-        setAuthUser(data.user);
-        setShowLogin(false);
-        setEmail("");
-        setPass("");
-      } else {
-        setErr(data?.message || "Login failed");
-      }
-    } catch (error) {
-      setErr(error?.response?.data?.message || "Login failed");
-    } finally {
-      setBusy(false);
-    }
-  }
+    const q = searchTerm.trim();
+    if (!q) return;
+    window.location.href = `https://www.amipi.com/Search?query=${encodeURIComponent(q)}`;
 
-  function handleLogout() {
-    localStorage.removeItem("amipiUser");
-    setAuthUser(null);
   }
 
   // ---------- Renderers that mirror PHP "cases" ----------
 
+  /**
+   * CASES 7–9 & type=4: render one menu item
+   * - For type 1/2 we respect item.sub_nav_col to decide col-sm-6 vs 12.
+   * - For type 3/4 we output UL and (if sub_nav_col > 1) add "two-column icon-left-title".
+   */
   const renderMenuContent = (item) => {
     const itemTwoUp = toInt(item?.sub_nav_col, 1) > 1;
     const colClass = itemTwoUp ? "col-sm-6" : "col-sm-12";
     const thumb = item?.image ? `${THUMB_BASE}${item.image}&w=150&h=150` : "";
 
     switch (toInt(item?.menu_type, 4)) {
+      // --- 1) Text with Top Image + Desc ---
       case 1:
         return (
           <div className={colClass} key={`m1-${item.id}`}>
-            <div className="title-below-image">
+            <div className="row title-below-image">
               <a href={item.page_link}>
                 {item.image ? (
                   <img
@@ -254,6 +201,7 @@ async function handleLogout() {
           </div>
         );
 
+      // --- 2) Text with Side Image + Desc ---
       case 2:
         return (
           <div className={colClass} key={`m2-${item.id}`}>
@@ -280,6 +228,7 @@ async function handleLogout() {
           </div>
         );
 
+      // --- 3) Text with Icon ---
       case 3: {
         const twoColClass = itemTwoUp ? "two-column icon-left-title" : "";
         return (
@@ -301,6 +250,7 @@ async function handleLogout() {
         );
       }
 
+      // --- 4) Plain Text ---
       default: {
         const twoColClass = itemTwoUp ? "two-column icon-left-title" : "";
         const needsTextLeft = [31, 32, 162].includes(toInt(item?.id, -1));
@@ -323,6 +273,12 @@ async function handleLogout() {
     }
   };
 
+  /**
+   * Render one top-level *column* inside the mega menu:
+   * - Mirrors CASE 6 by rendering only items whose display_in_col === this column index.
+   * - Wraps content with a `.row` so the nested col-sm-* (types 1/2) work correctly.
+   * - When colCount === 5, add inline style to make exactly 5 equal columns (20% each).
+   */
   const renderDesktopColumn = (itemsInThisCol, subcolClass, mainId, colIndex, colCount) => {
     if (!itemsInThisCol?.length) return null;
 
@@ -356,40 +312,68 @@ async function handleLogout() {
     );
   };
 
-  const renderMobileSection = (main) => {
-    const aliasSlug = toSlug(main?.alias);
-    const detailsClass = `mobile-section ${aliasSlug}`;
-
-    return (
-      <div key={main.id}>
-        <details className={detailsClass}>
-          <summary>{main.alias}</summary>
-          <div className="mt-2">
-            <ul className="list-unstyled m-0 double-list">
-              {main.child?.map((subnav) => (
-                <li key={subnav.id} className="mb-2 clear-both">
-                  <div className="row">
-                    {renderMenuContent({ ...subnav, sub_nav_col: 1 })}
-                  </div>
-                  {subnav.child?.length ? (
-                    <div className="mt-2 ps-3 width-f row">
-                      {subnav.child.map((childnav) => (
-                        <div key={childnav.id} className="mb-2 two-col">
-                          <div className="row">
-                            {renderMenuContent({ ...childnav, sub_nav_col: 1 })}
-                          </div>
+  // Mobile: use the same item renderer, but don’t enforce columns
+  const renderMobileSection = (main) => (
+    <div key={main.id}>
+      <details>
+        <summary>{main.alias}</summary>
+        <div className="mt-2">
+          <ul className="list-unstyled m-0 double-list">
+            {main.child?.map((subnav) => (
+              <li key={subnav.id} className="mb-2 clear-both">
+                <div className="row">
+                  {renderMenuContent({ ...subnav, sub_nav_col: 1 /* force full width */ })}
+                </div>
+                {subnav.child?.length ? (
+                  <div className="mt-2 ps-3 width-f">
+                    {subnav.child.map((childnav) => (
+                      <div key={childnav.id} className="mb-2 two-col">
+                        <div className="row">
+                          {renderMenuContent({ ...childnav, sub_nav_col: 1 })}
                         </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </details>
-      </div>
-    );
-  };
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </details>
+    </div>
+  );
+
+  // Login submit
+  async function handleLogin(e) {
+    e.preventDefault();
+    setErr("");
+    setBusy(true);
+    try {
+      const { data } = await api.post("/login", {
+        login_uname: email.trim(),
+        login_pass: pass,
+        login_type: "login_page",
+      });
+      if (data?.status === "success" && data?.user) {
+        localStorage.setItem("amipiUser", JSON.stringify(data.user));
+        setAuthUser(data.user);
+        setShowLogin(false);
+        setEmail("");
+        setPass("");
+      } else {
+        setErr(data?.message || "Login failed");
+      }
+    } catch (error) {
+      setErr(error?.response?.data?.message || "Login failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("amipiUser");
+    setAuthUser(null);
+  }
 
   // ---------- UI ----------
   return (
@@ -417,15 +401,19 @@ async function handleLogout() {
           <div className="collapse navbar-collapse d-none d-lg-block">
             <ul className="navbar-nav ms-auto me-auto mb-2 mb-lg-0">
               {menu.map((main) => {
+                // ---- Determine how many columns to render ----
+                // Use the max between configured sub_nav_col and the highest display_in_col used by children.
                 const maxUsed = getMaxDisplayColUsed(main.child || []);
                 const configured = toInt(main?.sub_nav_col, 1);
                 const colCount = clamp(Math.max(configured, maxUsed), 1, 5);
 
                 const subcolClass = getColumnClass(colCount);
 
+                // For width tweaks (optional custom width when there are many items)
                 const menucnt = Array.isArray(main.child) ? main.child.length : 0;
                 const hasMany = menucnt > colCount;
 
+                // Group items into columns per CASE 6
                 const columns = groupByDisplayColumn(main.child || [], colCount);
 
                 const isFineJewelry = /fine jewelry/i.test(main?.alias || "");
@@ -448,10 +436,15 @@ async function handleLogout() {
                     </a>
 
                     <div className="dropdown-menu w-100 mt-0 border-0 shadow p-4 mega-menu-fullwidth">
-                      <div
+                      {/* <div className={`container ${hasMany ? "custom-menu-width" : ""}`}> */}
+                       <div
+
                         className={`container ${hasMany ? "custom-menu-width" : ""} ${
+
                           isFineJewelry ? "custom-lg-width" : ""
+
                         } ${isDiamonds ? "diamonds-menu" : ""}`}
+
                       >
                         <ul className="row odd-even-bg">
                           {columns.map((itemsInCol, idx) =>
@@ -471,8 +464,83 @@ async function handleLogout() {
               })}
             </ul>
 
-            {/* Right side: Login/Welcome & Cart (search removed) */}
+            {/* Right side: Login/Welcome & Cart */}
             <ul className="d-flex align-items-center m-0 gap-2">
+               <li className="circle-search position-relative">
+
+                <button
+
+                  type="button"
+
+                  className="search-toggle d-inline-flex align-items-center justify-content-center"
+
+                  title="Search"
+
+                  aria-haspopup="dialog"
+
+                  aria-expanded={showSearch ? "true" : "false"}
+
+                  onClick={() => setShowSearch((v) => !v)}
+
+                >
+
+                  <svg
+
+                    height="20"
+
+                    viewBox="0 0 461.516 461.516"
+
+                    width="20"
+
+                    xmlns="http://www.w3.org/2000/svg"
+
+                  >
+
+                    <path d="m185.746 371.332c41.251.001 81.322-13.762 113.866-39.11l122.778 122.778c9.172 8.858 23.787 8.604 32.645-.568 8.641-8.947 8.641-23.131 0-32.077l-122.778-122.778c62.899-80.968 48.252-197.595-32.716-260.494s-197.594-48.252-260.493 32.716-48.252 197.595 32.716 260.494c32.597 25.323 72.704 39.06 113.982 39.039zm-98.651-284.273c54.484-54.485 142.82-54.486 197.305-.002s54.486 142.82.002 197.305-142.82 54.486-197.305.002c-.001-.001-.001-.001-.002-.002-54.484-54.087-54.805-142.101-.718-196.585.239-.24.478-.479.718-.718z"></path>
+
+                  </svg>
+
+                  <span className="visually-hidden">Search</span>
+
+                </button>
+
+
+
+                {showSearch && (
+
+                  <div ref={searchRef} className="search-pop">
+
+                    <form onSubmit={handleSearchSubmit} className="search-form">
+
+                      <input
+
+                        type="text"
+
+                        className="form-control search-input"
+
+                        placeholder="Search"
+
+                        value={searchTerm}
+
+                        onChange={(e) => setSearchTerm(e.target.value)}
+
+                        autoFocus
+
+                      />
+
+                      <button type="submit" className="btn go-btn">
+
+                        GO!
+
+                      </button>
+
+                    </form>
+
+                  </div>
+
+                )}
+
+              </li>
               {!authUser ? (
                 <li className="position-relative">
                   <button
