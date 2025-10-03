@@ -6,7 +6,7 @@ import Footer from "./common/Footer";
 import Topbar from "./common/Topbar";
 //import { api } from "../apiClient"; // axios instance with baseURL
 import { api, apiSession } from "../apiClient";
-// import ShareProductModal from "../share/ShareProductModal.jsx"; // NEW
+import ShareProductModal from "./share/ShareProductModal.jsx";// NEW
 
 const SEO_URL = "bands-test";
 

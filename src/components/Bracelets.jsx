@@ -4,8 +4,9 @@ import { createPortal } from "react-dom";
 import Header from "./common/Header";
 import Footer from "./common/Footer";
 import Topbar from "./common/Topbar";
-import { api } from "../apiClient"; // axios instance with baseURL
-// import ShareProductModal from "../share/ShareProductModal.jsx"; // NEW
+//import { api } from "../apiClient"; // axios instance with baseURL
+import { api, apiSession } from "../apiClient";
+import ShareProductModal from "./share/ShareProductModal.jsx";// NEW
 
 const SEO_URL = "br-test";
 
@@ -1072,44 +1073,75 @@ const Bands = () => {
     });
   }
 
-  /* -------------------- Wishlist -------------------- */
-  useEffect(() => {
-    if (!product?.products_id) {
-      setIsWishlisted(false);
-      return;
-    }
-    const { customers_id, parent_retailer_id } = getClientIds();
-    api
-      .get("/wishlist/check", {
-        params: {
-          products_id: product.products_id,
-          customers_id,
-          parent_retailer_id,
-        },
-      })
-      .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
-      .catch(() => setIsWishlisted(false));
-  }, [product?.products_id]);
+  // -------- CSRF preflight (do this once in the component/file where you mount things) --------
+useEffect(() => {
+  apiSession.get('/api/csrf').catch(() => {});
+}, []);
 
-  async function handleWishlistToggle() {
-    const pricing = getPricingParams();
-    if (!product?.products_id || wishLoading) return;
-    const { customers_id, parent_retailer_id } = getClientIds();
-    try {
-      setWishLoading(true);
-      const { data } = await api.post("/wishlist/toggle", {
-        products_id: product.products_id,
-        customers_id,
-        parent_retailer_id,
-        ...pricing,
-      });
-      setIsWishlisted(data?.status === "added");
-    } catch (e) {
-      console.error("Wishlist toggle failed", e);
-    } finally {
-      setWishLoading(false);
-    }
+// Small helper: prefer IDs from the session user if getClientIds() returns 0
+function resolveIdsWithAuthFallback(baseIds = {}) {
+  let u = null;
+  try { u = JSON.parse(localStorage.getItem("amipiUser") || "null"); } catch {}
+  const cid =
+    Number(baseIds.customers_id || 0) ||
+    Number(u?.customers_id ?? u?.customer_id ?? u?.retailerrid ?? u?.id ?? 0) ||
+    0;
+  const prid =
+    Number(baseIds.parent_retailer_id || 0) ||
+    Number(u?.parent_retailer_id ?? 0) ||
+    0;
+
+  return { customers_id: cid, parent_retailer_id: prid };
+}
+
+/* -------------------- Wishlist -------------------- */
+useEffect(() => {
+  if (!product?.products_id) {
+    setIsWishlisted(false);
+    return;
   }
+
+  const ids = resolveIdsWithAuthFallback(getClientIds());
+
+  apiSession
+    .get("/api/wishlist/check", {
+      params: {
+        products_id: product.products_id,
+        customers_id: ids.customers_id,
+        parent_retailer_id: ids.parent_retailer_id,
+      },
+      headers: { Accept: "application/json" },
+    })
+    .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
+    .catch(() => setIsWishlisted(false));
+}, [product?.products_id]);
+
+async function handleWishlistToggle() {
+  if (!product?.products_id || wishLoading) return;
+
+  const pricing = getPricingParams();
+  const ids = resolveIdsWithAuthFallback(getClientIds());
+
+  const payload = {
+    products_id: product.products_id,
+    customers_id: ids.customers_id,
+    parent_retailer_id: ids.parent_retailer_id,
+    ...pricing,
+  };
+
+  try {
+    setWishLoading(true);
+    const { data } = await apiSession.post("/api/wishlist/toggle", payload, {
+      headers: { Accept: "application/json" },
+    });
+    setIsWishlisted(data?.status === "added");
+  } catch (e) {
+    console.error("Wishlist toggle failed", e?.response?.data || e.message);
+  } finally {
+    setWishLoading(false);
+  }
+}
+
 
   /* -------------------- Compare -------------------- */
   useEffect(() => {
@@ -1151,43 +1183,132 @@ const Bands = () => {
   }
 
   /* -------------------- Cart -------------------- */
+  function getClientIds() {
+  let customers_id = 0;
+  let parent_retailer_id = 0;
+
+  try {
+    const user = JSON.parse(localStorage.getItem("amipiUser") || "null");
+    if (user && typeof user === "object") {
+      // try the common shapes you might have in user
+      customers_id =
+        Number(
+          user.customers_id ??
+          user.customer_id ??
+          user.retailerrid ??      // <-- your /api/me shows this field
+          user.retailer_id ??
+          user.id ??              // Retailer::id
+          0
+        ) || 0;
+
+      parent_retailer_id =
+        Number(
+          user.parent_retailer_id ??
+          user.ParentRetailerID ??
+          0
+        ) || 0;
+    }
+  } catch {}
+
+  if (!customers_id || !parent_retailer_id) {
+    const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
+    customers_id = customers_id || Number(g.customers_id ?? g.customer_id ?? 0) || 0;
+    parent_retailer_id = parent_retailer_id || Number(g.parent_retailer_id ?? 0) || 0;
+  }
+
+  return { customers_id, parent_retailer_id };
+}
+
+function getPricingParams() {
+  let user = null;
+  try { user = JSON.parse(localStorage.getItem("amipiUser") || "null"); } catch {}
+
+  const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
+
+  const AMIPI_FRONT_Retailer_Jewelry_Level =
+    Number(
+      g.AMIPI_FRONT_Retailer_Jewelry_Level ??
+      user?.retailer_level_id ??
+      3
+    ) || 3;
+
+  const AMIPI_FRONT_RetailerProductFlat =
+    Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
+
+  const AMIPI_FRONT_RetailerProductPer =
+    Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
+
+  const AMIPI_FRONT_IS_REATILER =
+    ((g.AMIPI_FRONT_IS_REATILER ?? (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes")
+      ? "Yes" : "No";
+
+  // customers_id is not needed here anymore (you already send via getClientIds),
+  // but harmless if you want to include it as well.
+  const { customers_id } = getClientIds();
+
+  return {
+    customers_id,
+    AMIPI_FRONT_Retailer_Jewelry_Level,
+    AMIPI_FRONT_RetailerProductFlat,
+    AMIPI_FRONT_RetailerProductPer,
+    AMIPI_FRONT_IS_REATILER,
+  };
+}
+
   useEffect(() => {
     if (!product?.products_id) {
       setIsInCart(false);
       return;
     }
     const { customers_id, parent_retailer_id } = getClientIds();
-    api
-      .get("/cartcheck", {
-        params: {
-          products_id: product.products_id,
-          customers_id,
-          parent_retailer_id,
-        },
-      })
-      .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
-      .catch(() => setIsInCart(false));
-  }, [product?.products_id]);
+        
+    apiSession.get("/api/cartcheck", {
+      params: { products_id: product.products_id, customers_id, parent_retailer_id },
+      headers: { Accept: "application/json" },
+    }).then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+          .catch(() => setIsInCart(false));
+      }, [product?.products_id]);
 
   async function handleCartToggle() {
-    const pricing = getPricingParams();
-    if (!product?.products_id || cartLoading) return;
-    const { customers_id, parent_retailer_id } = getClientIds();
-    try {
-      setCartLoading(true);
-      const { data } = await api.post("/carttoggle", {
-        products_id: product.products_id,
-        customers_id,
-        parent_retailer_id,
-        ...pricing,
-      });
-      setIsInCart(data?.status === "added");
-    } catch (e) {
-      console.error("Cart toggle failed", e);
-    } finally {
-      setCartLoading(false);
-    }
+  if (!product?.products_id || cartLoading) return;
+
+  const { customers_id, parent_retailer_id } = getClientIds();
+  const pricing = getPricingParams();
+
+  const payload = {
+    products_id: product.products_id,
+    customers_id,
+    parent_retailer_id,
+    product_quantity: 1, // or the user’s chosen qty
+
+    // filters
+    stoneType: selected.stoneType,
+    design: selected.design,
+    shape: selected.shape,
+    settingStyle: selected.settingStyle,
+    metal: selected.metal,
+    quality: selected.quality,
+    diamondSize: selected.diamondSize,
+    ringSize: selected.ringSize,
+    unit: sizeUnit,                 // "ct" | "mm"
+    vendors: vendorParam || "",     // e.g. "16,23"
+
+    // pricing flags
+    ...pricing,
+  };
+
+  try {
+    setCartLoading(true);
+    const { data } = await apiSession.post("/api/carttoggle", payload, {
+      headers: { Accept: "application/json" },
+    });
+    setIsInCart(data?.status === "added");
+  } catch (e) {
+    console.error("Cart toggle failed", e?.response?.data || e.message);
+  } finally {
+    setCartLoading(false);
   }
+}
 
   /* ------------------------------------------------------------------ */
   /*                               Render                                */
@@ -1536,16 +1657,21 @@ const Bands = () => {
                                     const withTariffConverted = convertCurrency(withTariff);
 
                                     return (
-                                      <div className="price-stack">
-                                        <div className="price-row">
-                                          <span className="label">Regular Price</span>
-                                          <span className="value">${money0(regularConverted)}</span>
+                                      <div class="price-grid">
+                                          <div class="price-item">
+                                            <div class="price-row">
+                                              <span class="label">Regular Price</span>
+                                              <span class="value">${money0(regularConverted)}</span>
+                                            </div>
+                                          </div>
+
+                                          <div class="price-item right">
+                                            <div class="price-row">
+                                              <span class="label">With {money0(tariffPer)}% Tariff</span>
+                                              <span class="value">${money0(withTariffConverted)}</span>
+                                            </div>
+                                          </div>
                                         </div>
-                                        <div className="price-row tariff">
-                                          <span className="label">With {money0(tariffPer)}% Tariff</span>
-                                          <span className="value">${money0(withTariffConverted)}</span>
-                                        </div>
-                                      </div>
                                     );
                                   }
 
