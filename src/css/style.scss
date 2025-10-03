@@ -4027,6 +4027,7 @@ button.previous-btn:hover svg, button.next-btn:hover svg{fill: #2c3b5c;}
     }
 }
 
+
 @media (max-width: 991px) {
     .align-none h3 {
         margin-left: 0;
@@ -4037,4 +4038,50 @@ button.previous-btn:hover svg, button.next-btn:hover svg{fill: #2c3b5c;}
     .widget.widget-1 li, .widget.widget-2 li {
     list-style: none !important;}
     .row.footer-flex.m-0 .col-md-4{padding-left: 15px; padding-right: 15px;}
+}
+
+/* === Price block typography polish === */
+.price-grid {
+  display: flex;
+  flex-wrap: wrap;
+  background: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+/* 6 / 6 layout */
+.price-item { flex: 0 0 50%; padding: 4px 8px; }
+.price-item.right { text-align: right; }
+
+/* stack label over value */
+.price-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #0f172a;
+  line-height: 1.25;
+  /* make numbers align nicely if the font supports it */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* refined sizes/weights */
+.price-row .label {
+  font-size: 0.75rem;   /* 12px */
+  font-weight: 600;     /* semi-bold for clarity */
+  letter-spacing: 0.2px;
+  opacity: 0.85;        /* slight de-emphasis vs value */
+}
+
+.price-row .value {
+  font-size: 0.95rem;   /* ~15px, a clear step up from label */
+  font-weight: 700;     /* bold value */
+}
+
+/* compact variant for small screens */
+@media (max-width: 640px) {
+  .price-item { flex: 0 0 100%; }
+  .price-item.right { text-align: left; }
+  .price-row .label { font-size: 0.72rem; }
+  .price-row .value { font-size: 0.9rem; }
 }

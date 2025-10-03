@@ -4,8 +4,9 @@ import { createPortal } from "react-dom";
 import Header from "./common/Header";
 import Footer from "./common/Footer";
 import Topbar from "./common/Topbar";
-import { api } from "../apiClient"; // axios instance with baseURL
-import ShareProductModal from "./share/ShareProductModal"; // NEW
+//import { api } from "../apiClient"; // axios instance with baseURL
+import { api, apiSession } from "../apiClient";
+// import ShareProductModal from "../share/ShareProductModal.jsx"; // NEW
 
 const SEO_URL = "bands-test";
 
@@ -161,13 +162,10 @@ const money0 = (v) =>
 
 // stub for ConverRelatedCurrencyPrice(...) — customize if you already keep a rate
 const convertCurrency = (v) => {
-  // If you already have a currency rate, use it here.
-  // Example:
   // const rate = Number((window.AMIPI_FRONT || {}).currency_rate ?? 1);
   // return v * rate;
   return Number(v || 0);
 };
-
 
 /* ------------------------------------------------------------------ */
 /*                             Lightbox                                */
@@ -391,13 +389,15 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
 
       {total > 1 && (
         <>
-         <button
+          <button
             type="button"
             aria-label="Previous images"
             onClick={() => setIdx((i) => (i - 1 + total) % total)}
             className="previous-btn"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"> <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM199 303L279 223C288.4 213.6 303.6 213.6 312.9 223C322.2 232.4 322.3 247.6 312.9 256.9L273.9 295.9L424 295.9C437.3 295.9 448 306.6 448 319.9C448 333.2 437.3 343.9 424 343.9L273.9 343.9L312.9 382.9C322.3 392.3 322.3 407.5 312.9 416.8C303.5 426.1 288.3 426.2 279 416.8L199 336.8C189.6 327.4 189.6 312.2 199 302.9z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM199 303L279 223C288.4 213.6 303.6 213.6 312.9 223C322.2 232.4 322.3 247.6 312.9 256.9L273.9 295.9L424 295.9C437.3 295.9 448 306.6 448 319.9C448 333.2 437.3 343.9 424 343.9L273.9 343.9L312.9 382.9C322.3 392.3 322.3 407.5 312.9 416.8C303.5 426.1 288.3 426.2 279 416.8L199 336.8C189.6 327.4 189.6 312.2 199 302.9z"/>
+            </svg>
           </button>
           <button
             type="button"
@@ -405,7 +405,9 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
             onClick={() => setIdx((i) => (i + 1) % total)}
             className="next-btn"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"> <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM361 417C351.6 426.4 336.4 426.4 327.1 417C317.8 407.6 317.7 392.4 327.1 383.1L366.1 344.1L216 344.1C202.7 344.1 192 333.4 192 320.1C192 306.8 202.7 296.1 216 296.1L366.1 296.1L327.1 257.1C317.7 247.7 317.7 232.5 327.1 223.2C336.5 213.9 351.7 213.8 361 223.2L441 303.2C450.4 312.6 450.4 327.8 441 337.1L361 417.1z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM361 417C351.6 426.4 336.4 426.4 327.1 417C317.8 407.6 317.7 392.4 327.1 383.1L366.1 344.1L216 344.1C202.7 344.1 192 333.4 192 320.1C192 306.8 202.7 296.1 216 296.1L366.1 296.1L327.1 257.1C317.7 247.7 317.7 232.5 327.1 223.2C336.5 213.9 351.7 213.8 361 223.2L441 303.2C450.4 312.6 450.4 327.8 441 337.1L361 417.1z"/>
+            </svg>
           </button>
         </>
       )}
@@ -413,62 +415,58 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
   );
 }
 
-/* -------------------- Mobile Tabs helper (UI only) -------------------- */
-function MobileTabs({ active, onChange }) {
-  const tabs = [
-    { key: "stoneType", label: "Stone Type" },
-    { key: "design", label: "Design" },
-    { key: "shape", label: "Stone Shape" },
-    { key: "settingStyle", label: "Setting Style" },
-    { key: "metal", label: "Metal" },
-    { key: "quality", label: "Stone Quality" },
-    { key: "diamondSize", label: "Stone Size" },
-  ];
-
+/* -------------------- Mobile-only Accordion Shell -------------------- */
+/* -------------------- Mobile-only Accordion Shell -------------------- */
+function AccordionShell({ id, title, isMobile, openId, setOpenId, children }) {
+  if (!isMobile) {
+    // Desktop: original structure caller render करेगा (title + options)
+    return <>{children}</>;
+  }
+  const open = openId === id;
   return (
     <>
       <style>{`
-        @media (max-width: 767px) {
-          .mobile-tabs {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            background: #fff;
-            padding: 8px 12px;
-            margin: -8px -12px 12px;
-            overflow-x: auto;
-            border-bottom: 1px solid #eef0f5;
-          }
-          .mobile-tabs .tab-btn {
-            white-space: nowrap;
-            border: 1px solid #dfe3ee;
-            padding: 6px 10px;
-            border-radius: 20px;
-            background: #fff;
-            font-size: 13px;
-            line-height: 1;
-            margin-right: 8px;
-          }
-          .mobile-tabs .tab-btn.active {
-            background: #223052;
-            color: #fff;
-            border-color: #223052;
-          }
-        }
+        .acc-card{border:1px solid #e6e9f2;border-radius:14px;background:#fff;box-shadow:0 4px 12px rgba(34,48,82,.06);margin-bottom:12px;overflow:hidden}
+        .acc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;cursor:pointer;background:#f9fbff}
+        .acc-title{font-weight:700;letter-spacing:.5px;color:#223052;font-size:14px}
+        .acc-toggle{border:0;background:transparent;line-height:0;padding:8px;border-radius:8px}
+        .acc-toggle svg{width:18px;height:18px;transition:transform .25s ease}
+        .acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
+        .acc-body-inner{padding:12px}
       `}</style>
-
-      <div className="mobile-tabs d-flex align-items-center">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            className={`tab-btn ${active === t.key ? "active" : ""}`}
-            onClick={() => onChange(t.key)}
-          >
-            {t.label}
+      <section className="acc-card" id={`acc-${id}`}>
+        <header
+          className="acc-head"
+          onClick={() => setOpenId(open ? null : id)}
+        >
+          <div className="acc-title">{title}</div>
+          <button type="button" className="acc-toggle" aria-expanded={open}>
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6 9l6 6 6-6"
+                stroke="#223052"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                  transformOrigin: "12px 12px",
+                }}
+              />
+            </svg>
           </button>
-        ))}
-      </div>
+        </header>
+        <div
+          className="acc-body"
+          style={{
+            maxHeight: open ? "1500px" : "0px",
+            paddingTop: open ? 4 : 0,
+            paddingBottom: open ? 8 : 0,
+          }}
+        >
+          <div className="acc-body-inner">{children}</div>
+        </div>
+      </section>
     </>
   );
 }
@@ -543,19 +541,21 @@ const Bands = () => {
   const [isInCart, setIsInCart] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
 
-  // --------- Mobile tabs state (UI only) ----------
-    const [isMobile, setIsMobile] = useState(false);
-    const [activeTab, setActiveTab] = useState("stoneType");
-
-  // Detect <768px for tabs UI
-    useEffect(() => {
-      const apply = () => setIsMobile(window.innerWidth < 768);
-      apply();
-      window.addEventListener("resize", apply);
-      return () => window.removeEventListener("resize", apply);
-    }, []);
-    const hideIfNotActive = (key) =>
-      isMobile && activeTab !== key ? { display: "none" } : undefined;
+  // --------- Mobile detection & one-at-a-time accordion ----------
+  const [isMobile, setIsMobile] = useState(false);
+  const [openId, setOpenId] = useState("stoneType"); // default open on mobile
+  useEffect(() => {
+    const apply = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // ensure a default open accordion when entering mobile
+      if (mobile && !openId) setOpenId("stoneType");
+      if (!mobile) setOpenId(null); // desktop: no accordion state needed
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, [openId]);
 
   useEffect(() => {
     document.title = pageTitle;
@@ -1073,44 +1073,75 @@ const Bands = () => {
     });
   }
 
-  /* -------------------- Wishlist -------------------- */
-  useEffect(() => {
-    if (!product?.products_id) {
-      setIsWishlisted(false);
-      return;
-    }
-    const { customers_id, parent_retailer_id } = getClientIds();
-    api
-      .get("/wishlist/check", {
-        params: {
-          products_id: product.products_id,
-          customers_id,
-          parent_retailer_id,
-        },
-      })
-      .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
-      .catch(() => setIsWishlisted(false));
-  }, [product?.products_id]);
+  // -------- CSRF preflight (do this once in the component/file where you mount things) --------
+useEffect(() => {
+  apiSession.get('/api/csrf').catch(() => {});
+}, []);
 
-  async function handleWishlistToggle() {
-    const pricing = getPricingParams();
-    if (!product?.products_id || wishLoading) return;
-    const { customers_id, parent_retailer_id } = getClientIds();
-    try {
-      setWishLoading(true);
-      const { data } = await api.post("/wishlist/toggle", {
-        products_id: product.products_id,
-        customers_id,
-        parent_retailer_id,
-        ...pricing,
-      });
-      setIsWishlisted(data?.status === "added");
-    } catch (e) {
-      console.error("Wishlist toggle failed", e);
-    } finally {
-      setWishLoading(false);
-    }
+// Small helper: prefer IDs from the session user if getClientIds() returns 0
+function resolveIdsWithAuthFallback(baseIds = {}) {
+  let u = null;
+  try { u = JSON.parse(localStorage.getItem("amipiUser") || "null"); } catch {}
+  const cid =
+    Number(baseIds.customers_id || 0) ||
+    Number(u?.customers_id ?? u?.customer_id ?? u?.retailerrid ?? u?.id ?? 0) ||
+    0;
+  const prid =
+    Number(baseIds.parent_retailer_id || 0) ||
+    Number(u?.parent_retailer_id ?? 0) ||
+    0;
+
+  return { customers_id: cid, parent_retailer_id: prid };
+}
+
+/* -------------------- Wishlist -------------------- */
+useEffect(() => {
+  if (!product?.products_id) {
+    setIsWishlisted(false);
+    return;
   }
+
+  const ids = resolveIdsWithAuthFallback(getClientIds());
+
+  apiSession
+    .get("/api/wishlist/check", {
+      params: {
+        products_id: product.products_id,
+        customers_id: ids.customers_id,
+        parent_retailer_id: ids.parent_retailer_id,
+      },
+      headers: { Accept: "application/json" },
+    })
+    .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
+    .catch(() => setIsWishlisted(false));
+}, [product?.products_id]);
+
+async function handleWishlistToggle() {
+  if (!product?.products_id || wishLoading) return;
+
+  const pricing = getPricingParams();
+  const ids = resolveIdsWithAuthFallback(getClientIds());
+
+  const payload = {
+    products_id: product.products_id,
+    customers_id: ids.customers_id,
+    parent_retailer_id: ids.parent_retailer_id,
+    ...pricing,
+  };
+
+  try {
+    setWishLoading(true);
+    const { data } = await apiSession.post("/api/wishlist/toggle", payload, {
+      headers: { Accept: "application/json" },
+    });
+    setIsWishlisted(data?.status === "added");
+  } catch (e) {
+    console.error("Wishlist toggle failed", e?.response?.data || e.message);
+  } finally {
+    setWishLoading(false);
+  }
+}
+
 
   /* -------------------- Compare -------------------- */
   useEffect(() => {
@@ -1152,43 +1183,132 @@ const Bands = () => {
   }
 
   /* -------------------- Cart -------------------- */
+  function getClientIds() {
+  let customers_id = 0;
+  let parent_retailer_id = 0;
+
+  try {
+    const user = JSON.parse(localStorage.getItem("amipiUser") || "null");
+    if (user && typeof user === "object") {
+      // try the common shapes you might have in user
+      customers_id =
+        Number(
+          user.customers_id ??
+          user.customer_id ??
+          user.retailerrid ??      // <-- your /api/me shows this field
+          user.retailer_id ??
+          user.id ??              // Retailer::id
+          0
+        ) || 0;
+
+      parent_retailer_id =
+        Number(
+          user.parent_retailer_id ??
+          user.ParentRetailerID ??
+          0
+        ) || 0;
+    }
+  } catch {}
+
+  if (!customers_id || !parent_retailer_id) {
+    const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
+    customers_id = customers_id || Number(g.customers_id ?? g.customer_id ?? 0) || 0;
+    parent_retailer_id = parent_retailer_id || Number(g.parent_retailer_id ?? 0) || 0;
+  }
+
+  return { customers_id, parent_retailer_id };
+}
+
+function getPricingParams() {
+  let user = null;
+  try { user = JSON.parse(localStorage.getItem("amipiUser") || "null"); } catch {}
+
+  const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
+
+  const AMIPI_FRONT_Retailer_Jewelry_Level =
+    Number(
+      g.AMIPI_FRONT_Retailer_Jewelry_Level ??
+      user?.retailer_level_id ??
+      3
+    ) || 3;
+
+  const AMIPI_FRONT_RetailerProductFlat =
+    Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
+
+  const AMIPI_FRONT_RetailerProductPer =
+    Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
+
+  const AMIPI_FRONT_IS_REATILER =
+    ((g.AMIPI_FRONT_IS_REATILER ?? (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes")
+      ? "Yes" : "No";
+
+  // customers_id is not needed here anymore (you already send via getClientIds),
+  // but harmless if you want to include it as well.
+  const { customers_id } = getClientIds();
+
+  return {
+    customers_id,
+    AMIPI_FRONT_Retailer_Jewelry_Level,
+    AMIPI_FRONT_RetailerProductFlat,
+    AMIPI_FRONT_RetailerProductPer,
+    AMIPI_FRONT_IS_REATILER,
+  };
+}
+
   useEffect(() => {
     if (!product?.products_id) {
       setIsInCart(false);
       return;
     }
     const { customers_id, parent_retailer_id } = getClientIds();
-    api
-      .get("/cartcheck", {
-        params: {
-          products_id: product.products_id,
-          customers_id,
-          parent_retailer_id,
-        },
-      })
-      .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
-      .catch(() => setIsInCart(false));
-  }, [product?.products_id]);
+        
+    apiSession.get("/api/cartcheck", {
+      params: { products_id: product.products_id, customers_id, parent_retailer_id },
+      headers: { Accept: "application/json" },
+    }).then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+          .catch(() => setIsInCart(false));
+      }, [product?.products_id]);
 
   async function handleCartToggle() {
-    const pricing = getPricingParams();
-    if (!product?.products_id || cartLoading) return;
-    const { customers_id, parent_retailer_id } = getClientIds();
-    try {
-      setCartLoading(true);
-      const { data } = await api.post("/carttoggle", {
-        products_id: product.products_id,
-        customers_id,
-        parent_retailer_id,
-        ...pricing,
-      });
-      setIsInCart(data?.status === "added");
-    } catch (e) {
-      console.error("Cart toggle failed", e);
-    } finally {
-      setCartLoading(false);
-    }
+  if (!product?.products_id || cartLoading) return;
+
+  const { customers_id, parent_retailer_id } = getClientIds();
+  const pricing = getPricingParams();
+
+  const payload = {
+    products_id: product.products_id,
+    customers_id,
+    parent_retailer_id,
+    product_quantity: 1, // or the user’s chosen qty
+
+    // filters
+    stoneType: selected.stoneType,
+    design: selected.design,
+    shape: selected.shape,
+    settingStyle: selected.settingStyle,
+    metal: selected.metal,
+    quality: selected.quality,
+    diamondSize: selected.diamondSize,
+    ringSize: selected.ringSize,
+    unit: sizeUnit,                 // "ct" | "mm"
+    vendors: vendorParam || "",     // e.g. "16,23"
+
+    // pricing flags
+    ...pricing,
+  };
+
+  try {
+    setCartLoading(true);
+    const { data } = await apiSession.post("/api/carttoggle", payload, {
+      headers: { Accept: "application/json" },
+    });
+    setIsInCart(data?.status === "added");
+  } catch (e) {
+    console.error("Cart toggle failed", e?.response?.data || e.message);
+  } finally {
+    setCartLoading(false);
   }
+}
 
   /* ------------------------------------------------------------------ */
   /*                               Render                                */
@@ -1219,203 +1339,256 @@ const Bands = () => {
 
             {/* FILTERS + DETAILS */}
             <div className="right-filters row col-12 d-flex flex-wrap align-items-start">
+
               {/* Stone Type */}
-              <div className="filter-block stone-type col-12 col-lg-6 col-md-12 col-sm-12"
-              style={hideIfNotActive("stoneType")}
-              >
-                <div className="filter-title">STONE TYPE</div>
-                <div className="filter-options">
-                  {data.stoneTypes.map((st) => (
-                    <button
-                      key={st.pst_id || st.id}
-                      type="button"
-                      className={
-                        "filter-card" +
-                        (selected.stoneType === (st.pst_id || st.id) ? " selected" : "")
-                      }
-                      onClick={() => handleFilterChange("stoneType", st.pst_id || st.id)}
-                    >
-                      <SafeImage
-                        src={getImageUrl(st.pst_image || st.image, "stone_type")}
-                        alt={st.pst_name || st.name}
-                      />
-                      <span className="filter-label">{st.pst_description || st.name}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="filter-block stone-type col-12 col-lg-6 col-md-12 col-sm-12">
+                {!isMobile && <div className="filter-title">STONE TYPE</div>}
+                <AccordionShell
+                  id="stoneType"
+                  title="STONE TYPE"
+                  isMobile={isMobile}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                >
+                  <div className="filter-options">
+                    {data.stoneTypes.map((st) => (
+                      <button
+                        key={st.pst_id || st.id}
+                        type="button"
+                        className={
+                          "filter-card" +
+                          (selected.stoneType === (st.pst_id || st.id) ? " selected" : "")
+                        }
+                        onClick={() => handleFilterChange("stoneType", st.pst_id || st.id)}
+                      >
+                        <SafeImage
+                          src={getImageUrl(st.pst_image || st.image, "stone_type")}
+                          alt={st.pst_name || st.name}
+                        />
+                        <span className="filter-label">{st.pst_description || st.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </AccordionShell>
               </div>
 
               {/* Design */}
-              <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12"
-               style={hideIfNotActive("design")}
-              >
-                <div className="filter-title">DESIGN</div>
-                <div className="filter-options">
-                  {data.designs.map((d) => (
-                    <button
-                      key={d.psg_id || d.id}
-                      type="button"
-                      className={
-                        "filter-card" +
-                        (selected.design === (d.psg_id || d.id) ? " selected" : "")
-                      }
-                      onClick={() => handleFilterChange("design", d.psg_id || d.id)}
-                    >
-                      <SafeImage
-                        src={getImageUrl(d.psg_image || d.image, "style_group")}
-                        alt={d.psg_name || d.name}
-                      />
-                      <span className="filter-label">{d.psg_name || d.name}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12">
+                {!isMobile && <div className="filter-title">DESIGN</div>}
+                <AccordionShell
+                  id="design"
+                  title="DESIGN"
+                  isMobile={isMobile}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                >
+                  <div className="filter-options">
+                    {data.designs.map((d) => (
+                      <button
+                        key={d.psg_id || d.id}
+                        type="button"
+                        className={
+                          "filter-card" +
+                          (selected.design === (d.psg_id || d.id) ? " selected" : "")
+                        }
+                        onClick={() => handleFilterChange("design", d.psg_id || d.id)}
+                      >
+                        <SafeImage
+                          src={getImageUrl(d.psg_image || d.image, "style_group")}
+                          alt={d.psg_name || d.name}
+                        />
+                        <span className="filter-label">{d.psg_name || d.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </AccordionShell>
               </div>
 
               {/* Stone Shape */}
-              <div className="filter-block diamond-shape-im col-12 col-lg-3 col-md-12 col-sm-12"
-              style={hideIfNotActive("shape")}
-              >
-                <div className="filter-title">STONE SHAPE</div>
-                <div className="filter-options">
-                  {data.shapes.map((sh) => (
-                    <button
-                      key={sh.id}
-                      type="button"
-                      className={"filter-card" + (selected.shape === sh.id ? " selected" : "")}
-                      onClick={() => handleFilterChange("shape", sh.id)}
-                    >
-                      <SafeImage src={getImageUrl(sh.image, "shape")} alt={sh.name} />
-                      <span className="filter-label">{sh.name}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="filter-block diamond-shape-im col-12 col-lg-3 col-md-12 col-sm-12">
+                {!isMobile && <div className="filter-title">STONE SHAPE</div>}
+                <AccordionShell
+                  id="shape"
+                  title="STONE SHAPE"
+                  isMobile={isMobile}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                >
+                  <div className="filter-options">
+                    {data.shapes.map((sh) => (
+                      <button
+                        key={sh.id}
+                        type="button"
+                        className={"filter-card" + (selected.shape === sh.id ? " selected" : "")}
+                        onClick={() => handleFilterChange("shape", sh.id)}
+                      >
+                        <SafeImage src={getImageUrl(sh.image, "shape")} alt={sh.name} />
+                        <span className="filter-label">{sh.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </AccordionShell>
               </div>
 
               {/* Setting Style */}
-              <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12"
-              style={hideIfNotActive("settingStyle")}
-              >
-                <div className="filter-title">SETTING STYLE</div>
-                <div className="filter-options">
-                  {data.settingStyles.map((sc) => (
-                    <button
-                      key={sc.psc_id || sc.id}
-                      type="button"
-                      className={
-                        "filter-card" +
-                        (selected.settingStyle === (sc.psc_id || sc.id) ? " selected" : "")
-                      }
-                      onClick={() => handleFilterChange("settingStyle", sc.psc_id || sc.id)}
-                    >
-                      <SafeImage
-                        src={getImageUrl(sc.psc_image || sc.image, "style_category")}
-                        alt={sc.psc_name || sc.name}
-                      />
-                      <span className="filter-label">{sc.psc_name || sc.name}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12">
+                {!isMobile && <div className="filter-title">SETTING STYLE</div>}
+                <AccordionShell
+                  id="settingStyle"
+                  title="SETTING STYLE"
+                  isMobile={isMobile}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                >
+                  <div className="filter-options">
+                    {data.settingStyles.map((sc) => (
+                      <button
+                        key={sc.psc_id || sc.id}
+                        type="button"
+                        className={
+                          "filter-card" +
+                          (selected.settingStyle === (sc.psc_id || sc.id) ? " selected" : "")
+                        }
+                        onClick={() => handleFilterChange("settingStyle", sc.psc_id || sc.id)}
+                      >
+                        <SafeImage
+                          src={getImageUrl(sc.psc_image || sc.image, "style_category")}
+                          alt={sc.psc_name || sc.name}
+                        />
+                        <span className="filter-label">{sc.psc_name || sc.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </AccordionShell>
               </div>
 
               {/* Metal */}
-              <div className="filter-block metal-icon col-12 col-lg-3 col-md-12 col-sm-12"
-               style={hideIfNotActive("metal")}
-              >
-                <div className="filter-title">METAL</div>
-                <div className="filter-options metal-label">
-                  {data.metals.map((m) => (
-                    <button
-                      key={m.dmt_id || m.id}
-                      type="button"
-                      className={
-                        "filter-card" +
-                        (selected.metal === (m.dmt_id || m.id) ? " selected" : "")
-                      }
-                      onClick={() => handleFilterChange("metal", m.dmt_id || m.id)}
-                      title={m.dmt_name}
-                    >
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          borderRadius: "10px",
-                          background: m.color_code,
-                          boxShadow: "0 2px 10px #22305213",
-                        }}
+              <div className="filter-block metal-icon col-12 col-lg-3 col-md-12 col-sm-12">
+                {!isMobile && <div className="filter-title">METAL</div>}
+                <AccordionShell
+                  id="metal"
+                  title="METAL"
+                  isMobile={isMobile}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                >
+                  <div className="filter-options metal-label">
+                    {data.metals.map((m) => (
+                      <button
+                        key={m.dmt_id || m.id}
+                        type="button"
+                        className={
+                          "filter-card" +
+                          (selected.metal === (m.dmt_id || m.id) ? " selected" : "")
+                        }
+                        onClick={() => handleFilterChange("metal", m.dmt_id || m.id)}
+                        title={m.dmt_name}
                       >
-                        <span className="filter-label">{m.dmt_tooltip || m.dmt_tooltip}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            borderRadius: "10px",
+                            background: m.color_code,
+                            boxShadow: "0 2px 10px #22305213",
+                          }}
+                        >
+                          <span className="filter-label">{m.dmt_tooltip || m.dmt_tooltip}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </AccordionShell>
               </div>
 
               {/* Stone Quality */}
-              <div className="filter-block diamond-q col-12 col-lg-3 col-md-12 col-sm-12"
-               style={hideIfNotActive("quality")}
-              >
-                <div className="filter-title">STONE QUALITY</div>
-                <div className="filter-options" style={{ display: "flex", flexWrap: "wrap" }}>
-                  {data.qualities.map((q) => (
-                    <button
-                      key={q.dqg_id || q.id}
-                      type="button"
-                      className={
-                        "filter-card" +
-                        (selected.quality === (q.dqg_id || q.id) ? " selected" : "")
-                      }
-                      onClick={() => handleFilterChange("quality", q.dqg_id || q.id)}
-                    >
-                      <div className="quality-alias">{q.dqg_alias || q.name}</div>
-                      <div
+              <div className="filter-block diamond-q col-12 col-lg-3 col-md-12 col-sm-12">
+                {!isMobile && <div className="filter-title">STONE QUALITY</div>}
+                <AccordionShell
+                  id="quality"
+                  title="STONE QUALITY"
+                  isMobile={isMobile}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                >
+                  <div className="filter-options" style={{ display: "flex", flexWrap: "wrap" }}>
+                    {data.qualities.map((q) => (
+                      <button
+                        key={q.dqg_id || q.id}
+                        type="button"
                         className={
-                          "quality-origin " +
-                          ((q.dqg_origin || q.origin) === "Lab Grown" ? "lab-grown" : "earth-mined")
+                          "filter-card" +
+                          (selected.quality === (q.dqg_id || q.id) ? " selected" : "")
                         }
+                        onClick={() => handleFilterChange("quality", q.dqg_id || q.id)}
                       >
-                        {q.dqg_origin || q.origin}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                        <div className="quality-alias">{q.dqg_alias || q.name}</div>
+                        <div
+                          className={
+                            "quality-origin " +
+                            ((q.dqg_origin || q.origin) === "Lab Grown" ? "lab-grown" : "earth-mined")
+                          }
+                        >
+                          {q.dqg_origin || q.origin}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </AccordionShell>
               </div>
 
               {/* Stone Size */}
-              <div className="filter-block diamond-s col-12 col-lg-3 col-md-12 col-sm-12"
-               style={hideIfNotActive("diamondSize")}
-              >
-                <div className="filter-title">STONE SIZE ({sizeUnit.toUpperCase()})</div>
-                <div className="filter-options diamond-size">
-                  {data.diamondSizes.map((size) => (
-                    <button
-                      key={String(size)}
-                      type="button"
-                      className={
-                        "filter-card" + (selected.diamondSize === size ? " selected" : "")
-                      }
-                      onClick={() => handleFilterChange("diamondSize", size)}
-                    >
-                      {size} {sizeUnit.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
+              <div className="filter-block diamond-s col-12 col-lg-3 col-md-12 col-sm-12">
+                {!isMobile && (
+                  <div className="filter-title">STONE SIZE ({sizeUnit.toUpperCase()})</div>
+                )}
+                <AccordionShell
+                  id="diamondSize"
+                  title={`STONE SIZE (${sizeUnit.toUpperCase()})`}
+                  isMobile={isMobile}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                >
+                  <div className="filter-options diamond-size">
+                    {data.diamondSizes.map((size) => (
+                      <button
+                        key={String(size)}
+                        type="button"
+                        className={
+                          "filter-card" + (selected.diamondSize === size ? " selected" : "")
+                        }
+                        onClick={() => handleFilterChange("diamondSize", size)}
+                      >
+                        {size} {sizeUnit.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </AccordionShell>
               </div>
 
               {/* Ring Size */}
               {ringOptions.length > 0 && (
                 <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12">
-                  <div className="filter-title">CHOOSE RING SIZE</div>
-                  <select
-                    value={selected.ringSize || ""}
-                    className="ring-size-select"
-                    onChange={(e) => handleFilterChange("ringSize", Number(e.target.value))}
+                  {!isMobile && <div className="filter-title">CHOOSE RING SIZE</div>}
+                  <AccordionShell
+                    id="ringSize"
+                    title="CHOOSE RING SIZE"
+                    isMobile={isMobile}
+                    openId={openId}
+                    setOpenId={setOpenId}
                   >
-                    {ringOptions.map((opt) => (
-                      <option key={opt.value_id} value={opt.value_id}>
-                        {opt.value_name}
-                      </option>
-                    ))}
-                  </select>
+                    <select
+                      value={selected.ringSize || ""}
+                      className="ring-size-select"
+                      onChange={(e) => handleFilterChange("ringSize", Number(e.target.value))}
+                    >
+                      {ringOptions.map((opt) => (
+                        <option key={opt.value_id} value={opt.value_id}>
+                          {opt.value_name}
+                        </option>
+                      ))}
+                    </select>
+                  </AccordionShell>
                 </div>
               )}
 
@@ -1462,53 +1635,49 @@ const Bands = () => {
                                 </span>
                               </div>
                               {/* PRICE (regular + tariff) */}
-<div className="pill price" aria-label="Price">
-  {(() => {
-    // base price = your computed estPrice (includes ring-size option math)
-    const base =
-      estPrice !== null
-        ? Number(estPrice)
-        : Number(
-            product?.products_price ??
-              product?.base_price ??
-              product?.products_price1 ??
-              NaN
-          );
+                              <div className="pill price" aria-label="Price">
+                                {(() => {
+                                  const base =
+                                    estPrice !== null
+                                      ? Number(estPrice)
+                                      : Number(
+                                          product?.products_price ??
+                                            product?.base_price ??
+                                            product?.products_price1 ??
+                                            NaN
+                                        );
 
-    if (Number.isNaN(base)) return <>$ --</>;
+                                  if (Number.isNaN(base)) return <>$ --</>;
 
-    // tariff percent (from API, e.g. product.tariff_per)
-    const tariffPer = Number(product?.tariff_per ?? 0);
+                                  const tariffPer = Number(product?.tariff_per ?? 0);
+                                  const regularConverted = convertCurrency(base);
 
-    // Convert like your PHP ConverRelatedCurrencyPrice(...)
-    const regularConverted = convertCurrency(base);
+                                  if (tariffPer > 0) {
+                                    const withTariff = Math.round(base * ((100 + tariffPer) / 100));
+                                    const withTariffConverted = convertCurrency(withTariff);
 
-    if (tariffPer > 0) {
-      const withTariff = Math.round(base * ((100 + tariffPer) / 100));
-      const withTariffConverted = convertCurrency(withTariff);
+                                    return (
+                                      <div class="price-grid">
+                                          <div class="price-item">
+                                            <div class="price-row">
+                                              <span class="label">Regular Price</span>
+                                              <span class="value">${money0(regularConverted)}</span>
+                                            </div>
+                                          </div>
 
-      return (
-        <div className="price-stack">
-          <div className="price-row">
-            <span className="label">Regular Price</span>
-            <span className="value">${money0(regularConverted)}</span>
-          </div>
-          <div className="price-row tariff">
-            <span className="label">With {money0(tariffPer)}% Tariff</span>
-            <span className="value">${money0(withTariffConverted)}</span>
-          </div>
-        </div>
-      );
-    }
+                                          <div class="price-item right">
+                                            <div class="price-row">
+                                              <span class="label">With {money0(tariffPer)}% Tariff</span>
+                                              <span class="value">${money0(withTariffConverted)}</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                    );
+                                  }
 
-    // no tariff => show single price (your current behavior)
-    return (
-      <>
-        $ {money0(regularConverted)}
-      </>
-    );
-  })()}
-</div>
+                                  return <>$ {money0(regularConverted)}</>;
+                                })()}
+                              </div>
                             </div>
 
                             <div className="details">
@@ -1688,7 +1857,7 @@ const Bands = () => {
               ? toAbsoluteMediaUrl("image", product.images[0])
               : ""
           }
-          authUser={null} // will read from localStorage if present
+          authUser={null}
         />
       )}
     </div>
