@@ -4,9 +4,8 @@ import { createPortal } from "react-dom";
 import Header from "./common/Header";
 import Footer from "./common/Footer";
 import Topbar from "./common/Topbar";
-//import { api } from "../apiClient"; // axios instance with baseURL
 import { api, apiSession } from "../apiClient";
-import ShareProductModal from "./share/ShareProductModal.jsx";// NEW
+import ShareProductModal from "./share/ShareProductModal.jsx"; // NEW
 
 const SEO_URL = "bands-test";
 
@@ -14,58 +13,74 @@ const SEO_URL = "bands-test";
 /*                              Helpers                                */
 /* ------------------------------------------------------------------ */
 
-/** Read customer/retailer ids from globals or localStorage so we can
- *  send them along with wishlist/compare/cart requests. Falls back to 0. */
+/** Read customer/retailer ids from storage/globals. */
 function getClientIds() {
   let customers_id = 0;
   let parent_retailer_id = 0;
-  try {
-    const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
-    customers_id =
-      Number(g.CUST_ID ?? g.customer_id ?? g.customers_id ?? 0) || 0;
-    parent_retailer_id =
-      Number(g.ParentRetailerID ?? g.parent_retailer_id ?? 0) || 0;
 
-    // Also allow storing after login
-    if (!customers_id) {
-      const ls = JSON.parse(localStorage.getItem("amipi_auth") || "{}");
-      customers_id = Number(ls.customers_id ?? ls.customer_id ?? 0) || 0;
-      parent_retailer_id = Number(ls.parent_retailer_id ?? 0) || 0;
+  // 1) Try logged-in user object first
+  try {
+    const user = JSON.parse(localStorage.getItem("amipiUser") || "null");
+    if (user && typeof user === "object") {
+      customers_id =
+        Number(
+          user.customers_id ??
+            user.customer_id ??
+            user.retailerrid ??      // sometimes present
+            user.retailer_id ??
+            user.id ??                // Retailer::id
+            0
+        ) || 0;
+
+      parent_retailer_id =
+        Number(
+          user.parent_retailer_id ??
+            user.ParentRetailerID ??
+            0
+        ) || 0;
     }
-  } catch (_) {}
+  } catch {}
+
+  // 2) Fallback: legacy auth blob (old site)
+  if (!customers_id || !parent_retailer_id) {
+    try {
+      const ls = JSON.parse(localStorage.getItem("amipi_auth") || "{}");
+      customers_id = customers_id || (Number(ls.customers_id ?? ls.customer_id ?? 0) || 0);
+      parent_retailer_id = parent_retailer_id || (Number(ls.parent_retailer_id ?? 0) || 0);
+    } catch {}
+  }
+
+  // 3) Fallback: window globals injected by PHP
+  if (!customers_id || !parent_retailer_id) {
+    const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
+    customers_id = customers_id || (Number(g.CUST_ID ?? g.customers_id ?? g.customer_id ?? 0) || 0);
+    parent_retailer_id =
+      parent_retailer_id || (Number(g.ParentRetailerID ?? g.parent_retailer_id ?? 0) || 0);
+  }
+
   return { customers_id, parent_retailer_id };
 }
 
-// NEW — pricing context you previously had in PHP sessions
+/** Pricing/user flags used by product/cart/wishlist/compare. */
 function getPricingParams() {
   let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem("amipiUser") || "null");
-  } catch {}
+  try { user = JSON.parse(localStorage.getItem("amipiUser") || "null"); } catch {}
 
   const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
-
-  const customers_id =
-    Number(
-      (user && (user.customer_id ?? user.customers_id)) ??
-        g.customers_id ??
-        g.customer_id ??
-        0
-    ) || 0;
+  const { customers_id } = getClientIds(); // keep for APIs that expect it
 
   const AMIPI_FRONT_Retailer_Jewelry_Level =
     Number(g.AMIPI_FRONT_Retailer_Jewelry_Level ?? user?.retailer_level_id ?? 3) || 3;
 
   const AMIPI_FRONT_RetailerProductFlat =
     Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
+
   const AMIPI_FRONT_RetailerProductPer =
     Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
 
   const AMIPI_FRONT_IS_REATILER =
-    (g.AMIPI_FRONT_IS_REATILER ??
-      (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes"
-      ? "Yes"
-      : "No";
+    ((g.AMIPI_FRONT_IS_REATILER ?? (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes")
+      ? "Yes" : "No";
 
   return {
     customers_id,
@@ -75,6 +90,7 @@ function getPricingParams() {
     AMIPI_FRONT_IS_REATILER,
   };
 }
+
 
 function SafeImage({ src, alt, className, style }) {
   const [ok, setOk] = useState(true);
@@ -160,12 +176,8 @@ const money0 = (v) =>
     maximumFractionDigits: 0,
   });
 
-// stub for ConverRelatedCurrencyPrice(...) — customize if you already keep a rate
-const convertCurrency = (v) => {
-  // const rate = Number((window.AMIPI_FRONT || {}).currency_rate ?? 1);
-  // return v * rate;
-  return Number(v || 0);
-};
+// stub for ConverRelatedCurrencyPrice(...)
+const convertCurrency = (v) => Number(v || 0);
 
 /* ------------------------------------------------------------------ */
 /*                             Lightbox                                */
@@ -268,7 +280,7 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
     return () => window.removeEventListener("resize", handle);
   }, []);
 
-  // Build padded slides so there's never an empty slide
+  // Build padded slides
   const slides = useMemo(() => {
     if (!Array.isArray(items) || items.length === 0) return [];
 
@@ -416,10 +428,8 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
 }
 
 /* -------------------- Mobile-only Accordion Shell -------------------- */
-/* -------------------- Mobile-only Accordion Shell -------------------- */
 function AccordionShell({ id, title, isMobile, openId, setOpenId, children }) {
   if (!isMobile) {
-    // Desktop: original structure caller render करेगा (title + options)
     return <>{children}</>;
   }
   const open = openId === id;
@@ -523,6 +533,10 @@ const Bands = () => {
   const [estCaratWt, setEstCaratWt] = useState(null);
   const [estPrice, setEstPrice] = useState(null);
 
+  // Loading flags to prevent layout jump
+  const [productLoading, setProductLoading] = useState(false);
+  const [optionsLoading, setOptionsLoading] = useState(false);
+
   // Lightbox
   const [lbIndex, setLbIndex] = useState(-1);
 
@@ -548,9 +562,8 @@ const Bands = () => {
     const apply = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      // ensure a default open accordion when entering mobile
       if (mobile && !openId) setOpenId("stoneType");
-      if (!mobile) setOpenId(null); // desktop: no accordion state needed
+      if (!mobile) setOpenId(null);
     };
     apply();
     window.addEventListener("resize", apply);
@@ -819,7 +832,7 @@ const Bands = () => {
     allowed.qualities,
   ]);
 
-  /* Decide size unit (ct/mm) from stone type. Fallback: Diamonds => ct; others => mm */
+  /* Decide size unit (ct/mm) */
   const selectedStoneType = useMemo(
     () => data.stoneTypes.find((st) => (st.pst_id || st.id) === selected.stoneType),
     [data.stoneTypes, selected.stoneType]
@@ -848,7 +861,7 @@ const Bands = () => {
       ? "mm"
       : "ct";
 
-  /* 7) Quality => Stone Size (dynamic values from weight or mm) */
+  /* 7) Quality => Stone Size */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -869,7 +882,7 @@ const Bands = () => {
           settingStyle: selected.settingStyle,
           metal: selected.metal,
           quality: selected.quality,
-          unit: sizeUnit, // optional backend hint
+          unit: sizeUnit,
         },
       })
       .then((res) => {
@@ -912,7 +925,8 @@ const Bands = () => {
     sizeUnit,
   ]);
 
-  /* 8) Stone Size => Product (include vendors CSV + pricing) */
+  /* 8) Stone Size => Product (include vendors CSV + pricing)
+        IMPORTANT: keep old product & ringOptions mounted while loading  */
   useEffect(() => {
     if (
       !selected.stoneType ||
@@ -923,8 +937,7 @@ const Bands = () => {
       !selected.quality ||
       !selected.diamondSize
     ) {
-      setProduct(null);
-      setRingOptions([]);
+      // Not enough to query; keep whatever is on screen (no jump)
       return;
     }
 
@@ -942,7 +955,21 @@ const Bands = () => {
       ...pricing,
     };
 
-    api.get(`/productnew`, { params }).then((res) => setProduct(res.data));
+    let cancelled = false;
+    setProductLoading(true);
+    api
+      .get(`/productnew`, { params })
+      .then((res) => {
+        if (cancelled) return;
+        setProduct(res.data || null);
+      })
+      .finally(() => {
+        if (!cancelled) setProductLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     selected.stoneType,
     selected.design,
@@ -955,24 +982,30 @@ const Bands = () => {
     vendorParam,
   ]);
 
-  /* 9) Product => Ring options */
+  /* 9) Product => Ring options (keep previous options while loading) */
   useEffect(() => {
-    if (!product?.products_id) {
-      setRingOptions([]);
-      setSelected((sel) => ({ ...sel, ringSize: null }));
-      return;
-    }
-    api.get(`/product-options/${product.products_id}`).then((res) => {
-      const opts = res.data || [];
-      setRingOptions(opts);
-      setSelected((sel) => {
-        const found = opts.find((x) => x.value_id === sel.ringSize);
-        return {
-          ...sel,
-          ringSize: found ? found.value_id : opts?.[0]?.value_id || null,
-        };
-      });
-    });
+    if (!product?.products_id) return;
+    let cancelled = false;
+    setOptionsLoading(true);
+    api
+      .get(`/product-options/${product.products_id}`)
+      .then((res) => {
+        if (cancelled) return;
+        const opts = res.data || [];
+        setRingOptions(opts);
+        setSelected((sel) => {
+          const found = opts.find((x) => x.value_id === sel.ringSize);
+          return {
+            ...sel,
+            ringSize: found ? found.value_id : opts?.[0]?.value_id || null,
+          };
+        });
+      })
+      .finally(() => !cancelled && setOptionsLoading(false));
+
+    return () => {
+      cancelled = true;
+    };
   }, [product?.products_id]);
 
   /* 10) Estimates for pcs / carat / price w.r.t ring size */
@@ -1073,75 +1106,76 @@ const Bands = () => {
     });
   }
 
-  // -------- CSRF preflight (do this once in the component/file where you mount things) --------
-useEffect(() => {
-  apiSession.get('/api/csrf').catch(() => {});
-}, []);
+  // CSRF preflight
+  useEffect(() => {
+    apiSession.get("/api/csrf").catch(() => {});
+  }, []);
 
-// Small helper: prefer IDs from the session user if getClientIds() returns 0
-function resolveIdsWithAuthFallback(baseIds = {}) {
-  let u = null;
-  try { u = JSON.parse(localStorage.getItem("amipiUser") || "null"); } catch {}
-  const cid =
-    Number(baseIds.customers_id || 0) ||
-    Number(u?.customers_id ?? u?.customer_id ?? u?.retailerrid ?? u?.id ?? 0) ||
-    0;
-  const prid =
-    Number(baseIds.parent_retailer_id || 0) ||
-    Number(u?.parent_retailer_id ?? 0) ||
-    0;
+  // ids fallback using session user
+  function resolveIdsWithAuthFallback(baseIds = {}) {
+    let u = null;
+    try {
+      u = JSON.parse(localStorage.getItem("amipiUser") || "null");
+    } catch {}
+    const cid =
+      Number(baseIds.customers_id || 0) ||
+      Number(u?.customers_id ?? u?.customer_id ?? u?.retailerrid ?? u?.id ?? 0) ||
+      0;
+    const prid =
+      Number(baseIds.parent_retailer_id || 0) ||
+      Number(u?.parent_retailer_id ?? 0) ||
+      0;
 
-  return { customers_id: cid, parent_retailer_id: prid };
-}
-
-/* -------------------- Wishlist -------------------- */
-useEffect(() => {
-  if (!product?.products_id) {
-    setIsWishlisted(false);
-    return;
+    return { customers_id: cid, parent_retailer_id: prid };
   }
 
-  const ids = resolveIdsWithAuthFallback(getClientIds());
+  /* -------------------- Wishlist -------------------- */
+  useEffect(() => {
+    if (!product?.products_id) {
+      setIsWishlisted(false);
+      return;
+    }
 
-  apiSession
-    .get("/api/wishlist/check", {
-      params: {
-        products_id: product.products_id,
-        customers_id: ids.customers_id,
-        parent_retailer_id: ids.parent_retailer_id,
-      },
-      headers: { Accept: "application/json" },
-    })
-    .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
-    .catch(() => setIsWishlisted(false));
-}, [product?.products_id]);
+    const ids = resolveIdsWithAuthFallback(getClientIds());
 
-async function handleWishlistToggle() {
-  if (!product?.products_id || wishLoading) return;
+    apiSession
+      .get("/api/wishlist/check", {
+        params: {
+          products_id: product.products_id,
+          customers_id: ids.customers_id,
+          parent_retailer_id: ids.parent_retailer_id,
+        },
+        headers: { Accept: "application/json" },
+      })
+      .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
+      .catch(() => setIsWishlisted(false));
+  }, [product?.products_id]);
 
-  const pricing = getPricingParams();
-  const ids = resolveIdsWithAuthFallback(getClientIds());
+  async function handleWishlistToggle() {
+    if (!product?.products_id || wishLoading) return;
 
-  const payload = {
-    products_id: product.products_id,
-    customers_id: ids.customers_id,
-    parent_retailer_id: ids.parent_retailer_id,
-    ...pricing,
-  };
+    const pricing = getPricingParams();
+    const ids = resolveIdsWithAuthFallback(getClientIds());
 
-  try {
-    setWishLoading(true);
-    const { data } = await apiSession.post("/api/wishlist/toggle", payload, {
-      headers: { Accept: "application/json" },
-    });
-    setIsWishlisted(data?.status === "added");
-  } catch (e) {
-    console.error("Wishlist toggle failed", e?.response?.data || e.message);
-  } finally {
-    setWishLoading(false);
+    const payload = {
+      products_id: product.products_id,
+      customers_id: ids.customers_id,
+      parent_retailer_id: ids.parent_retailer_id,
+      ...pricing,
+    };
+
+    try {
+      setWishLoading(true);
+      const { data } = await apiSession.post("/api/wishlist/toggle", payload, {
+        headers: { Accept: "application/json" },
+      });
+      setIsWishlisted(data?.status === "added");
+    } catch (e) {
+      console.error("Wishlist toggle failed", e?.response?.data || e.message);
+    } finally {
+      setWishLoading(false);
+    }
   }
-}
-
 
   /* -------------------- Compare -------------------- */
   useEffect(() => {
@@ -1183,139 +1217,92 @@ async function handleWishlistToggle() {
   }
 
   /* -------------------- Cart -------------------- */
-  function getClientIds() {
-  let customers_id = 0;
-  let parent_retailer_id = 0;
-
-  try {
-    const user = JSON.parse(localStorage.getItem("amipiUser") || "null");
-    if (user && typeof user === "object") {
-      // try the common shapes you might have in user
-      customers_id =
-        Number(
-          user.customers_id ??
-          user.customer_id ??
-          user.retailerrid ??      // <-- your /api/me shows this field
-          user.retailer_id ??
-          user.id ??              // Retailer::id
-          0
-        ) || 0;
-
-      parent_retailer_id =
-        Number(
-          user.parent_retailer_id ??
-          user.ParentRetailerID ??
-          0
-        ) || 0;
-    }
-  } catch {}
-
-  if (!customers_id || !parent_retailer_id) {
-    const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
-    customers_id = customers_id || Number(g.customers_id ?? g.customer_id ?? 0) || 0;
-    parent_retailer_id = parent_retailer_id || Number(g.parent_retailer_id ?? 0) || 0;
-  }
-
-  return { customers_id, parent_retailer_id };
-}
-
-function getPricingParams() {
-  let user = null;
-  try { user = JSON.parse(localStorage.getItem("amipiUser") || "null"); } catch {}
-
-  const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
-
-  const AMIPI_FRONT_Retailer_Jewelry_Level =
-    Number(
-      g.AMIPI_FRONT_Retailer_Jewelry_Level ??
-      user?.retailer_level_id ??
-      3
-    ) || 3;
-
-  const AMIPI_FRONT_RetailerProductFlat =
-    Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
-
-  const AMIPI_FRONT_RetailerProductPer =
-    Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
-
-  const AMIPI_FRONT_IS_REATILER =
-    ((g.AMIPI_FRONT_IS_REATILER ?? (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes")
-      ? "Yes" : "No";
-
-  // customers_id is not needed here anymore (you already send via getClientIds),
-  // but harmless if you want to include it as well.
-  const { customers_id } = getClientIds();
-
-  return {
-    customers_id,
-    AMIPI_FRONT_Retailer_Jewelry_Level,
-    AMIPI_FRONT_RetailerProductFlat,
-    AMIPI_FRONT_RetailerProductPer,
-    AMIPI_FRONT_IS_REATILER,
-  };
-}
-
   useEffect(() => {
     if (!product?.products_id) {
       setIsInCart(false);
       return;
     }
     const { customers_id, parent_retailer_id } = getClientIds();
-        
-    apiSession.get("/api/cartcheck", {
-      params: { products_id: product.products_id, customers_id, parent_retailer_id },
-      headers: { Accept: "application/json" },
-    }).then((res) => setIsInCart(Boolean(res.data?.in_cart)))
-          .catch(() => setIsInCart(false));
-      }, [product?.products_id]);
+
+    apiSession
+      .get("/api/cartcheck", {
+        params: { products_id: product.products_id, customers_id, parent_retailer_id },
+        headers: { Accept: "application/json" },
+      })
+      .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+      .catch(() => setIsInCart(false));
+  }, [product?.products_id]);
 
   async function handleCartToggle() {
-  if (!product?.products_id || cartLoading) return;
+    if (!product?.products_id || cartLoading) return;
 
-  const { customers_id, parent_retailer_id } = getClientIds();
-  const pricing = getPricingParams();
+    const { customers_id, parent_retailer_id } = getClientIds();
+    const pricing = getPricingParams();
 
-  const payload = {
-    products_id: product.products_id,
-    customers_id,
-    parent_retailer_id,
-    product_quantity: 1, // or the user’s chosen qty
+    const payload = {
+      products_id: product.products_id,
+      customers_id,
+      parent_retailer_id,
+      product_quantity: 1,
 
-    // filters
-    stoneType: selected.stoneType,
-    design: selected.design,
-    shape: selected.shape,
-    settingStyle: selected.settingStyle,
-    metal: selected.metal,
-    quality: selected.quality,
-    diamondSize: selected.diamondSize,
-    ringSize: selected.ringSize,
-    unit: sizeUnit,                 // "ct" | "mm"
-    vendors: vendorParam || "",     // e.g. "16,23"
+      // filters
+      stoneType: selected.stoneType,
+      design: selected.design,
+      shape: selected.shape,
+      settingStyle: selected.settingStyle,
+      metal: selected.metal,
+      quality: selected.quality,
+      diamondSize: selected.diamondSize,
+      ringSize: selected.ringSize,
+      unit: sizeUnit,
+      vendors: vendorParam || "",
 
-    // pricing flags
-    ...pricing,
-  };
+      // pricing flags
+      ...pricing,
+    };
 
-  try {
-    setCartLoading(true);
-    const { data } = await apiSession.post("/api/carttoggle", payload, {
-      headers: { Accept: "application/json" },
-    });
-    setIsInCart(data?.status === "added");
-  } catch (e) {
-    console.error("Cart toggle failed", e?.response?.data || e.message);
-  } finally {
-    setCartLoading(false);
+    try {
+      setCartLoading(true);
+      const { data } = await apiSession.post("/api/carttoggle", payload, {
+        headers: { Accept: "application/json" },
+      });
+      setIsInCart(data?.status === "added");
+    } catch (e) {
+      console.error("Cart toggle failed", e?.response?.data || e.message);
+    } finally {
+      setCartLoading(false);
+    }
   }
-}
 
   /* ------------------------------------------------------------------ */
   /*                               Render                                */
   /* ------------------------------------------------------------------ */
 
+  const anyBlockingLoad = productLoading || optionsLoading;
+
   return (
     <div>
+      {/* one-time CSS for stable layout + overlay */}
+      <style>{`
+        .stable-wrap{position:relative}
+        .stable-wrap.is-loading{pointer-events:none}
+        .stable-wrap .block-overlay{position:absolute;inset:0;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;z-index:2}
+        .stable-wrap .spinner{width:38px;height:38px;border-radius:50%;border:4px solid #dfe3ec;border-top-color:#2c3b5b;animation:spin .9s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* lock heights so cards don't collapse while content swaps */
+        .selection-card{min-height:210px}
+        .band-heading-type{min-height:120px}
+        .ring-size-select{min-height:40px}
+
+        /* preserve grid structure even if ring options are loading */
+        .ring-size-block{min-height:82px}
+        .price-grid{display:flex;gap:16px;flex-wrap:wrap}
+        .price-item{flex:1 1 220px}
+        .price-row{display:flex;align-items:center;justify-content:space-between}
+        .price-item.right .price-row{justify-content:space-between}
+      `}</style>
+
       <Topbar />
       <Header />
       <div className="custom-container">
@@ -1566,284 +1553,322 @@ function getPricingParams() {
                 </AccordionShell>
               </div>
 
-              {/* Ring Size */}
-              {ringOptions.length > 0 && (
-                <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12">
-                  {!isMobile && <div className="filter-title">CHOOSE RING SIZE</div>}
-                  <AccordionShell
-                    id="ringSize"
-                    title="CHOOSE RING SIZE"
-                    isMobile={isMobile}
-                    openId={openId}
-                    setOpenId={setOpenId}
-                  >
-                    <select
-                      value={selected.ringSize || ""}
-                      className="ring-size-select"
-                      onChange={(e) => handleFilterChange("ringSize", Number(e.target.value))}
-                    >
-                      {ringOptions.map((opt) => (
-                        <option key={opt.value_id} value={opt.value_id}>
-                          {opt.value_name}
-                        </option>
-                      ))}
-                    </select>
-                  </AccordionShell>
-                </div>
-              )}
+              {/* Ring Size — keep a stable footprint even while options load */}
+              <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12 ring-size-block">
+                {!isMobile && <div className="filter-title">CHOOSE RING SIZE</div>}
+                <AccordionShell
+                  id="ringSize"
+                  title="CHOOSE RING SIZE"
+                  isMobile={isMobile}
+                  openId={openId}
+                  setOpenId={setOpenId}
+                >
+                  <div className={`stable-wrap ${optionsLoading ? "is-loading" : ""}`}>
+                    {optionsLoading && (
+                      <div className="block-overlay"><div className="spinner" /></div>
+                    )}
+                    {ringOptions.length > 0 ? (
+                      <select
+                        value={selected.ringSize || ""}
+                        className="ring-size-select"
+                        onChange={(e) => handleFilterChange("ringSize", Number(e.target.value))}
+                      >
+                        {ringOptions.map((opt) => (
+                          <option key={opt.value_id} value={opt.value_id}>
+                            {opt.value_name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <select className="ring-size-select" disabled>
+                        <option>Loading…</option>
+                      </select>
+                    )}
+                  </div>
+                </AccordionShell>
+              </div>
 
               {/* PRODUCT DETAILS / ACTIONS */}
-              {product ? (
-                <>
-                  <div className="product-details col-12 col-lg-6 col-md-12 col-sm-12 filter-block">
-                    <div className="detail">
-                      <div className="box-grey table-responsive">
-                        <main className="wrap">
-                          <section className="selection-card" role="region" aria-labelledby="ys-title">
-                            <header className="card-head">
-                              <h2 id="ys-title" className="card-title">
-                                YOUR SELECTION
-                              </h2>
-                              <span className="order-no">#{product.products_style_no || "--"}</span>
-                            </header>
 
-                            <div className="pillbar" aria-label="Key attributes">
-                              <div className="pill" aria-label="Color and clarity">
-                                <strong>{product.dqg_alias || "--"}</strong>
-                                <span className="sub">{product.center_stone_name || "--"}</span>
-                              </div>
-                              <div className="pill small" aria-label="Ring size">
-                                <strong>Ring Size:</strong>
-                                <span>
-                                  {ringOptions.find((o) => o.value_id === selected.ringSize)
-                                    ?.value_name || "--"}
-                                </span>
-                              </div>
-                              <div className="pill" aria-label="Estimated carat weight">
-                                <strong>Est. Carat Wt*</strong>
-                                <span className="sub l-pill">
-                                  {estCaratWt !== null
-                                    ? Number(estCaratWt).toFixed(2)
-                                    : product.total_carat_weight || "--"}{" "}
-                                  CT [+/− 5%]
-                                </span>
-                              </div>
-                              <div className="pill small" aria-label="Estimated diamond pieces">
-                                <strong>Est. Diamond Pcs*:</strong>
-                                <span>
-                                  {estDiamondPcs !== null ? estDiamondPcs : product.estimated_pcs || "--"}
-                                </span>
-                              </div>
-                              {/* PRICE (regular + tariff) */}
-                              <div className="pill price" aria-label="Price">
-                                {(() => {
-                                  const base =
-                                    estPrice !== null
-                                      ? Number(estPrice)
-                                      : Number(
-                                          product?.products_price ??
-                                            product?.base_price ??
-                                            product?.products_price1 ??
-                                            NaN
-                                        );
+             {/* PRODUCT DETAILS / ACTIONS */}
+<div className="product-details col-12 col-lg-6 col-md-12 col-sm-12 filter-block">
+  <div className={`stable-wrap ${productLoading ? "is-loading" : ""}`}>
+    {productLoading && (
+      <div className="block-overlay">
+        <div className="spinner" />
+      </div>
+    )}
 
-                                  if (Number.isNaN(base)) return <>$ --</>;
+    {product ? (
+      <div className="detail">
+        <div className="box-grey table-responsive">
+          <main className="wrap">
+            <section className="selection-card" role="region" aria-labelledby="ys-title">
+              <header className="card-head">
+                <h2 id="ys-title" className="card-title">YOUR SELECTION</h2>
+                <span className="order-no">#{product.products_style_no || "--"}</span>
+              </header>
 
-                                  const tariffPer = Number(product?.tariff_per ?? 0);
-                                  const regularConverted = convertCurrency(base);
+              <div className="pillbar" aria-label="Key attributes">
+                {/* Color/Clarity */}
+                <div className="pill" aria-label="Color and clarity">
+                  <strong>{product.dqg_alias || "--"}</strong>
+                  <span className="sub">{product.center_stone_name || "--"}</span>
+                </div>
 
-                                  if (tariffPer > 0) {
-                                    const withTariff = Math.round(base * ((100 + tariffPer) / 100));
-                                    const withTariffConverted = convertCurrency(withTariff);
+                {/* Ring Size */}
+                <div className="pill small" aria-label="Ring size">
+                  <strong>Ring Size:</strong>
+                  <span>
+                    {ringOptions.find((o) => o.value_id === selected.ringSize)?.value_name || "--"}
+                  </span>
+                </div>
 
-                                    return (
-                                      <div class="price-grid">
-                                          <div class="price-item">
-                                            <div class="price-row">
-                                              <span class="label">Regular Price</span>
-                                              <span class="value">${money0(regularConverted)}</span>
-                                            </div>
-                                          </div>
+                {/* Est Carat */}
+                <div className="pill" aria-label="Estimated carat weight">
+                  <strong>Est. Carat Wt*</strong>
+                  <span className="sub l-pill">
+                    {estCaratWt !== null
+                      ? Number(estCaratWt).toFixed(2)
+                      : product.total_carat_weight || "--"}{" "}
+                    CT [+/− 5%]
+                  </span>
+                </div>
 
-                                          <div class="price-item right">
-                                            <div class="price-row">
-                                              <span class="label">With {money0(tariffPer)}% Tariff</span>
-                                              <span class="value">${money0(withTariffConverted)}</span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                    );
-                                  }
+                {/* Est Pcs */}
+                <div className="pill small" aria-label="Estimated diamond pieces">
+                  <strong>Est. Diamond Pcs*:</strong>
+                  <span>{estDiamondPcs !== null ? estDiamondPcs : product.estimated_pcs || "--"}</span>
+                </div>
 
-                                  return <>$ {money0(regularConverted)}</>;
-                                })()}
-                              </div>
+                {/* PRICE */}
+                <div className="pill price" aria-label="Price">
+                  {(() => {
+                    const base =
+                      estPrice !== null
+                        ? Number(estPrice)
+                        : Number(
+                            product?.products_price ??
+                              product?.base_price ??
+                              product?.products_price1 ??
+                              NaN
+                          );
+
+                    if (Number.isNaN(base)) return <>$ --</>;
+
+                    const tariffPer = Number(product?.tariff_per ?? 0);
+                    const regularConverted = convertCurrency(base);
+
+                    if (tariffPer > 0) {
+                      const withTariff = Math.round(base * ((100 + tariffPer) / 100));
+                      const withTariffConverted = convertCurrency(withTariff);
+                      return (
+                        <div className="price-grid">
+                          <div className="price-item">
+                            <div className="price-row">
+                              <span className="label">Regular Price</span>
+                              <span className="value">${money0(regularConverted)}</span>
                             </div>
-
-                            <div className="details">
-                              <div className="kv">
-                                <div className="k">Metal</div>
-                                <div className="v">{product.metal_name || "--"}</div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Design</div>
-                                <div className="v">{product.style_group_name || "--"}</div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Setting Style</div>
-                                <div className="v">{product.style_category_name || "--"}</div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Stone Shape</div>
-                                <div className="v">{product.diamond_shape_name || "--"}</div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Stone Size</div>
-                                <div className="v">
-                                  {selected.diamondSize != null
-                                    ? `${selected.diamondSize} ${sizeUnit.toUpperCase()}`
-                                    : product.diamond_size ||
-                                      `${product.total_carat_weight || "--"} CT (Each)`}
-                                </div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Stone Type</div>
-                                <div className="v">{product.stone_type_name || "--"}</div>
-                              </div>
+                          </div>
+                          <div className="price-item right">
+                            <div className="price-row">
+                              <span className="label">With {money0(tariffPer)}% Tariff</span>
+                              <span className="value">${money0(withTariffConverted)}</span>
                             </div>
+                          </div>
+                        </div>
+                      );
+                    }
 
-                            <p className="note">
-                              *customization may cause some variation in final product.
-                            </p>
-                          </section>
-                        </main>
-                      </div>
-                    </div>
+                    return <>$ {money0(regularConverted)}</>;
+                  })()}
+                </div>
+              </div>
+
+              {/* Details grid */}
+              <div className="details">
+                <div className="kv">
+                  <div className="k">Metal</div>
+                  <div className="v">{product.metal_name || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Design</div>
+                  <div className="v">{product.style_group_name || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Setting Style</div>
+                  <div className="v">{product.style_category_name || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Stone Shape</div>
+                  <div className="v">{product.diamond_shape_name || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Stone Size</div>
+                  <div className="v">
+                    {selected.diamondSize != null
+                      ? `${selected.diamondSize} ${sizeUnit.toUpperCase()}`
+                      : product.diamond_size || `${product.total_carat_weight || "--"} CT (Each)`}
                   </div>
+                </div>
+                <div className="kv">
+                  <div className="k">Stone Type</div>
+                  <div className="v">{product.stone_type_name || "--"}</div>
+                </div>
+              </div>
 
-                  <div className="col-12 col-lg-3 col-md-12 col-sm-12 filter-block">
-                    <div className="band-heading-type">
-                      <p className="product-description__title detail-three stud-para">
-                        <a
-                          id="product-title-link"
-                          href={`https://www.amipi.com/${product.products_seo_url || ""}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ cursor: "pointer" }}
-                        >
-                          {product.products_name || "--"}
-                        </a>
-                      </p>
-                      <p className="stud-subtitle">{product.products_description || "--"}</p>
-                    </div>
+              <p className="note">
+                *customization may cause some variation in final product.
+              </p>
+            </section>
+          </main>
+        </div>
+      </div>
+    ) : (
+      // skeleton shell to preserve height
+      <div className="selection-card box-grey" />
+    )}
+  </div>
+</div>
 
-                    <div className="d-flex c_flex_box justify-content-center">
-                      <div className="col-xs-12 col-sm-12 product-description-variation-details-action stud-action-filter">
-                        <ul className="action product-d-action">
-                          <li className="common-btn svg-design">
-                            <a
-                              href={`https://www.amipi.com/${product.products_seo_url || ""}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="View Full Details"
-                            >
-                              <i className="fa fa-cog" aria-hidden="true"></i>
-                            </a>
-                          </li>
+<div className="col-12 col-lg-3 col-md-12 col-sm-12 filter-block">
+  <div className={`stable-wrap ${productLoading ? "is-loading" : ""}`}>
+    {productLoading && (
+      <div className="block-overlay">
+        <div className="spinner" />
+      </div>
+    )}
 
-                          {/* SHARE */}
-                          <li
-                            className="common-btn"
-                            style={{ cursor: "pointer" }}
-                            title="Share With A Friend"
-                            onClick={() => setShareOpen(true)}
-                          >
-                            <i className="fa fa-share-alt" aria-hidden="true"></i>
-                          </li>
+    {product ? (
+      <>
+        <div className="band-heading-type">
+          <p className="product-description__title detail-three stud-para">
+            <a
+              id="product-title-link"
+              href={`https://www.amipi.com/${product.products_seo_url || ""}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ cursor: "pointer" }}
+            >
+              {product.products_name || "--"}
+            </a>
+          </p>
+          <p className="stud-subtitle">{product.products_description || "--"}</p>
+        </div>
 
-                          {/* Wishlist toggle */}
-                          <li
-                            className="common-btn"
-                            title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
-                            style={{ cursor: wishLoading ? "wait" : "pointer" }}
-                          >
-                            <button
-                              type="button"
-                              onClick={handleWishlistToggle}
-                              disabled={wishLoading}
-                              className="btn btn-link p-0"
-                              aria-pressed={isWishlisted}
-                              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                            >
-                              <i
-                                className="fa fa-heart"
-                                aria-hidden="true"
-                                style={{ color: isWishlisted ? "#e74c3c" : "#2c3b5b" }}
-                              />
-                            </button>
-                          </li>
+        <div className="d-flex c_flex_box justify-content-center">
+          <div className="col-xs-12 col-sm-12 product-description-variation-details-action stud-action-filter">
+            <ul className="action product-d-action">
+              {/* View details */}
+              <li className="common-btn svg-design">
+                <a
+                  href={`https://www.amipi.com/${product.products_seo_url || ""}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="View Full Details"
+                >
+                  <i className="fa fa-cog" aria-hidden="true"></i>
+                </a>
+              </li>
 
-                          {/* Compare toggle */}
-                          <li
-                            className="AddCompareButtClass wishlist-btn common-btn"
-                            title={isCompared ? "Remove From Compare" : "Add to Compare"}
-                            style={{ cursor: comparLoading ? "wait" : "pointer" }}
-                          >
-                            <button
-                              type="button"
-                              onClick={handleCompareToggle}
-                              disabled={comparLoading}
-                              className="btn btn-link p-0"
-                              aria-pressed={isCompared}
-                              aria-label={isCompared ? "Remove from compare" : "Add to compare"}
-                            >
-                              <i
-                                className="fa fa-compress"
-                                aria-hidden="true"
-                                style={{ color: isCompared ? "#e74c3c" : "#2c3b5b" }}
-                              />
-                            </button>
-                          </li>
+              {/* Share (opens modal) */}
+              <li
+                className="common-btn"
+                style={{ cursor: "pointer" }}
+                title="Share With A Friend"
+                onClick={() => setShareOpen(true)}
+              >
+                <i className="fa fa-share-alt" aria-hidden="true"></i>
+              </li>
 
-                          {/* Cart toggle */}
-                          <li
-                            className="hover-none"
-                            title={isInCart ? "Remove From Cart" : "Add to Cart"}
-                            style={{ cursor: cartLoading ? "wait" : "pointer" }}
-                          >
-                            <div className="band-cart-btn">
-                              <button
-                                type="button"
-                                onClick={handleCartToggle}
-                                disabled={cartLoading}
-                                className="common-btn band-cart"
-                                aria-pressed={isInCart}
-                                aria-label={isInCart ? "Remove from cart" : "Add to cart"}
-                              >
-                                <i
-                                  className="fa fa-shopping-cart"
-                                  aria-hidden="true"
-                                  style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
-                                />{" "}
-                                Add To Cart
-                              </button>
-                            </div>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div style={{ padding: 24, color: "#888" }}>No product found.</div>
-              )}
-            </div>
+              {/* Wishlist */}
+              <li
+                className="common-btn"
+                title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
+                style={{ cursor: wishLoading ? "wait" : "pointer" }}
+              >
+                <button
+                  type="button"
+                  onClick={handleWishlistToggle}
+                  disabled={wishLoading}
+                  className="btn btn-link p-0"
+                  aria-pressed={isWishlisted}
+                  aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                >
+                  <i
+                    className="fa fa-heart"
+                    aria-hidden="true"
+                    style={{ color: isWishlisted ? "#e74c3c" : "#2c3b5b" }}
+                  />
+                </button>
+              </li>
+
+              {/* Compare */}
+              <li
+                className="AddCompareButtClass wishlist-btn common-btn"
+                title={isCompared ? "Remove From Compare" : "Add to Compare"}
+                style={{ cursor: comparLoading ? "wait" : "pointer" }}
+              >
+                <button
+                  type="button"
+                  onClick={handleCompareToggle}
+                  disabled={comparLoading}
+                  className="btn btn-link p-0"
+                  aria-pressed={isCompared}
+                  aria-label={isCompared ? "Remove from compare" : "Add to compare"}
+                >
+                  <i
+                    className="fa fa-compress"
+                    aria-hidden="true"
+                    style={{ color: isCompared ? "#e74c3c" : "#2c3b5b" }}
+                  />
+                </button>
+              </li>
+
+              {/* Cart */}
+              <li
+                className="hover-none"
+                title={isInCart ? "Remove From Cart" : "Add to Cart"}
+                style={{ cursor: cartLoading ? "wait" : "pointer" }}
+              >
+                <div className="band-cart-btn">
+                  <button
+                    type="button"
+                    onClick={handleCartToggle}
+                    disabled={cartLoading}
+                    className="common-btn band-cart"
+                    aria-pressed={isInCart}
+                    aria-label={isInCart ? "Remove from cart" : "Add to cart"}
+                  >
+                    <i
+                      className="fa fa-shopping-cart"
+                      aria-hidden="true"
+                      style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
+                    />{" "}
+                    Add To Cart
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </>
+    ) : (
+      // skeleton shell to preserve height
+      <div className="band-heading-type" />
+    )}
+  </div>
+</div>
+
+
+
+              </div>
           </div>
         </div>
       </div>
       <Footer />
 
-      {/* Share modal mounted at the end so it overlays everything */}
+      {/* Share modal */}
       {shareOpen && (
         <ShareProductModal
           open={shareOpen}

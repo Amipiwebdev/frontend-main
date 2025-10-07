@@ -4089,3 +4089,18 @@ button.previous-btn:hover svg, button.next-btn:hover svg{fill: #2c3b5c;}
   .price-row .label { font-size: 0.72rem; }
   .price-row .value { font-size: 0.9rem; }
 }
+
+.stable-wrap{position:relative}
+.stable-wrap.is-loading{pointer-events:none}
+.stable-wrap .block-overlay{
+  position:absolute; inset:0; background:rgba(255,255,255,.6);
+  display:flex; align-items:center; justify-content:center; z-index:2;
+}
+.stable-wrap .spinner{width:38px;height:38px;border-radius:50%;
+  border:4px solid #dfe3ec; border-top-color:#2c3b5b; animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* height locks only — width ko affect nahi karte */
+.selection-card{min-height:210px}
+.band-heading-type{min-height:120px}
+.ring-size-select{min-height:40px}
