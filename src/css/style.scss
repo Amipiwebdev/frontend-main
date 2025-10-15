@@ -183,10 +183,11 @@ button.go.btn.common-btn.primary-black {
     cursor: pointer;
     transition: border 0.17s, background 0.18s, box-shadow 0.16s;
     position: relative;
+    overflow: hidden;
 }
 .filter-card img {
     height: 80px;
-    width: 100%;
+    width: 80px;
     margin-bottom: 0;
     object-fit: cover;
     border-radius: 10px 10px 0 0;
@@ -3308,12 +3309,12 @@ li.common-btn.svg-design svg {
 }
 .filter-block.diamond-s button.filter-card {
     padding: 10px;
-    line-height: 20px;
+    line-height: 12px;
     margin-bottom: 0;
     font-size: 12px;
     color: #2c3b5c;
     font-weight: normal;
-    height: 42px;
+    height: 33px;
 }
 // .stone-type .filter-card.selected span.filter-label
 // {
@@ -3342,7 +3343,7 @@ li.common-btn.svg-design svg {
     color: #2c3b5c;
 }
 .metal-label button.filter-card .filter-label {
-    height: 42px;
+    height: 33px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4027,7 +4028,6 @@ button.previous-btn:hover svg, button.next-btn:hover svg{fill: #2c3b5c;}
     }
 }
 
-
 @media (max-width: 991px) {
     .align-none h3 {
         margin-left: 0;
@@ -4039,68 +4039,3 @@ button.previous-btn:hover svg, button.next-btn:hover svg{fill: #2c3b5c;}
     list-style: none !important;}
     .row.footer-flex.m-0 .col-md-4{padding-left: 15px; padding-right: 15px;}
 }
-
-/* === Price block typography polish === */
-.price-grid {
-  display: flex;
-  flex-wrap: nowrap;        /* <-- don't allow wrapping */
-  background: #fff;
-  padding: 8px 12px;
-  border-radius: 8px;
-  gap: 8px;                 /* optional spacing between columns */
-}
-
-/* 6 / 6 layout */
-.price-item {
-  flex: 1 1 50%;            /* each takes half width */
-  min-width: 0;             /* prevent flex overflow pushing wrap */
-  padding: 4px 8px;
-}
-.price-item.right { text-align: right; }
-
-/* stack label over value (within each column) */
-.price-row {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  color: #0f172a;
-  line-height: 1.25;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-}
-
-/* refined sizes/weights */
-.price-row .label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  opacity: 0.85;
-}
-.price-row .value {
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-/* If you want them to stack only on very small screens, keep this */
-@media (max-width: 640px) {
-  .price-grid { flex-wrap: wrap; }    /* allow wrap on tiny screens */
-  .price-item { flex: 0 0 100%; }
-  .price-item.right { text-align: left; }
-  .price-row .label { font-size: 0.72rem; }
-  .price-row .value { font-size: 0.9rem; }
-}
-
-.stable-wrap{position:relative}
-.stable-wrap.is-loading{pointer-events:none}
-.stable-wrap .block-overlay{
-  position:absolute; inset:0; background:rgba(255,255,255,.6);
-  display:flex; align-items:center; justify-content:center; z-index:2;
-}
-.stable-wrap .spinner{width:38px;height:38px;border-radius:50%;
-  border:4px solid #dfe3ec; border-top-color:#2c3b5b; animation:spin .9s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* height locks only — width ko affect nahi karte */
-.selection-card{min-height:210px}
-.band-heading-type{min-height:120px}
-.ring-size-select{min-height:40px}
