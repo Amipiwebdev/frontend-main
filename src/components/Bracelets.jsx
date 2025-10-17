@@ -925,88 +925,106 @@ const Bands = () => {
     sizeUnit,
   ]);
 
-  /* 8) Stone Size => Product (include vendors CSV + pricing)
-        IMPORTANT: keep old product & ringOptions mounted while loading  */
-  useEffect(() => {
-    if (
-      !selected.stoneType ||
-      !selected.design ||
-      !selected.shape ||
-      !selected.settingStyle ||
-      !selected.metal ||
-      !selected.quality ||
-      !selected.diamondSize
-    ) {
-      // Not enough to query; keep whatever is on screen (no jump)
-      return;
-    }
+ /* 8) After diamond size → fetch ring size options from filters */
+useEffect(() => {
+  if (
+    !selected.stoneType ||
+    !selected.design ||
+    !selected.shape ||
+    !selected.settingStyle ||
+    !selected.metal ||
+    !selected.quality ||
+    !selected.diamondSize
+  ) {
+    setRingOptions([]);
+    setSelected((sel) => ({ ...sel, ringSize: null }));
+    return;
+  }
 
-    const pricing = getPricingParams();
-    const params = {
-      stoneType: selected.stoneType,
-      design: selected.design,
-      shape: selected.shape,
-      settingStyle: selected.settingStyle,
-      metal: selected.metal,
-      quality: selected.quality,
-      diamondSize: selected.diamondSize,
-      unit: sizeUnit,
-      vendors: vendorParam || "",
-      ...pricing,
-    };
+  const params = {
+    stoneType: selected.stoneType,
+    design: selected.design,
+    shape: selected.shape,
+    settingStyle: selected.settingStyle,
+    metal: selected.metal,
+    quality: selected.quality,
+    diamondSize: selected.diamondSize,
+    unit: sizeUnit,
+    vendors: vendorParam || "",
+  };
 
-    let cancelled = false;
-    setProductLoading(true);
-    api
-      .get(`/productnew`, { params })
-      .then((res) => {
-        if (cancelled) return;
-        setProduct(res.data || null);
-      })
-      .finally(() => {
-        if (!cancelled) setProductLoading(false);
-      });
+  api.get("/ring-size-options", { params }).then((res) => {
+    const opts = Array.isArray(res.data) ? res.data : [];
+    setRingOptions(opts);
+    setSelected((sel) => {
+      const found = opts.find((x) => x.value_id === sel.ringSize);
+      return { ...sel, ringSize: found ? found.value_id : opts?.[0]?.value_id || null };
+    });
+  });
+}, [
+  selected.stoneType,
+  selected.design,
+  selected.shape,
+  selected.settingStyle,
+  selected.metal,
+  selected.quality,
+  selected.diamondSize,
+  sizeUnit,
+  vendorParam,
+]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    selected.stoneType,
-    selected.design,
-    selected.shape,
-    selected.settingStyle,
-    selected.metal,
-    selected.quality,
-    selected.diamondSize,
-    sizeUnit,
-    vendorParam,
-  ]);
+/* 9) All filters + ring size → Product */
+useEffect(() => {
+  if (
+    !selected.stoneType ||
+    !selected.design ||
+    !selected.shape ||
+    !selected.settingStyle ||
+    !selected.metal ||
+    !selected.quality ||
+    !selected.diamondSize ||
+    !selected.ringSize
+  ) {
+    // keep layout stable but clear product if not enough inputs
+    // (optional) setProduct(null);
+    return;
+  }
 
-  /* 9) Product => Ring options (keep previous options while loading) */
-  useEffect(() => {
-    if (!product?.products_id) return;
-    let cancelled = false;
-    setOptionsLoading(true);
-    api
-      .get(`/product-options/${product.products_id}`)
-      .then((res) => {
-        if (cancelled) return;
-        const opts = res.data || [];
-        setRingOptions(opts);
-        setSelected((sel) => {
-          const found = opts.find((x) => x.value_id === sel.ringSize);
-          return {
-            ...sel,
-            ringSize: found ? found.value_id : opts?.[0]?.value_id || null,
-          };
-        });
-      })
-      .finally(() => !cancelled && setOptionsLoading(false));
+  const pricing = getPricingParams();
+  const params = {
+    stoneType: selected.stoneType,
+    design: selected.design,
+    shape: selected.shape,
+    settingStyle: selected.settingStyle,
+    metal: selected.metal,
+    quality: selected.quality,
+    diamondSize: selected.diamondSize,
+    ringSize: selected.ringSize,      // <-- NEW: send ring size
+    unit: sizeUnit,
+    vendors: vendorParam || "",
+    ...pricing,
+  };
 
-    return () => {
-      cancelled = true;
-    };
-  }, [product?.products_id]);
+  let cancelled = false;
+  setProductLoading(true);
+  api
+    .get(`/productnew`, { params })
+    .then((res) => !cancelled && setProduct(res.data || null))
+    .finally(() => !cancelled && setProductLoading(false));
+  return () => { cancelled = true; };
+}, [
+  selected.stoneType,
+  selected.design,
+  selected.shape,
+  selected.settingStyle,
+  selected.metal,
+  selected.quality,
+  selected.diamondSize,
+  selected.ringSize,     // <-- depends on ringSize now
+  sizeUnit,
+  vendorParam,
+]);
+
 
   /* 10) Estimates for pcs / carat / price w.r.t ring size */
   useEffect(() => {
@@ -1553,7 +1571,7 @@ const Bands = () => {
                 </AccordionShell>
               </div>
 
-              {/* Ring Size — keep a stable footprint even while options load */}
+              {/* Ring Size — keep visible once options exist */}
               <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12 ring-size-block">
                 {!isMobile && <div className="filter-title">CHOOSE RING SIZE</div>}
                 <AccordionShell
@@ -1564,9 +1582,7 @@ const Bands = () => {
                   setOpenId={setOpenId}
                 >
                   <div className={`stable-wrap ${optionsLoading ? "is-loading" : ""}`}>
-                    {optionsLoading && (
-                      <div className="block-overlay"><div className="spinner" /></div>
-                    )}
+                    {optionsLoading && (<div className="block-overlay"><div className="spinner" /></div>)}
                     {ringOptions.length > 0 ? (
                       <select
                         value={selected.ringSize || ""}
@@ -1574,9 +1590,7 @@ const Bands = () => {
                         onChange={(e) => handleFilterChange("ringSize", Number(e.target.value))}
                       >
                         {ringOptions.map((opt) => (
-                          <option key={opt.value_id} value={opt.value_id}>
-                            {opt.value_name}
-                          </option>
+                          <option key={opt.value_id} value={opt.value_id}>{opt.value_name}</option>
                         ))}
                       </select>
                     ) : (
@@ -1587,6 +1601,7 @@ const Bands = () => {
                   </div>
                 </AccordionShell>
               </div>
+
 
               {/* PRODUCT DETAILS / ACTIONS */}
 
