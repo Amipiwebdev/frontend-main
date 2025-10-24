@@ -139,6 +139,24 @@ function pickFirstAvailable(val, allowed) {
   return allowed[0];
 }
 
+function isUserLoggedIn() {
+  try {
+    const u = JSON.parse(localStorage.getItem("amipiUser") || "null");
+    // treat any of these IDs as a valid login
+    return Boolean(
+      u &&
+      (u.customers_id ||
+       u.customer_id ||
+       u.retailerrid ||
+       u.retailer_id ||
+       u.id)
+    );
+  } catch {
+    return false;
+  }
+}
+
+
 /** Resolve any image/video ref to an absolute URL used by the CDN */
 function toAbsoluteMediaUrl(type, input) {
   const raw =
@@ -536,6 +554,10 @@ const Bands = () => {
   // Loading flags to prevent layout jump
   const [productLoading, setProductLoading] = useState(false);
   const [optionsLoading, setOptionsLoading] = useState(false);
+
+  const [loginOpen, setLoginOpen] = useState(false);
+  // simple bump to re-evaluate price gates after login
+  const [authVersion, setAuthVersion] = useState(0);
 
   // Lightbox
   const [lbIndex, setLbIndex] = useState(-1);
@@ -1658,46 +1680,69 @@ useEffect(() => {
 
                 {/* PRICE */}
                 <div className="pill price" aria-label="Price">
-                  {(() => {
-                    const base =
-                      estPrice !== null
-                        ? Number(estPrice)
-                        : Number(
-                            product?.products_price ??
-                              product?.base_price ??
-                              product?.products_price1 ??
-                              NaN
-                          );
+                    {(() => {
+                      // GATE: hide price for guests
+                      if (!isUserLoggedIn()) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => setLoginOpen(true)}
+                            style={{
+                              fontWeight: 600,
+                              color: "#e8ebf1ff",
+                              background: "transparent",
+                              border: 0,
+                              padding: "6px 0",
+                              textDecoration: "underline",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                            }}
+                          >
+                            Login to view price
+                          </button>
+                        );
+                      }
 
-                    if (Number.isNaN(base)) return <>$ --</>;
+                      const base =
+                        estPrice !== null
+                          ? Number(estPrice)
+                          : Number(
+                              product?.products_price ??
+                                product?.base_price ??
+                                product?.products_price1 ??
+                                NaN
+                            );
 
-                    const tariffPer = Number(product?.tariff_per ?? 0);
-                    const regularConverted = convertCurrency(base);
+                      if (Number.isNaN(base)) return <>$ --</>;
 
-                    if (tariffPer > 0) {
-                      const withTariff = Math.round(base * ((100 + tariffPer) / 100));
-                      const withTariffConverted = convertCurrency(withTariff);
-                      return (
-                        <div className="price-grid">
-                          <div className="price-item">
-                            <div className="price-row">
-                              <span className="label">Regular Price</span>
-                              <span className="value">${money0(regularConverted)}</span>
+                      const tariffPer = Number(product?.tariff_per ?? 0);
+                      const regularConverted = convertCurrency(base);
+
+                      if (tariffPer > 0) {
+                        const withTariff = Math.round(base * ((100 + tariffPer) / 100));
+                        const withTariffConverted = convertCurrency(withTariff);
+                        return (
+                          <div className="price-grid">
+                            <div className="price-item">
+                              <div className="price-row">
+                                <span className="label">Regular Price</span>
+                                <span className="value">${money0(regularConverted)}</span>
+                              </div>
+                            </div>
+                            <div className="price-item right">
+                              <div className="price-row">
+                                <span className="label">With {money0(tariffPer)}% Tariff</span>
+                                <span className="value">${money0(withTariffConverted)}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="price-item right">
-                            <div className="price-row">
-                              <span className="label">With {money0(tariffPer)}% Tariff</span>
-                              <span className="value">${money0(withTariffConverted)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
+                        );
+                      }
 
-                    return <>$ {money0(regularConverted)}</>;
-                  })()}
-                </div>
+                      return <>$ {money0(regularConverted)}</>;
+                    })()}
+                  </div>
+
               </div>
 
               {/* Details grid */}
@@ -1900,8 +1945,167 @@ useEffect(() => {
           authUser={null}
         />
       )}
+
+       {/* Login modal */}
+      {loginOpen && (
+        <LoginModal
+          open={loginOpen}
+          onClose={() => setLoginOpen(false)}
+          onSuccess={() => {
+            setLoginOpen(false);
+            setAuthVersion((v) => v + 1); // re-render to reveal price
+          }}
+        />
+      )}
+      
     </div>
   );
 };
+
+
+function LoginModal({ open, onClose, onSuccess }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [jump, setJump] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") onClose(); }
+    if (open) document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      // Adjust to your real auth route and payload
+      const { data } = await apiSession.post("/api/login", {
+        email: email.trim(),
+        password,
+        jump_to: jump || undefined,
+      }, { headers: { Accept: "application/json" }});
+
+      // Expecting backend to return user object; store to match your gates
+      if (data?.user) {
+        localStorage.setItem("amipiUser", JSON.stringify(data.user));
+        onSuccess?.(data.user);
+      } else {
+        setError(data?.message || "Login failed");
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return createPortal(
+    <div
+      aria-modal="true"
+      role="dialog"
+      aria-label="Login"
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,.6)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 560, maxWidth: "92vw", background: "#fff", borderRadius: 6,
+          boxShadow: "0 12px 32px rgba(0,0,0,.25)", overflow: "hidden"
+        }}
+      >
+        <div style={{ padding: "26px 28px 10px" }}>
+          <h2 style={{ margin: 0, fontWeight: 700, color: "#223052", textAlign: "center" }}>
+            WELCOME <span style={{ fontWeight: 400 }}>TO AMIPI</span>
+          </h2>
+          <p style={{ margin: "8px 0 18px", textAlign: "center", color: "#666" }}>
+            Please login to view prices
+          </p>
+
+          <form onSubmit={handleLogin}>
+            <label style={{ display: "block", fontSize: 12, color: "#555", marginBottom: 6 }}>EMAIL</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email ID"
+              style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #d7dbe6", borderRadius: 4 }}
+            />
+
+            <label style={{ display: "block", fontSize: 12, color: "#555", margin: "12px 0 6px" }}>PASSWORD</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="*****"
+              style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #d7dbe6", borderRadius: 4 }}
+            />
+
+            <label style={{ display: "block", fontSize: 12, color: "#555", margin: "12px 0 6px" }}>JUMP TO</label>
+            <select
+              value={jump}
+              onChange={(e) => setJump(e.target.value)}
+              style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #d7dbe6", borderRadius: 4 }}
+            >
+              <option value="">Select</option>
+              <option value="bands">Bands</option>
+              <option value="diamonds">Diamonds</option>
+            </select>
+
+            {error && (
+              <div style={{ color: "#b00020", marginTop: 10, fontSize: 14 }}>{error}</div>
+            )}
+
+            <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "center" }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  minWidth: 110, height: 36, borderRadius: 4, border: 0,
+                  background: "#2c3b5b", color: "#fff", fontWeight: 600, cursor: loading ? "wait" : "pointer"
+                }}
+              >
+                {loading ? "Logging in…" : "LOGIN"}
+              </button>
+              <a href="/forgot-password" style={{ minWidth: 150, height: 36, lineHeight: "36px", textAlign: "center",
+                borderRadius: 4, border: "1px solid #d7dbe6", color: "#2c3b5b", textDecoration: "none", fontWeight: 600 }}>
+                FORGOT PASSWORD
+              </a>
+              <a href="/register" style={{ minWidth: 120, height: 36, lineHeight: "36px", textAlign: "center",
+                borderRadius: 4, border: "1px solid #d7dbe6", color: "#2c3b5b", textDecoration: "none", fontWeight: 600 }}>
+                NEW USER
+              </a>
+            </div>
+          </form>
+        </div>
+
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          style={{
+            position: "absolute", right: 10, top: 10, border: 0,
+            background: "transparent", fontSize: 24, color: "#99a2b3", cursor: "pointer"
+          }}
+        >
+          ×
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 
 export default Bands;
