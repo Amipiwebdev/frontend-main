@@ -139,29 +139,17 @@ function pickFirstAvailable(val, allowed) {
   return allowed[0];
 }
 
-async function isUserLoggedIn() {
+function isUserLoggedIn() {
   try {
-    // Check localStorage first
     const u = JSON.parse(localStorage.getItem("amipiUser") || "null");
     if (u && (u.customers_id || u.customer_id || u.retailer_id || u.id)) {
       return true;
     }
+  } catch {}
 
-    // Fallback: ask backend session endpoint
-    const res = await fetch("https://www.amipi.com/api/me", {
-      credentials: "include",
-    });
-    const data = await res.json();
-    if (data?.user && (data.user.customers_id || data.user.customer_id)) {
-      localStorage.setItem("amipiUser", JSON.stringify(data.user));
-      return true;
-    }
-  } catch (err) {
-    console.error("Login check failed", err);
-  }
-  return false;
+  // Fallback: check if amipi_sso cookie exists
+  return document.cookie.split(";").some(c => c.trim().startsWith("amipi_sso="));
 }
-
 
 
 
@@ -569,20 +557,23 @@ const Bands = () => {
   const [authVersion, setAuthVersion] = useState(0);
 
   // Restore session from cookie if amipiUser not in localStorage
-useEffect(()=>{
+useEffect(() => {
   const hasUser = !!localStorage.getItem("amipiUser");
-  if (!hasUser) {
+  const hasSSOCookie = document.cookie.split(";").some(c => c.trim().startsWith("amipi_sso="));
+
+  if (!hasUser && hasSSOCookie) {
     apiSession.get("/api/me", { withCredentials: true })
-      .then(res=>{
+      .then(res => {
         if (res.data?.user) {
           localStorage.setItem("amipiUser", JSON.stringify(res.data.user));
-          setAuthVersion(v=>v+1);
+          setAuthVersion(v => v + 1);
         }
       })
-      .catch(()=>{/* optional */});
+      .catch(() => {
+        localStorage.removeItem("amipiUser");
+      });
   }
 }, []);
-
 
 
   // Lightbox
@@ -1361,7 +1352,7 @@ useEffect(() => {
 
         /* lock heights so cards don't collapse while content swaps */
         .selection-card{min-height:210px}
-        .band-heading-type{min-height:120px; margin-top:15px}
+        .band-heading-type{min-height:120px}
         .ring-size-select{min-height:40px}
 
         /* preserve grid structure even if ring options are loading */
@@ -1711,26 +1702,26 @@ useEffect(() => {
                 <div className="pill price" aria-label="Price">
                     {(() => {
                       // GATE: hide price for guests
-                      // if (!isUserLoggedIn()) {
-                      //   return (
-                      //     <button
-                      //       type="button"
-                      //        onClick={() => (window.location.href = "https://www.amipi.com/bands")}
-                      //       style={{
-                      //         fontWeight: 600,
-                      //         color: "#e8ebf1ff",
-                      //         background: "transparent",
-                      //         border: 0,
-                      //         padding: "6px 0",
-                      //         textDecoration: "underline",
-                      //         cursor: "pointer",
-                      //         fontSize: "16px",
-                      //       }}
-                      //     >
-                      //       Login to view price
-                      //     </button>
-                      //   );
-                      // }
+                      if (!isUserLoggedIn()) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => setLoginOpen(true)}
+                            style={{
+                              fontWeight: 600,
+                              color: "#e8ebf1ff",
+                              background: "transparent",
+                              border: 0,
+                              padding: "6px 0",
+                              textDecoration: "underline",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                            }}
+                          >
+                            Login to view price
+                          </button>
+                        );
+                      }
 
                       const base =
                         estPrice !== null
@@ -1839,7 +1830,7 @@ useEffect(() => {
               rel="noreferrer"
               style={{ cursor: "pointer" }}
             >
-              {product.products_blurb || "--"}
+              {product.products_name || "--"}
             </a>
           </p>
           <p className="stud-subtitle">{product.products_description || "--"}</p>
@@ -1849,7 +1840,6 @@ useEffect(() => {
           <div className="col-xs-12 col-sm-12 product-description-variation-details-action stud-action-filter">
             <ul className="action product-d-action">
               {/* View details */}
-             
               <li className="common-btn svg-design">
                 <a
                   href={`https://www.amipi.com/${product.products_seo_url || ""}`}
@@ -1857,71 +1847,44 @@ useEffect(() => {
                   rel="noreferrer"
                   title="View Full Details"
                 >
-                 
-                  <div className="band-cart-btn">
-                  
-                    <i className="fa fa-cog" aria-hidden="true"></i> 
-                 
-                  </div>
+                  <i className="fa fa-cog" aria-hidden="true"></i>
                 </a>
               </li>
-            
 
               {/* Share (opens modal) */}
-               <li
+              <li
                 className="common-btn"
                 style={{ cursor: "pointer" }}
                 title="Share With A Friend"
                 onClick={() => setShareOpen(true)}
               >
                 <i className="fa fa-share-alt" aria-hidden="true"></i>
-              </li> 
+              </li>
 
               {/* Wishlist */}
-               <li
-                  className="common-btn"
-                  title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
-                  style={{ cursor: wishLoading ? "wait" : "pointer" }}
+              <li
+                className="common-btn"
+                title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
+                style={{ cursor: wishLoading ? "wait" : "pointer" }}
+              >
+                <button
+                  type="button"
+                  onClick={handleWishlistToggle}
+                  disabled={wishLoading}
+                  className="btn btn-link p-0"
+                  aria-pressed={isWishlisted}
+                  aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                 >
-                  {(() => {
-                    if (!isUserLoggedIn()) {
-                      // 🔒 Guest user — show redirect button
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => (window.location.href = "https://www.amipi.com/bands")}
-                          disabled={wishLoading}
-                          className="btn btn-link p-0"
-                          style={{ textTransform: "uppercase" }}
-                        >
-                          <i className="fa fa-heart" aria-hidden="true" /> 
-                        </button>
-                      );
-                    } else {
-                      // ✅ Logged-in user — show normal wishlist toggle
-                      return (
-                        <button
-                          type="button"
-                          onClick={handleWishlistToggle}
-                          disabled={wishLoading}
-                          className="btn btn-link p-0"
-                          aria-pressed={isWishlisted}
-                          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                        >
-                          <i
-                            className="fa fa-heart"
-                            aria-hidden="true"
-                            style={{ color: isWishlisted ? "#e74c3c" : "#2c3b5b" }}
-                          />
-                        </button>
-                      );
-                    }
-                  })()}
-                </li>
-
+                  <i
+                    className="fa fa-heart"
+                    aria-hidden="true"
+                    style={{ color: isWishlisted ? "#e74c3c" : "#2c3b5b" }}
+                  />
+                </button>
+              </li>
 
               {/* Compare */}
-              {/* <li
+              <li
                 className="AddCompareButtClass wishlist-btn common-btn"
                 title={isCompared ? "Remove From Compare" : "Add to Compare"}
                 style={{ cursor: comparLoading ? "wait" : "pointer" }}
@@ -1940,52 +1903,32 @@ useEffect(() => {
                     style={{ color: isCompared ? "#e74c3c" : "#2c3b5b" }}
                   />
                 </button>
-              </li> */}
+              </li>
 
               {/* Cart */}
-               
-               <li
-                  className="hover-none"
-                  title={isInCart ? "Remove From Cart" : "Add to Cart"}
-                  style={{ cursor: cartLoading ? "wait" : "pointer" }}
-                >
-                  <div className="band-cart-btn">
-                    {(() => {
-                      if (!isUserLoggedIn()) {
-                        // 🔒 Guest user — show login redirect button
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => (window.location.href = "https://www.amipi.com/bands")}
-                            className="common-btn band-cart"                            
-                          >
-                            <i className="fa fa-shopping-cart" aria-hidden="true" />{" "}
-                            Add to Cart
-                          </button>
-                        );
-                      } else {
-                        // ✅ Logged-in user — show normal Add/Remove button
-                        return (
-                          <button
-                            type="button"
-                            onClick={handleCartToggle}
-                            disabled={cartLoading}
-                            className="common-btn band-cart"
-                            aria-pressed={isInCart}
-                            aria-label={isInCart ? "Remove from cart" : "Add to cart"}
-                          >
-                            <i
-                              className="fa fa-shopping-cart"
-                              aria-hidden="true"
-                              style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
-                            />{" "}
-                            {isInCart ? "Remove From Cart" : "Add To Cart"}
-                          </button>
-                        );
-                      }
-                    })()}
-                  </div>
-                </li>
+              <li
+                className="hover-none"
+                title={isInCart ? "Remove From Cart" : "Add to Cart"}
+                style={{ cursor: cartLoading ? "wait" : "pointer" }}
+              >
+                <div className="band-cart-btn">
+                  <button
+                    type="button"
+                    onClick={handleCartToggle}
+                    disabled={cartLoading}
+                    className="common-btn band-cart"
+                    aria-pressed={isInCart}
+                    aria-label={isInCart ? "Remove from cart" : "Add to cart"}
+                  >
+                    <i
+                      className="fa fa-shopping-cart"
+                      aria-hidden="true"
+                      style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
+                    />{" "}
+                    Add To Cart
+                  </button>
+                </div>
+              </li>
             </ul>
           </div>
         </div>

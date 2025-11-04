@@ -104,18 +104,25 @@ const Header = () => {
   }, []);
 
   // optional: one-time sanity check with server on first render
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await apiSession.get("/api/me", { headers: { Accept: "application/json" } });
-        if (cancelled) return;
-        setAuthUser(data?.auth ? data.user : null);
-        if (data?.auth) localStorage.setItem("amipiUser", JSON.stringify(data.user));
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+ useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    try {
+      const { data } = await apiSession.get("/api/me", {
+        headers: { Accept: "application/json" },
+        withCredentials: true,
+      });
+      if (cancelled) return;
+      setAuthUser(data?.auth ? data.user : null);
+      if (data?.auth) {
+        localStorage.setItem("amipiUser", JSON.stringify(data.user));
+      }
+    } catch {
+      // optional: fallback to null
+    }
+  })();
+  return () => { cancelled = true; };
+}, []);
 
   const logout = async () => {
     try {
@@ -203,6 +210,8 @@ const Header = () => {
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+
 
   const handleLogin = async (e) => {
     e.preventDefault();
