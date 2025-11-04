@@ -164,8 +164,6 @@ async function isUserLoggedIn() {
 
 
 
-
-
 /** Resolve any image/video ref to an absolute URL used by the CDN */
 function toAbsoluteMediaUrl(type, input) {
   const raw =
