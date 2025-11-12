@@ -1,5 +1,5 @@
 // src/components/Bands.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Header from "./common/Header";
 import Footer from "./common/Footer";
@@ -8,6 +8,9 @@ import { api, apiSession } from "../apiClient";
 import ShareProductModal from "./share/ShareProductModal.jsx"; // NEW
 
 const SEO_URL = "bands-test";
+const APP_BANDS_URL = "https://jewelry.amipi.com/bands";
+const LOGIN_HOST_URL = "https://www.amipi.com/bands";
+const LOGIN_URL = `${LOGIN_HOST_URL}?redirect=${encodeURIComponent(APP_BANDS_URL)}`;
 
 /* ------------------------------------------------------------------ */
 /*                              Helpers                                */
@@ -139,31 +142,6 @@ function pickFirstAvailable(val, allowed) {
   return allowed[0];
 }
 
-async function isUserLoggedIn() {
-  try {
-    // Check localStorage first
-    const u = JSON.parse(localStorage.getItem("amipiUser") || "null");
-    if (u && (u.customers_id || u.customer_id || u.retailer_id || u.id)) {
-      return true;
-    }
-
-    // Fallback: ask backend session endpoint
-    const res = await fetch("https://www.amipi.com/api/me", {
-      credentials: "include",
-    });
-    const data = await res.json();
-    if (data?.user && (data.user.customers_id || data.user.customer_id)) {
-      localStorage.setItem("amipiUser", JSON.stringify(data.user));
-      return true;
-    }
-  } catch (err) {
-    console.error("Login check failed", err);
-  }
-  return false;
-}
-
-
-
 /** Resolve any image/video ref to an absolute URL used by the CDN */
 function toAbsoluteMediaUrl(type, input) {
   const raw =
@@ -203,6 +181,72 @@ const money0 = (v) =>
 
 // stub for ConverRelatedCurrencyPrice(...)
 const convertCurrency = (v) => Number(v || 0);
+
+const readStoredUser = () => {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem("amipiUser");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+function useAuthState() {
+  const [state, setState] = useState(() => {
+    const user = readStoredUser();
+    return { user, loading: !user };
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setState((prev) => ({ ...prev, loading: true }));
+      try {
+        const { data } = await apiSession.get("/api/me", {
+          headers: { Accept: "application/json" },
+          withCredentials: true,
+        });
+        if (cancelled) return;
+        const user = data?.auth ? data.user : null;
+        if (user) localStorage.setItem("amipiUser", JSON.stringify(user));
+        else localStorage.removeItem("amipiUser");
+        setState({ user, loading: false });
+      } catch {
+        if (cancelled) return;
+        setState({ user: readStoredUser(), loading: false });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncFromStorage = () => setState({ user: readStoredUser(), loading: false });
+    window.addEventListener("storage", syncFromStorage);
+    window.addEventListener("amipi:auth", syncFromStorage);
+    return () => {
+      window.removeEventListener("storage", syncFromStorage);
+      window.removeEventListener("amipi:auth", syncFromStorage);
+    };
+  }, []);
+
+  const goToLogin = useCallback(
+    (replace = false) => {
+      if (replace) window.location.replace(LOGIN_URL);
+      else window.location.href = LOGIN_URL;
+    },
+    []
+  );
+
+  return {
+    user: state.user,
+    loading: state.loading,
+    redirectToLogin: goToLogin,
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /*                             Lightbox                                */
@@ -565,7 +609,14 @@ const Bands = () => {
   const [loginOpen, setLoginOpen] = useState(false);
   // simple bump to re-evaluate price gates after login
   const [authVersion, setAuthVersion] = useState(0);
-  const [bootstrapDone, setBootstrapDone] = useState(false);
+  const { user: authUser, loading: authLoading, redirectToLogin } = useAuthState();
+  const isAuthenticated = Boolean(authUser);
+  const [bootstrapDone, setBootstrapDone] = useState(() => typeof window === "undefined");
+
+  useEffect(() => {
+    if (!bootstrapDone || authLoading) return;
+    if (!isAuthenticated) setLoginOpen(true);
+  }, [bootstrapDone, authLoading, isAuthenticated]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -657,15 +708,6 @@ const Bands = () => {
     const hasUser = !!localStorage.getItem("amipiUser");
     if (!hasUser) {
       (async () => {
-        try {
-          await apiSession.post(
-            "/api/sso/exchange",
-            {},
-            { headers: { Accept: "application/json" } }
-          );
-        } catch {
-          /* ignore */
-        }
         try {
           const res = await apiSession.get("/api/me", {
             headers: { Accept: "application/json" },
@@ -1306,7 +1348,7 @@ useEffect(() => {
 
   /* -------------------- Wishlist -------------------- */
   useEffect(() => {
-    if (!product?.products_id) {
+    if (!product?.products_id || !isAuthenticated) {
       setIsWishlisted(false);
       return;
     }
@@ -1324,10 +1366,14 @@ useEffect(() => {
       })
       .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
       .catch(() => setIsWishlisted(false));
-  }, [product?.products_id]);
+  }, [product?.products_id, isAuthenticated]);
 
   async function handleWishlistToggle() {
     if (!product?.products_id || wishLoading) return;
+    if (!isAuthenticated) {
+      redirectToLogin();
+      return;
+    }
 
     const pricing = getPricingParams();
     const ids = resolveIdsWithAuthFallback(getClientIds());
@@ -1354,7 +1400,7 @@ useEffect(() => {
 
   /* -------------------- Compare -------------------- */
   useEffect(() => {
-    if (!product?.products_id) {
+    if (!product?.products_id || !isAuthenticated) {
       setIsCompared(false);
       return;
     }
@@ -1369,9 +1415,13 @@ useEffect(() => {
       })
       .then((res) => setIsCompared(Boolean(res.data?.compared)))
       .catch(() => setIsCompared(false));
-  }, [product?.products_id]);
+  }, [product?.products_id, isAuthenticated]);
 
   async function handleCompareToggle() {
+    if (!isAuthenticated) {
+      redirectToLogin();
+      return;
+    }
     const pricing = getPricingParams();
     if (!product?.products_id || comparLoading) return;
     const { customers_id, parent_retailer_id } = getClientIds();
@@ -1393,7 +1443,7 @@ useEffect(() => {
 
   /* -------------------- Cart -------------------- */
   useEffect(() => {
-    if (!product?.products_id) {
+    if (!product?.products_id || !isAuthenticated) {
       setIsInCart(false);
       return;
     }
@@ -1406,10 +1456,14 @@ useEffect(() => {
       })
       .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
       .catch(() => setIsInCart(false));
-  }, [product?.products_id]);
+  }, [product?.products_id, isAuthenticated]);
 
   async function handleCartToggle() {
     if (!product?.products_id || cartLoading) return;
+    if (!isAuthenticated) {
+      redirectToLogin();
+      return;
+    }
 
     const { customers_id, parent_retailer_id } = getClientIds();
     const pricing = getPricingParams();
@@ -1815,68 +1869,62 @@ useEffect(() => {
 
                 {/* PRICE */}
                 <div className="pill price" aria-label="Price">
-                    {(() => {
-                      // GATE: hide price for guests
-                      // if (!isUserLoggedIn()) {
-                      //   return (
-                      //     <button
-                      //       type="button"
-                      //        onClick={() => (window.location.href = "https://www.amipi.com/bands")}
-                      //       style={{
-                      //         fontWeight: 600,
-                      //         color: "#e8ebf1ff",
-                      //         background: "transparent",
-                      //         border: 0,
-                      //         padding: "6px 0",
-                      //         textDecoration: "underline",
-                      //         cursor: "pointer",
-                      //         fontSize: "16px",
-                      //       }}
-                      //     >
-                      //       Login to view price
-                      //     </button>
-                      //   );
-                      // }
+                  {(() => {
+                    if (!isAuthenticated) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            redirectToLogin();
+                          }}
+                          className="btn btn-link p-0 d-flex align-items-center gap-2 text-uppercase"
+                        >
+                          <i className="fa fa-heart" aria-hidden="true" />
+                          <span>Login to view price</span>
+                        </button>
+                      );
+                    }
 
-                      const base =
-                        estPrice !== null
-                          ? Number(estPrice)
-                          : Number(
-                              product?.products_price ??
-                                product?.base_price ??
-                                product?.products_price1 ??
-                                NaN
-                            );
+                    const base =
+                      estPrice !== null
+                        ? Number(estPrice)
+                        : Number(
+                            product?.products_price ??
+                              product?.base_price ??
+                              product?.products_price1 ??
+                              NaN
+                          );
 
-                      if (Number.isNaN(base)) return <>$ --</>;
+                    if (Number.isNaN(base)) return <>$ --</>;
 
-                      const tariffPer = Number(product?.tariff_per ?? 0);
-                      const regularConverted = convertCurrency(base);
+                    const tariffPer = Number(product?.tariff_per ?? 0);
+                    const regularConverted = convertCurrency(base);
 
-                      if (tariffPer > 0) {
-                        const withTariff = Math.round(base * ((100 + tariffPer) / 100));
-                        const withTariffConverted = convertCurrency(withTariff);
-                        return (
-                          <div className="price-grid">
-                            <div className="price-item">
-                              <div className="price-row">
-                                <span className="label">Regular Price</span>
-                                <span className="value">${money0(regularConverted)}</span>
-                              </div>
-                            </div>
-                            <div className="price-item right">
-                              <div className="price-row">
-                                <span className="label">With {money0(tariffPer)}% Tariff</span>
-                                <span className="value">${money0(withTariffConverted)}</span>
-                              </div>
+                    if (tariffPer > 0) {
+                      const withTariff = Math.round(base * ((100 + tariffPer) / 100));
+                      const withTariffConverted = convertCurrency(withTariff);
+                      return (
+                        <div className="price-grid">
+                          <div className="price-item">
+                            <div className="price-row">
+                              <span className="label">Regular Price</span>
+                              <span className="value">${money0(regularConverted)}</span>
                             </div>
                           </div>
-                        );
-                      }
+                          <div className="price-item right">
+                            <div className="price-row">
+                              <span className="label">With {money0(tariffPer)}% Tariff</span>
+                              <span className="value">${money0(withTariffConverted)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
 
-                      return <>$ {money0(regularConverted)}</>;
-                    })()}
-                  </div>
+                    return <>$ {money0(regularConverted)}</>;
+                  })()}
+                </div>
 
               </div>
 
@@ -1990,12 +2038,12 @@ useEffect(() => {
                   style={{ cursor: wishLoading ? "wait" : "pointer" }}
                 >
                   {(() => {
-                    if (!isUserLoggedIn()) {
+                    if (!isAuthenticated) {
                       // 🔒 Guest user — show redirect button
                       return (
                         <button
                           type="button"
-                          onClick={() => (window.location.href = "https://www.amipi.com/bands")}
+                          onClick={() => (redirectToLogin())}
                           disabled={wishLoading}
                           className="btn btn-link p-0"
                           style={{ textTransform: "uppercase" }}
@@ -2057,12 +2105,12 @@ useEffect(() => {
                 >
                   <div className="band-cart-btn">
                     {(() => {
-                      if (!isUserLoggedIn()) {
+                      if (!isAuthenticated) {
                         // 🔒 Guest user — show login redirect button
                         return (
                           <button
                             type="button"
-                            onClick={() => (window.location.href = "https://www.amipi.com/bands")}
+                            onClick={() => (redirectToLogin())}
                             className="common-btn band-cart"                            
                           >
                             <i className="fa fa-shopping-cart" aria-hidden="true" />{" "}
@@ -2301,11 +2349,13 @@ function LoginModal({ open, onClose, onSuccess }) {
         </button>
       </div>
     </div>,
-    document.body
+    document.body 
   );
 }
 
 
 export default Bands;
+
+
 
 
