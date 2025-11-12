@@ -565,21 +565,126 @@ const Bands = () => {
   const [loginOpen, setLoginOpen] = useState(false);
   // simple bump to re-evaluate price gates after login
   const [authVersion, setAuthVersion] = useState(0);
+  const [bootstrapDone, setBootstrapDone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setBootstrapDone(true);
+      return undefined;
+    }
+
+    const url = new URL(window.location.href);
+    const loginToken = url.searchParams.get("token");
+    if (!loginToken) {
+      setBootstrapDone(true);
+      return undefined;
+    }
+
+    const broadcastUser = (user) => {
+      if (!window) return;
+      if (user) localStorage.setItem("amipiUser", JSON.stringify(user));
+      else localStorage.removeItem("amipiUser");
+      window.dispatchEvent(new CustomEvent("amipi:auth", { detail: { user } }));
+    };
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let latestUser = null;
+
+        // 1) Redeem the token
+        try {
+          const { data } = await apiSession.post(
+            "/api/auth/token-login",
+            { token: loginToken },
+            { withCredentials: true }
+          );
+          if (cancelled) return;
+          latestUser = data?.auth && data?.user ? data.user : null;
+          broadcastUser(latestUser);
+        } catch {
+          if (cancelled) return;
+          broadcastUser(null);
+        }
+
+        if (cancelled) return;
+
+        // 2) Make sure Laravel session + cookies are in sync
+        try {
+          await apiSession.post(
+            "/api/sso/exchange",
+            {},
+            { headers: { Accept: "application/json" } }
+          );
+        } catch {
+          // ignore – /api/me below will tell us if the session exists
+        }
+
+        // 3) Ask /api/me for the canonical user payload
+        try {
+          const { data } = await apiSession.get("/api/me", {
+            headers: { Accept: "application/json" },
+            withCredentials: true,
+          });
+          if (cancelled) return;
+          latestUser = data?.auth ? data.user : null;
+          broadcastUser(latestUser);
+        } catch {
+          if (cancelled) return;
+          broadcastUser(null);
+        }
+      } finally {
+        if (cancelled) return;
+        setAuthVersion((v) => v + 1);
+        url.searchParams.delete("token");
+        const cleanedSearch = url.searchParams.toString();
+        const nextUrl = `${url.origin}${url.pathname}${
+          cleanedSearch ? `?${cleanedSearch}` : ""
+        }${url.hash}`;
+        window.history.replaceState({}, "", nextUrl);
+        setBootstrapDone(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Restore session from cookie if amipiUser not in localStorage
-useEffect(()=>{
-  const hasUser = !!localStorage.getItem("amipiUser");
-  if (!hasUser) {
-    apiSession.get("/api/me", { withCredentials: true })
-      .then(res=>{
-        if (res.data?.user) {
-          localStorage.setItem("amipiUser", JSON.stringify(res.data.user));
-          setAuthVersion(v=>v+1);
+  useEffect(() => {
+    if (!bootstrapDone) return undefined;
+    const hasUser = !!localStorage.getItem("amipiUser");
+    if (!hasUser) {
+      (async () => {
+        try {
+          await apiSession.post(
+            "/api/sso/exchange",
+            {},
+            { headers: { Accept: "application/json" } }
+          );
+        } catch {
+          /* ignore */
         }
-      })
-      .catch(()=>{/* optional */});
-  }
-}, []);
+        try {
+          const res = await apiSession.get("/api/me", {
+            headers: { Accept: "application/json" },
+            withCredentials: true,
+          });
+          if (res.data?.auth && res.data.user) {
+            localStorage.setItem("amipiUser", JSON.stringify(res.data.user));
+            window.dispatchEvent(
+              new CustomEvent("amipi:auth", { detail: { user: res.data.user } })
+            );
+            setAuthVersion((v) => v + 1);
+          }
+        } catch {
+          /* optional */
+        }
+      })();
+    }
+    return undefined;
+  }, [bootstrapDone]);
 
 
 
@@ -975,6 +1080,7 @@ useEffect(()=>{
 
  /* 8) After diamond size → fetch ring size options from filters */
 useEffect(() => {
+  if (!bootstrapDone) return;
   if (
     !selected.stoneType ||
     !selected.design ||
@@ -1023,6 +1129,7 @@ useEffect(() => {
 
 /* 9) All filters + ring size → Product */
 useEffect(() => {
+  if (!bootstrapDone) return;
   if (
     !selected.stoneType ||
     !selected.design ||
@@ -1071,7 +1178,8 @@ useEffect(() => {
   selected.ringSize,     // <-- depends on ringSize now
   sizeUnit,
   vendorParam,
-  authVersion, 
+  authVersion,
+  bootstrapDone,
 ]);
 
 
@@ -2199,3 +2307,5 @@ function LoginModal({ open, onClose, onSuccess }) {
 
 
 export default Bands;
+
+
