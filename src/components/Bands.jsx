@@ -614,11 +614,6 @@ const Bands = () => {
   const [bootstrapDone, setBootstrapDone] = useState(() => typeof window === "undefined");
 
   useEffect(() => {
-    if (!bootstrapDone || authLoading) return;
-    if (!isAuthenticated) setLoginOpen(true);
-  }, [bootstrapDone, authLoading, isAuthenticated]);
-
-  useEffect(() => {
     if (typeof window === "undefined") {
       setBootstrapDone(true);
       return undefined;
@@ -1879,8 +1874,7 @@ useEffect(() => {
                             redirectToLogin();
                           }}
                           className="btn btn-link p-0 d-flex align-items-center gap-2 text-uppercase"
-                        >
-                          <i className="fa fa-heart" aria-hidden="true" />
+                        >                          
                           <span>Login to view price</span>
                         </button>
                       );
