@@ -314,7 +314,7 @@ export default function ShareProductModal({
                 <p className="m-0 me-auto text-muted small">
                   This information will not be used for any purpose other than the sending of this email.
                 </p>
-                <button className="common-btn primary" type="submit" disabled={busy}>
+                <button className="btn btn-outline-primary" type="submit" disabled={busy}>
                   {busy ? "Sharing..." : "Share Now"}
                 </button>
                 <button type="button" className="btn btn-outline-secondary" onClick={onClose}>
