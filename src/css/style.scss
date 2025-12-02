@@ -2794,7 +2794,7 @@ span.ruby-list-desc {
     margin-top: 0;
     font-size: 12px;
     line-height: 14px;
-    text-align: center;
+    // text-align: center;
 }
 
 .title-below-image span.ruby-list-desc {
@@ -3677,6 +3677,7 @@ button.previous-btn:hover svg, button.next-btn:hover svg{fill: #2c3b5c;}
     margin: 0;
     font-size: 16px !important;
     text-transform: capitalize;
+    line-height: 15px;
 }
 
 li.nav-item.dropdown {
