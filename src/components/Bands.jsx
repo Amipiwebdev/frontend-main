@@ -497,7 +497,15 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
 }
 
 /* -------------------- Mobile-only Accordion Shell -------------------- */
-function AccordionShell({ id, title, isMobile, openId, setOpenId, children }) {
+function AccordionShell({
+  id,
+  title,
+  isMobile,
+  openId,
+  setOpenId,
+  selectedLabel,
+  children,
+}) {
   if (!isMobile) {
     return <>{children}</>;
   }
@@ -507,7 +515,9 @@ function AccordionShell({ id, title, isMobile, openId, setOpenId, children }) {
       <style>{`
         .acc-card{border:1px solid #e6e9f2;border-radius:14px;background:#fff;box-shadow:0 4px 12px rgba(34,48,82,.06);margin-bottom:12px;overflow:hidden}
         .acc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;cursor:pointer;background:#f9fbff}
-        .acc-title{font-weight:700;letter-spacing:.5px;color:#223052;font-size:19px}
+        .acc-title-row{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+        .acc-title{font-weight:700;letter-spacing:.5px;color:#223052;font-size:19px;flex-shrink:0}
+        .acc-chip{margin-left:auto;padding:4px 10px;border-radius:12px;border:1px solid #e1e6f2;background:#f1f4fb;color:#223052;font-size:12px;font-weight:700;line-height:1;max-width:55%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .acc-toggle{border:0;background:transparent;line-height:0;padding:8px;border-radius:8px}
         .acc-toggle svg{width:18px;height:18px;transition:transform .25s ease}
         .acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
@@ -518,7 +528,14 @@ function AccordionShell({ id, title, isMobile, openId, setOpenId, children }) {
           className="acc-head"
           onClick={() => setOpenId(open ? null : id)}
         >
-          <div className="acc-title">{title}</div>
+          <div className="acc-title-row">
+            <div className="acc-title">{title}</div>
+            {selectedLabel ? (
+              <div className="acc-chip" title={selectedLabel}>
+                {selectedLabel}
+              </div>
+            ) : null}
+          </div>
           <button type="button" className="acc-toggle" aria-expanded={open}>
             <svg viewBox="0 0 24 24" fill="none">
               <path
@@ -1292,6 +1309,41 @@ useEffect(() => {
   const nextLightbox = () =>
     setLbIndex((i) => (i + 1) % Math.max(galleryItems.length, 1));
 
+  /* Selected labels for mobile accordion headers */
+  const selectedLabels = useMemo(() => {
+    const stoneType = data.stoneTypes.find((st) => (st.pst_id || st.id) === selected.stoneType);
+    const design = data.designs.find((d) => (d.psg_id || d.id) === selected.design);
+    const shape = data.shapes.find((sh) => sh.id === selected.shape);
+    const settingStyle = data.settingStyles.find(
+      (sc) => (sc.psc_id || sc.id) === selected.settingStyle
+    );
+    const metal = data.metals.find((m) => (m.dmt_id || m.id) === selected.metal);
+    const quality = data.qualities.find((q) => (q.dqg_id || q.id) === selected.quality);
+    const ring = ringOptions.find((opt) => opt.value_id === selected.ringSize);
+
+    return {
+      stoneType: stoneType?.pst_description || stoneType?.pst_name || stoneType?.name || "",
+      design: design?.psg_name || design?.name || "",
+      shape: shape?.name || "",
+      settingStyle: settingStyle?.psc_name || settingStyle?.name || "",
+      metal: metal?.dmt_tooltip || metal?.dmt_name || metal?.name || "",
+      quality: quality?.dqg_alias || quality?.dqg_name || quality?.name || "",
+      diamondSize:
+        selected.diamondSize != null ? `${selected.diamondSize} ${sizeUnit.toUpperCase()}` : "",
+      ringSize: ring?.value_name || "",
+    };
+  }, [
+    data.stoneTypes,
+    data.designs,
+    data.shapes,
+    data.settingStyles,
+    data.metals,
+    data.qualities,
+    ringOptions,
+    selected,
+    sizeUnit,
+  ]);
+
   // Filter click handler
   function handleFilterChange(key, value) {
     setSelected((prev) => {
@@ -1558,6 +1610,7 @@ useEffect(() => {
                   id="stoneType"
                   title="STONE TYPE"
                   isMobile={isMobile}
+                  selectedLabel={selectedLabels.stoneType}
                   openId={openId}
                   setOpenId={setOpenId}
                 >
@@ -1590,6 +1643,7 @@ useEffect(() => {
                   id="design"
                   title="DESIGN"
                   isMobile={isMobile}
+                  selectedLabel={selectedLabels.design}
                   openId={openId}
                   setOpenId={setOpenId}
                 >
@@ -1622,6 +1676,7 @@ useEffect(() => {
                   id="shape"
                   title="STONE SHAPE"
                   isMobile={isMobile}
+                  selectedLabel={selectedLabels.shape}
                   openId={openId}
                   setOpenId={setOpenId}
                 >
@@ -1648,6 +1703,7 @@ useEffect(() => {
                   id="settingStyle"
                   title="SETTING STYLE"
                   isMobile={isMobile}
+                  selectedLabel={selectedLabels.settingStyle}
                   openId={openId}
                   setOpenId={setOpenId}
                 >
@@ -1680,6 +1736,7 @@ useEffect(() => {
                   id="metal"
                   title="METAL"
                   isMobile={isMobile}
+                  selectedLabel={selectedLabels.metal}
                   openId={openId}
                   setOpenId={setOpenId}
                 >
@@ -1719,6 +1776,7 @@ useEffect(() => {
                   id="quality"
                   title="STONE QUALITY"
                   isMobile={isMobile}
+                  selectedLabel={selectedLabels.quality}
                   openId={openId}
                   setOpenId={setOpenId}
                 >
@@ -1757,6 +1815,7 @@ useEffect(() => {
                   id="diamondSize"
                   title={`STONE SIZE (${sizeUnit.toUpperCase()})`}
                   isMobile={isMobile}
+                  selectedLabel={selectedLabels.diamondSize}
                   openId={openId}
                   setOpenId={setOpenId}
                 >
@@ -1784,6 +1843,7 @@ useEffect(() => {
                   id="ringSize"
                   title="CHOOSE RING SIZE"
                   isMobile={isMobile}
+                  selectedLabel={selectedLabels.ringSize}
                   openId={openId}
                   setOpenId={setOpenId}
                 >
