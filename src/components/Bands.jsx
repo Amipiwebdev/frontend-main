@@ -507,7 +507,7 @@ function AccordionShell({ id, title, isMobile, openId, setOpenId, children }) {
       <style>{`
         .acc-card{border:1px solid #e6e9f2;border-radius:14px;background:#fff;box-shadow:0 4px 12px rgba(34,48,82,.06);margin-bottom:12px;overflow:hidden}
         .acc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;cursor:pointer;background:#f9fbff}
-        .acc-title{font-weight:700;letter-spacing:.5px;color:#223052;font-size:14px}
+        .acc-title{font-weight:700;letter-spacing:.5px;color:#223052;font-size:19px}
         .acc-toggle{border:0;background:transparent;line-height:0;padding:8px;border-radius:8px}
         .acc-toggle svg{width:18px;height:18px;transition:transform .25s ease}
         .acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
