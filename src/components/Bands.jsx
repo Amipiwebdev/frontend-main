@@ -574,6 +574,8 @@ function AccordionShell({
 const Bands = () => {
   const [pageTitle, setPageTitle] = useState("Bands");
   const [pageHeaderText, setPageHeaderText] = useState("");
+  const [navPopup, setNavPopup] = useState({ key: "", title: "", text: "" });
+  const [showNavPopup, setShowNavPopup] = useState(false);
 
   // Allowed ID lists (from catnav)
   const [allowed, setAllowed] = useState({
@@ -630,6 +632,13 @@ const Bands = () => {
   const { user: authUser, loading: authLoading, redirectToLogin } = useAuthState();
   const isAuthenticated = Boolean(authUser);
   const [bootstrapDone, setBootstrapDone] = useState(() => typeof window === "undefined");
+
+  const handleCloseNavPopup = useCallback(() => {
+    if (typeof window !== "undefined" && navPopup.key) {
+      localStorage.setItem(navPopup.key, "1");
+    }
+    setShowNavPopup(false);
+  }, [navPopup.key]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -797,6 +806,22 @@ const Bands = () => {
 
       setPageTitle(nav.category_navigation_title || "Bands");
       setPageHeaderText(String(nav.category_navigation_header_text || "").trim());
+
+      const popupText = String(nav.category_navigation_popup_text || "").trim();
+      const popupKey = `catnav_popup_seen_${
+        nav.category_navigation_id || nav.category_navigation_seo_url || SEO_URL
+      }`;
+      const popupTitle = nav.category_navigation_title || nav.category_navigation_pagename || "Notice";
+
+      setNavPopup({ key: popupKey, title: popupTitle, text: popupText });
+
+      if (popupText && typeof window !== "undefined") {
+        const seen = localStorage.getItem(popupKey);
+        if (!seen) {
+          setShowNavPopup(true);
+          localStorage.setItem(popupKey, "1");
+        }
+      }
 
       const stoneTypeIds = String(nav.category_navigation_sub_stone_type ?? "")
         .split(",")
@@ -2219,6 +2244,68 @@ useEffect(() => {
         </div>
       </div>
       <Footer />
+
+      {showNavPopup && navPopup.text
+        ? createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Page notice"
+              onClick={handleCloseNavPopup}
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,.55)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9998,
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "#fff",
+                  borderRadius: 10,
+                  boxShadow: "0 14px 40px rgba(0,0,0,.25)",
+                  padding: "26px 28px",
+                  maxWidth: "92vw",
+                  width: 520,
+                  color: "#223052",
+                  position: "relative",
+                }}
+              >
+                <button
+                  type="button"
+                  aria-label="Close notice"
+                  onClick={handleCloseNavPopup}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: 10,
+                    background: "transparent",
+                    border: 0,
+                    fontSize: 22,
+                    color: "#94a0b3",
+                    cursor: "pointer",
+                  }}
+                >
+                  &times;
+                </button>
+                {navPopup.title ? (
+                  <h2 style={{ margin: "0 0 10px", fontWeight: 700 }}>
+                    {navPopup.title}
+                  </h2>
+                ) : null}
+                <div
+                  style={{ fontSize: 15, lineHeight: 1.5 }}
+                  dangerouslySetInnerHTML={{ __html: navPopup.text }}
+                />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {/* Share modal */}
       {shareOpen && (
