@@ -573,6 +573,7 @@ function AccordionShell({
 
 const Bands = () => {
   const [pageTitle, setPageTitle] = useState("Bands");
+  const [pageHeaderText, setPageHeaderText] = useState("");
 
   // Allowed ID lists (from catnav)
   const [allowed, setAllowed] = useState({
@@ -795,6 +796,7 @@ const Bands = () => {
       const nav = res.data?.[0] || {};
 
       setPageTitle(nav.category_navigation_title || "Bands");
+      setPageHeaderText(String(nav.category_navigation_header_text || "").trim());
 
       const stoneTypeIds = String(nav.category_navigation_sub_stone_type ?? "")
         .split(",")
@@ -1586,6 +1588,11 @@ useEffect(() => {
           <div className="col-12">
             <h1>{pageTitle}</h1>
           </div>
+          {pageHeaderText ? (
+            <div className="col-12">
+              <h2>{pageHeaderText}</h2>
+            </div>
+          ) : null}
 
           <div className="main-content flex-wrap d-flex align-items-start p-0 justify-content-center">
             {/* GALLERY */}
