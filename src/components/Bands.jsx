@@ -514,14 +514,14 @@ function AccordionShell({
     <>
       <style>{`
         .acc-card{border:1px solid #e6e9f2;border-radius:14px;background:#fff;box-shadow:0 4px 12px rgba(34,48,82,.06);margin-bottom:12px;overflow:hidden}
-        .acc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;cursor:pointer;background:#f9fbff}
+        .acc-head{display:flex;align-items:center;justify-content:space-between;gap:2px;padding:5px 10px;cursor:pointer;background:#f1f1f1}
         .acc-title-row{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
-        .acc-title{font-weight:700;letter-spacing:.5px;color:#223052;font-size:19px;flex-shrink:0}
-        .acc-chip{margin-left:auto;padding:4px 10px;border-radius:12px;border:1px solid #e1e6f2;background:#f1f4fb;color:#223052;font-size:12px;font-weight:700;line-height:1;max-width:55%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .acc-toggle{border:0;background:transparent;line-height:0;padding:8px;border-radius:8px}
+        .acc-title{font-weight:700;letter-spacing:.5px;color:#223052;font-size:14px;flex-shrink:0}
+        .acc-chip{margin-left:auto;padding:4px 10px;border-radius:12px;border:1px solid #e1e6f2;background:#f1f1f1;color:#223052;font-size:12px;font-weight:700;line-height:1;max-width:55%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .acc-toggle{border:0;background:transparent;line-height:0;padding:0px;border-radius:8px}
         .acc-toggle svg{width:18px;height:18px;transition:transform .25s ease}
         .acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
-        .acc-body-inner{padding:12px}
+        .acc-body-inner{padding:6px}
       `}</style>
       <section className="acc-card" id={`acc-${id}`}>
         <header
@@ -557,7 +557,7 @@ function AccordionShell({
           style={{
             maxHeight: open ? "1500px" : "0px",
             paddingTop: open ? 4 : 0,
-            paddingBottom: open ? 8 : 0,
+            paddingBottom: open ? 4 : 0,
           }}
         >
           <div className="acc-body-inner">{children}</div>

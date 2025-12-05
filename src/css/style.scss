@@ -871,6 +871,10 @@ img.iphone7 {
         width:100%;
         height: auto
     }
+    .ring-size-block {
+        min-height: 45px !important;
+    }
+    .filter-block{margin-bottom: 0;}
 
     .amipi-menu-demo-description {
         width: 100%;
@@ -971,15 +975,16 @@ img.iphone7 {
         padding: 5px 0px !important;
     }
     .previous-btn{
-    right: 37px;
-    top: 100%;
-    transform: translateY(-60%);
+    left: auto !important;
+    top: 100% !important;
+    transform: translateY(-60%) !important;
+    right: 40px;
 }
 .next-btn{
-              right: 8px;
-              top: 100%;
-              transform: translateY(-60%);
-              background:transparent;
+              right: 8px !important;
+              top: 100% !important;
+              transform: translateY(-60%) !important;
+              background:transparent !important;
 }
 }
 
@@ -4055,4 +4060,9 @@ button.previous-btn:hover svg, button.next-btn:hover svg{fill: #2c3b5c;}
 }
 .title-left-image.d-flex.row {
     margin-bottom: 10px;
+}
+button.btn.btn-link{text-decoration: none;color:#061123}
+button.btn.btn-link span {
+    color: #FFF;
+    text-decoration: none !important;
 }
