@@ -867,6 +867,8 @@ img.iphone7 {
 }
 
 @media(max-width: 767px) {
+    .card-head{justify-content: space-between !important;}
+    .order-no{font-size: 14px !important;}
     .amipi-menu-demo-header {
         width:100%;
         height: auto

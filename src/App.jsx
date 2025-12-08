@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./components/Home";
 import Bands from "./components/Bands";
 import Bracelets from "./components/bracelets";
+import JewelryDetails from "./components/jewelry-details-page/JewelryDetails";
 
 // OPTION A (keep your current imports):
 import { apiSession } from "./apiClient";
@@ -76,6 +77,8 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/bands" element={<Bands />} />
         <Route path="/bracelets" element={<Bracelets />} />
+        <Route path="/jewelry-details/jewelry/:sku" element={<JewelryDetails />} />
+        <Route path="/jewelry-details" element={<JewelryDetails />} />
       </Routes>
     </BrowserRouter>
   );
