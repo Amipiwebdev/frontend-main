@@ -5,12 +5,13 @@ import Footer from "../common/Footer";
 import { api } from "../../apiClient";
 import "./jewelryDetails.scss";
 
+// Data-driven filter groups keep the layout reusable and easy to extend.
 const FILTER_GROUPS = [  
-  { key: "shape", label: "Shape", options: ["Round", "Oval", "Emerald", "Princess"] },
   { key: "diamondWeight", label: "Diamond Weight", options: ["1 1/2 ct", "2 ct", "3 ct", "4 ct"] },
+  { key: "shape", label: "Shape", options: ["Round", "Oval", "Emerald", "Princess"] },
   { key: "metalType", label: "Metal Type", options: ["14K White Gold", "14K Yellow Gold", "14K Rose Gold"] },
-  { key: "diamondOrigin", label: "Diamond Origin", options: ["Earth Mined", "Lab Grown"] },
   { key: "diamondQuality", label: "Diamond Quality", options: ["G-H / SI2-I1", "F-G / VS1", "D-F / VVS"] },
+  { key: "diamondOrigin", label: "Diamond Origin", options: ["Earth Mined", "Lab Grown"] },
 ];
 
 const CUSTOM_OPTIONS = ["6 inches", "6.5 inches", "7 inches", "7.5 inches"];
@@ -69,6 +70,7 @@ const PRODUCT_DETAILS = [
 ];
 
 const initialSelections = {
+  
   diamondWeight: FILTER_GROUPS[0].options[0],
   shape: FILTER_GROUPS[1].options[1],
   metalType: FILTER_GROUPS[2].options[0],
@@ -77,47 +79,9 @@ const initialSelections = {
   customOption: CUSTOM_OPTIONS[2],
 };
 
-// ---------------------- ACCORDION COMPONENT ----------------------
-const Accordion = ({ title, value, children }) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="jd-accordion">
-      <button
-        type="button"
-        className={`jd-acc-header ${open ? "open" : ""}`}
-        onClick={() => setOpen(!open)}
-      >
-        
-        {/* LEFT GROUP — Title + Value */}
-        <div className="jd-acc-left">
-          <span className="jd-acc-title">{title}</span>
-          <span className="jd-acc-value">{value}</span>
-        </div>
-
-        {/* RIGHT — Filled Arrow Icon */}
-        <span className="jd-acc-icon">
-          {open ? (
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="#2c3b5c">
-              <path d="M5 12l5-5 5 5" />
-            </svg>
-          ) : (
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="#2c3b5c">
-              <path d="M5 8l5 5 5-5" />
-            </svg>
-          )}
-        </span>
-      </button>
-
-      {open && <div className="jd-acc-body">{children}</div>}
-    </div>
-  );
-};
-
-// ---------------------- FILTER GROUP COMPONENT ----------------------
 const FilterGroup = ({ group, value, onSelect }) => (
   <div className="jd-filter-block">
-    {/* <div className="jd-filter-label">{group.label}</div> */}
+    <div className="jd-filter-label">{group.label}</div>
     <div className="jd-pill-row">
       {group.options.map((opt) => (
         <button
@@ -133,7 +97,6 @@ const FilterGroup = ({ group, value, onSelect }) => (
   </div>
 );
 
-// ---------------------- MAIN COMPONENT ----------------------
 const JewelryDetails = () => {
   const { sku } = useParams();
   const [product, setProduct] = useState(null);
@@ -142,20 +105,19 @@ const JewelryDetails = () => {
   const [selection, setSelection] = useState(initialSelections);
   const [quantity, setQuantity] = useState(1);
 
-  const updateSelection = (key, value) =>
-    setSelection((prev) => ({ ...prev, [key]: value }));
+  const updateSelection = (key, value) => setSelection((prev) => ({ ...prev, [key]: value }));
 
   const handleQuantityChange = (e) => {
     const next = Math.max(1, Number(e.target.value) || 1);
     setQuantity(next);
   };
 
+  // Pull SKU from the URL and fetch product details.
   useEffect(() => {
     if (!sku) return;
     let active = true;
     setLoading(true);
     setError("");
-
     api
       .get(`/product-details/jewelry/${sku}`)
       .then((res) => {
@@ -169,7 +131,6 @@ const JewelryDetails = () => {
       .finally(() => {
         if (active) setLoading(false);
       });
-
     return () => {
       active = false;
     };
@@ -189,8 +150,7 @@ const JewelryDetails = () => {
       <main className="jewelry-details-page">
         <section className="jd-hero container">
           <div className="jd-upper">
-
-            {/* Media */}
+            {/* Upper left: image / video placeholders */}
             <div className="jd-media">
               <div className="jd-media-primary">
                 <span>Image / Video placeholder</span>
@@ -207,59 +167,49 @@ const JewelryDetails = () => {
               </p>
             </div>
 
-            {/* Right Column */}
+            {/* Upper right: filter & summary column */}
             <div className="jd-config">
-              {loading && <div className="jd-status">Loading product...</div>}
-              {error && <div className="jd-status jd-error">{error}</div>}
-
+              {loading ? <div className="jd-status">Loading product...</div> : null}
+              {error ? <div className="jd-status jd-error">{error}</div> : null}
               <div className="jd-reset-row">
                 <span className="jd-sku">#{displaySku}</span>
-                <button type="button" className="jd-link-button">Reset Filter</button>
+                <button type="button" className="jd-link-button">
+                  Reset Filter
+                </button>
               </div>
 
               <h1 className="jd-title">{displayTitle}</h1>
               <p className="jd-subtitle">{displayDescription}</p>
 
-              {/* FILTER ACCORDIONS */}
               {FILTER_GROUPS.map((group) => (
-                <Accordion
+                <FilterGroup
                   key={group.key}
-                  title={group.label}
+                  group={group}
                   value={selection[group.key]}
-                >
-                  <FilterGroup
-                    group={group}
-                    value={selection[group.key]}
-                    onSelect={updateSelection}
-                  />
-                </Accordion>
+                  onSelect={updateSelection}
+                />
               ))}
 
-              {/* Custom Options Accordion */}
-              <div className="jd-accordion jd-static-accordion">
-                <div className="jd-acc-header open">
-
-                  {/* LEFT TITLE */}
-                  <span className="jd-acc-title">Custom Options</span>
-
-                  {/* RIGHT DROPDOWN */}
-                  <select
-                    className="jd-acc-select"
-                    value={selection.customOption}
-                    onChange={(e) => updateSelection("customOption", e.target.value)}
-                  >
-                    {CUSTOM_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-
-                </div>
+              <div className="jd-filter-block">
+                <div className="jd-filter-label">Custom Options</div>
+                <select
+                  className="form-select jd-select"
+                  value={selection.customOption}
+                  onChange={(e) => updateSelection("customOption", e.target.value)}
+                >
+                  {CUSTOM_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Quantity + Price */}
               <div className="jd-quantity-row">
                 <div className="jd-quantity">
-                  <label htmlFor="jd-qty" className="jd-filter-label">Quantity</label>
+                  <label htmlFor="jd-qty" className="jd-filter-label">
+                    Quantity
+                  </label>
                   <input
                     id="jd-qty"
                     type="number"
@@ -269,7 +219,6 @@ const JewelryDetails = () => {
                     onChange={handleQuantityChange}
                   />
                 </div>
-
                 <div className="jd-price-add">
                   <div className="jd-price">$1,572.00</div>
                   <button type="button" className="btn btn-primary jd-add">
@@ -282,7 +231,7 @@ const JewelryDetails = () => {
           </div>
         </section>
 
-        {/* DETAILS GRID */}
+        {/* Product details grid */}
         <section className="jd-product-details container">
           <div className="jd-details-head">
             <h2>Product Details</h2>
@@ -308,7 +257,6 @@ const JewelryDetails = () => {
               </article>
             ))}
           </div>
-
           <p className="jd-footnote">*Actual pieces & weight may vary up to 5%.</p>
         </section>
       </main>

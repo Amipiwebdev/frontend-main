@@ -1,3 +1,149 @@
+/* Accordion Wrapper */
+.jd-accordion {
+  border: 1px solid #d4d9e5;
+  border-radius: 16px;
+  margin-bottom: 0px;
+  background: #fff;
+}
+
+/* Header */
+.jd-acc-header {
+  width: 100%;
+  padding: 5px 10px;
+  background: #f6f7fb;
+  border: none;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  gap: 10px;
+}
+
+/* LEFT GROUP (Title + Value) */
+.jd-acc-left {
+      display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.jd-acc-title {
+  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1a2d47;
+}
+
+/* VALUE PILL */
+.jd-acc-value {
+  background: #fff;
+  border: 1px solid #d4d9e5;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3b5c;
+}
+
+/* Arrow icon */
+.jd-acc-icon svg {
+  transition: transform 0.25s ease;
+}
+
+.jd-acc-header.open .jd-acc-icon svg {
+  transform: rotate(180deg);
+}
+button.jd-acc-header.open {
+    border-radius: 16px 16px 0 0 !important;
+}
+
+/* Content Body */
+.jd-acc-body {
+  padding: 5px 10px 5px;
+  background: #fff;
+  border-radius: 16px;
+  // border-top: 1px solid #e6e8ef;
+}
+
+
+
+/* =========================================================
+   PILL BUTTON UPDATED STYLING (MATCHES THEME)
+   ========================================================= */
+
+.jd-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.jd-pill {
+      box-shadow: 0 1.5px 12px #2d33432e;
+    background: #fff;
+    border-radius: 12px;
+    padding: 5px 12px;
+    font-weight: 700;
+    color: #2c3b5c;
+    transition: all 0.18s ease;
+    height: 36px;
+    border: 0;
+    font-weight: normal;
+
+  &:hover {
+    border-color: #2c3b5c;
+    box-shadow: 0 8px 18px rgba(47, 72, 88, 0.12);
+  }
+
+  &.is-active {
+    background: #2c3b5c;
+    color: #fed700;
+    border-color: #2c3b5c;
+  }
+}
+
+.jd-static-accordion .jd-acc-header {
+  cursor: default !important;
+  border-radius: 16px !important;
+  background: #f6f7fb;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.jd-acc-select {
+  border: 1px solid #d4d9e5;
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3b5c;
+  background: #fff;
+}
+
+/* =========================================================
+   CUSTOM SELECT DROPDOWN (CUSTOM OPTIONS)
+   ========================================================= */
+
+.jd-select {
+  max-width: 320px;
+  border-radius: 10px;
+  border: 1px solid #d4d9e5;
+  padding: 10px 12px;
+  font-weight: 700;
+  color: #2c3b5c;
+  background: #fff;
+}
+
+
+
+/* =========================================================
+   ORIGINAL CSS (UNCHANGED)
+   ========================================================= */
+
 .jewelry-details-page {
   background: #f6f7fb;
   color: #2c3b5c;
@@ -135,42 +281,6 @@
   text-transform: uppercase;
   color: #1a2d47;
   margin-bottom: 8px;
-}
-
-.jd-pill-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.jd-pill {
-  border: 1px solid #d4d9e5;
-  background: #fff;
-  border-radius: 12px;
-  padding: 10px 14px;
-  font-weight: 700;
-  color: #2c3b5c;
-  transition: all 0.18s ease;
-}
-
-.jd-pill:hover {
-  border-color: #2c3b5c;
-  box-shadow: 0 8px 18px rgba(47, 72, 88, 0.12);
-}
-
-.jd-pill.is-active {
-  background: #2c3b5c;
-  color: #fed700;
-  border-color: #2c3b5c;
-}
-
-.jd-select {
-  max-width: 320px;
-  border-radius: 10px;
-  border-color: #d4d9e5;
-  padding: 10px 12px;
-  font-weight: 600;
-  color: #2c3b5c;
 }
 
 .jd-quantity-row {
