@@ -5,6 +5,7 @@ import Header from "./common/Header";
 import Footer from "./common/Footer";
 import Topbar from "./common/Topbar";
 import { api, apiSession } from "../apiClient";
+import { useAuth } from "../auth.jsx";
 import ShareProductModal from "./share/ShareProductModal.jsx"; // NEW
 
 const SEO_URL = "bands-test";
@@ -182,57 +183,8 @@ const money0 = (v) =>
 // stub for ConverRelatedCurrencyPrice(...)
 const convertCurrency = (v) => Number(v || 0);
 
-const readStoredUser = () => {
-  try {
-    if (typeof window === "undefined") return null;
-    const raw = localStorage.getItem("amipiUser");
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
-
 function useAuthState() {
-  const [state, setState] = useState(() => {
-    const user = readStoredUser();
-    return { user, loading: !user };
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setState((prev) => ({ ...prev, loading: true }));
-      try {
-        const { data } = await apiSession.get("/api/me", {
-          headers: { Accept: "application/json" },
-          withCredentials: true,
-        });
-        if (cancelled) return;
-        const user = data?.auth ? data.user : null;
-        if (user) localStorage.setItem("amipiUser", JSON.stringify(user));
-        else localStorage.removeItem("amipiUser");
-        setState({ user, loading: false });
-      } catch {
-        if (cancelled) return;
-        setState({ user: readStoredUser(), loading: false });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const syncFromStorage = () => setState({ user: readStoredUser(), loading: false });
-    window.addEventListener("storage", syncFromStorage);
-    window.addEventListener("amipi:auth", syncFromStorage);
-    return () => {
-      window.removeEventListener("storage", syncFromStorage);
-      window.removeEventListener("amipi:auth", syncFromStorage);
-    };
-  }, []);
-
+  const { user, status, refresh } = useAuth();
   const goToLogin = useCallback(
     (replace = false) => {
       if (replace) window.location.replace(LOGIN_URL);
@@ -242,9 +194,10 @@ function useAuthState() {
   );
 
   return {
-    user: state.user,
-    loading: state.loading,
+    user,
+    loading: status === "idle" || status === "checking" || status === "exchanging",
     redirectToLogin: goToLogin,
+    refresh,
   };
 }
 
@@ -629,9 +582,14 @@ const Bands = () => {
   const [loginOpen, setLoginOpen] = useState(false);
   // simple bump to re-evaluate price gates after login
   const [authVersion, setAuthVersion] = useState(0);
-  const { user: authUser, loading: authLoading, redirectToLogin } = useAuthState();
+  const { user: authUser, loading: authLoading, redirectToLogin, refresh: refreshAuth } = useAuthState();
   const isAuthenticated = Boolean(authUser);
   const [bootstrapDone, setBootstrapDone] = useState(() => typeof window === "undefined");
+
+  // re-run dependent effects when auth state flips
+  useEffect(() => {
+    setAuthVersion((v) => v + 1);
+  }, [authUser]);
 
   const handleCloseNavPopup = useCallback(() => {
     if (typeof window !== "undefined" && navPopup.key) {
@@ -725,33 +683,6 @@ const Bands = () => {
   }, []);
 
   // Restore session from cookie if amipiUser not in localStorage
-  useEffect(() => {
-    if (!bootstrapDone) return undefined;
-    const hasUser = !!localStorage.getItem("amipiUser");
-    if (!hasUser) {
-      (async () => {
-        try {
-          const res = await apiSession.get("/api/me", {
-            headers: { Accept: "application/json" },
-            withCredentials: true,
-          });
-          if (res.data?.auth && res.data.user) {
-            localStorage.setItem("amipiUser", JSON.stringify(res.data.user));
-            window.dispatchEvent(
-              new CustomEvent("amipi:auth", { detail: { user: res.data.user } })
-            );
-            setAuthVersion((v) => v + 1);
-          }
-        } catch {
-          /* optional */
-        }
-      })();
-    }
-    return undefined;
-  }, [bootstrapDone]);
-
-
-
   // Lightbox
   const [lbIndex, setLbIndex] = useState(-1);
 
@@ -1473,23 +1404,23 @@ useEffect(() => {
   }
 
   /* -------------------- Compare -------------------- */
-  useEffect(() => {
-    if (!product?.products_id || !isAuthenticated) {
-      setIsCompared(false);
-      return;
-    }
-    const { customers_id, parent_retailer_id } = getClientIds();
-    api
-      .get("/compare/check_product", {
-        params: {
-          products_id: product.products_id,
-          customers_id,
-          parent_retailer_id,
-        },
-      })
-      .then((res) => setIsCompared(Boolean(res.data?.compared)))
-      .catch(() => setIsCompared(false));
-  }, [product?.products_id, isAuthenticated]);
+  // useEffect(() => {
+  //   if (!product?.products_id || !isAuthenticated) {
+  //     setIsCompared(false);
+  //     return;
+  //   }
+  //   const { customers_id, parent_retailer_id } = getClientIds();
+  //   api
+  //     .get("/compare/check_product", {
+  //       params: {
+  //         products_id: product.products_id,
+  //         customers_id,
+  //         parent_retailer_id,
+  //       },
+  //     })
+  //     .then((res) => setIsCompared(Boolean(res.data?.compared)))
+  //     .catch(() => setIsCompared(false));
+  // }, [product?.products_id, isAuthenticated]);
 
   async function handleCompareToggle() {
     if (!isAuthenticated) {
@@ -2330,9 +2261,9 @@ useEffect(() => {
         <LoginModal
           open={loginOpen}
           onClose={() => setLoginOpen(false)}
-          onSuccess={() => {
+          onSuccess={async () => {
             setLoginOpen(false);
-            setAuthVersion((v) => v + 1); // re-render to reveal price
+            await (refreshAuth?.() || Promise.resolve());
           }}
         />
       )}
@@ -2383,6 +2314,7 @@ function LoginModal({ open, onClose, onSuccess }) {
       // ✅ No need to manually check for amipi_sso cookie
       localStorage.setItem("amipiUser", JSON.stringify(data.user));
       onSuccess?.(data.user);
+      
     } else {
       setError(data?.message || "Login failed");
     }
@@ -2503,7 +2435,3 @@ function LoginModal({ open, onClose, onSuccess }) {
 
 
 export default Bands;
-
-
-
-

@@ -1,6 +1,7 @@
 // src/components/common/Header.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { api, apiSession } from "../../apiClient";
+import { useAuth } from "../../auth.jsx";
 import logo from "../../assets/logo.png";
 import smallogo from "../../assets/small-logo.png";
 
@@ -70,70 +71,7 @@ const Header = () => {
     const searchRef = useRef(null);
 
   // -------------- auth state --------------
-  const [authUser, setAuthUser] = useState(() => {
-    try {
-      const raw = localStorage.getItem("amipiUser");
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  });
-
-  // same-tab updates from App.jsx
-  useEffect(() => {
-    const onAuth = (e) => {
-      const u = e?.detail?.user || null;
-      setAuthUser(u);
-      if (u) localStorage.setItem("amipiUser", JSON.stringify(u));
-      else   localStorage.removeItem("amipiUser");
-    };
-    window.addEventListener("amipi:auth", onAuth);
-    return () => window.removeEventListener("amipi:auth", onAuth);
-  }, []);
-
-  // cross-tab updates
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === "amipiUser") {
-        try {
-          const raw = localStorage.getItem("amipiUser");
-          setAuthUser(raw ? JSON.parse(raw) : null);
-        } catch { setAuthUser(null); }
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  // optional: one-time sanity check with server on first render
- useEffect(() => {
-  let cancelled = false;
-  (async () => {
-    try {
-      const { data } = await apiSession.get("/api/me", {
-        headers: { Accept: "application/json" },
-        withCredentials: true,
-      });
-      if (cancelled) return;
-      setAuthUser(data?.auth ? data.user : null);
-      if (data?.auth) {
-        localStorage.setItem("amipiUser", JSON.stringify(data.user));
-      }
-    } catch {
-      // optional: fallback to null
-    }
-  })();
-  return () => { cancelled = true; };
-}, []);
-
-  const logout = async () => {
-    try {
-      // optional backend hit if you've added /api/logout
-      await apiSession.post("/api/logout");
-    } catch {}
-    localStorage.removeItem("amipiUser");
-    setAuthUser(null);
-    // also tell same-tab listeners
-    window.dispatchEvent(new CustomEvent("amipi:auth", { detail: { user: null } }));
-  };
+  const { user: authUser, refresh, logout, setUserFromLogin } = useAuth();
 
   // -------------- UI behavior --------------
   const [showLogin, setShowLogin] = useState(false);
@@ -218,19 +156,20 @@ const Header = () => {
     setErr("");
     setBusy(true);
     try {
-      const { data } = await api.post("/login", {
+      const { data } = await apiSession.post("/api/login", {
         login_uname: email.trim(),
         login_pass: pass,
         login_type: "login_page",
+      }, {
+        headers: { Accept: "application/json" },
+        withCredentials: true,
       });
       if (data?.status === "success" && data?.user) {
-        localStorage.setItem("amipiUser", JSON.stringify(data.user));
-        setAuthUser(data.user);
         setShowLogin(false);
         setEmail("");
         setPass("");
-        // notify same-tab listeners
-        window.dispatchEvent(new CustomEvent("amipi:auth", { detail: { user: data.user } }));
+        setUserFromLogin(data.user); // immediate UI update
+        await refresh(); // hydrate from server once so state is canonical
       } else {
         setErr(data?.message || "Login failed");
       }
