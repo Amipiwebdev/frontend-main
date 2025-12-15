@@ -5,77 +5,85 @@ import Footer from "../common/Footer";
 import { api } from "../../apiClient";
 import "./jewelryDetails.scss";
 
-const FILTER_GROUPS = [  
-  { key: "shape", label: "Shape", options: ["Round", "Oval", "Emerald", "Princess"] },
-  { key: "diamondWeight", label: "Diamond Weight", options: ["1 1/2 ct", "2 ct", "3 ct", "4 ct"] },
-  { key: "metalType", label: "Metal Type", options: ["14K White Gold", "14K Yellow Gold", "14K Rose Gold"] },
-  { key: "diamondOrigin", label: "Diamond Origin", options: ["Earth Mined", "Lab Grown"] },
-  { key: "diamondQuality", label: "Diamond Quality", options: ["G-H / SI2-I1", "F-G / VS1", "D-F / VVS"] },
-];
+const CUSTOM_OPTIONS = ["6", "6.5", "7", "7.5"];
 
-const CUSTOM_OPTIONS = ["6 inches", "6.5 inches", "7 inches", "7.5 inches"];
-
-const PRODUCT_DETAILS = [
-  {
-    title: "Product Information",
-    rows: [
-      { key: "Style No.", value: "B401200-14WE-R-H" },
-      { key: "Standard Size", value: "7 inches" },
-      { key: "Metal Type", value: "14K White Gold" },
-      { key: "Stone Type", value: "Halfway Rubies" },
-      { key: "Shape", value: "Round" },
-      { key: "Weight Group", value: "2 ct" },
-    ],
-  },
-  {
-    title: "Primary Stone Info",
-    rows: [
-      { key: "Type", value: "Diamond" },
-      { key: "Origin", value: "Earth Mined" },
-      { key: "Shape", value: "Round" },
-      { key: "Quality", value: "G-H / SI2-I1" },
-      { key: "Total Ct (W)", value: "1.03 ct" },
-      { key: "Stone Size", value: "0.03 ct" },
-      { key: "MM", value: "1.80 mm" },
-      { key: "Pieces", value: "41" },
-      { key: "Breakdown", value: "41-0.03 RD, actual weight may vary" },
-    ],
-  },
-  {
-    title: "Secondary Stone Info",
-    rows: [
-      { key: "Type", value: "Rubies" },
-      { key: "Origin", value: "Earth Mined" },
-      { key: "Shape", value: "Round" },
-      { key: "Quality", value: "AA Quality" },
-      { key: "Total Ct (W)", value: "1.00 ct" },
-      { key: "Stone Size", value: "0.03 ct" },
-      { key: "MM", value: "1.80 mm" },
-      { key: "Pieces", value: "40" },
-      { key: "Breakdown", value: "40-1.80 mm RD, actual weight may vary" },
-    ],
-  },
-  {
-    title: "Your Selection",
-    rows: [
-      { key: "Standard Size", value: "7 inches" },
-      { key: "Standard Total Ct (W)", value: "2.03 ct" },
-      { key: "Standard Pieces", value: "81" },
-      { key: "Selected Size", value: "7 inches" },
-      { key: "Est. Pieces", value: "81" },
-      { key: "Est. Ct (W)", value: "2.03 ct" },
-    ],
-  },
-];
-
-const initialSelections = {
-  diamondWeight: FILTER_GROUPS[0].options[0],
-  shape: FILTER_GROUPS[1].options[1],
-  metalType: FILTER_GROUPS[2].options[0],
-  diamondQuality: FILTER_GROUPS[3].options[0],
-  diamondOrigin: FILTER_GROUPS[4].options[0],
-  customOption: CUSTOM_OPTIONS[2],
+const FALLBACK_FILTER_VALUES = {
+  diamond_weight_groups: ["1 1/2 ct", "2 ct", "3 ct", "4 ct"],
+  shapes: ["Round", "Oval", "Emerald", "Princess"],
+  metal_types: ["14K White Gold", "14K Yellow Gold", "14K Rose Gold"],
+  origins: ["Earth Mined", "Lab Grown"],
+  diamond_qualities: ["G-H / SI2-I1", "F-G / VS1", "D-F / VVS"],
+  ring_sizes: CUSTOM_OPTIONS.map((value) => ({ value_id: value, value_name: value })),
 };
+
+const FILTER_GROUPS = [
+  { key: "shape", label: "Shape", sourceKey: "shapes" },
+  { key: "diamondWeight", label: "Diamond Weight", sourceKey: "diamond_weight_groups" },
+  { key: "metalType", label: "Metal Type", sourceKey: "metal_types" },
+  { key: "diamondOrigin", label: "Diamond Origin", sourceKey: "origins" },
+  { key: "diamondQuality", label: "Diamond Quality", sourceKey: "diamond_qualities" },
+];
+
+const toOptionList = (list, fallback = []) => {
+  const src = Array.isArray(list) && list.length ? list : fallback;
+  return src.map((item) => {
+    if (item && typeof item === "object") {
+      const value =
+        item.value_id ??
+        item.id ??
+        item.value ??
+        item.value_name ??
+        item.label ??
+        item.name ??
+        item;
+      const label = item.value_name ?? item.label ?? item.name ?? item.title ?? String(value);
+      return { value, label };
+    }
+    return { value: item, label: String(item) };
+  });
+};
+
+const buildFilterOptions = (apiFilters) => ({
+  diamond_weight_groups: toOptionList(
+    apiFilters?.diamond_weight_groups,
+    FALLBACK_FILTER_VALUES.diamond_weight_groups
+  ),
+  shapes: toOptionList(apiFilters?.shapes, FALLBACK_FILTER_VALUES.shapes),
+  metal_types: toOptionList(apiFilters?.metal_types, FALLBACK_FILTER_VALUES.metal_types),
+  origins: toOptionList(apiFilters?.origins, FALLBACK_FILTER_VALUES.origins),
+  diamond_qualities: toOptionList(
+    apiFilters?.diamond_qualities,
+    FALLBACK_FILTER_VALUES.diamond_qualities
+  ),
+  ring_sizes: toOptionList(apiFilters?.ring_sizes, FALLBACK_FILTER_VALUES.ring_sizes),
+});
+
+const buildInitialSelections = (options) => ({
+  diamondWeight: options.diamond_weight_groups[0]?.value || "",
+  shape: options.shapes[0]?.value || "",
+  metalType: options.metal_types[0]?.value || "",
+  diamondOrigin: options.origins[0]?.value || "",
+  diamondQuality: options.diamond_qualities[0]?.value || "",
+  ringSize: options.ring_sizes[0]?.value || "",
+});
+
+const syncSelectionWithOptions = (selection, options) => {
+  const ensure = (key, list) =>
+    list.some((opt) => opt.value === selection[key]) ? selection[key] : list[0]?.value || "";
+
+  return {
+    ...selection,
+    diamondWeight: ensure("diamondWeight", options.diamond_weight_groups),
+    shape: ensure("shape", options.shapes),
+    metalType: ensure("metalType", options.metal_types),
+    diamondOrigin: ensure("diamondOrigin", options.origins),
+    diamondQuality: ensure("diamondQuality", options.diamond_qualities),
+    ringSize: ensure("ringSize", options.ring_sizes),
+  };
+};
+
+const DEFAULT_FILTER_OPTIONS = buildFilterOptions();
+const DEFAULT_SELECTIONS = buildInitialSelections(DEFAULT_FILTER_OPTIONS);
 
 // ---------------------- ACCORDION COMPONENT ----------------------
 const Accordion = ({ title, value, children }) => {
@@ -115,18 +123,18 @@ const Accordion = ({ title, value, children }) => {
 };
 
 // ---------------------- FILTER GROUP COMPONENT ----------------------
-const FilterGroup = ({ group, value, onSelect }) => (
+const FilterGroup = ({ group, options, value, onSelect }) => (
   <div className="jd-filter-block">
     {/* <div className="jd-filter-label">{group.label}</div> */}
     <div className="jd-pill-row">
-      {group.options.map((opt) => (
+      {options.map((opt) => (
         <button
-          key={`${group.key}-${opt}`}
+          key={`${group.key}-${opt.value}`}
           type="button"
-          className={`jd-pill ${value === opt ? "is-active" : ""}`}
-          onClick={() => onSelect(group.key, opt)}
+          className={`jd-pill ${value === opt.value ? "is-active" : ""}`}
+          onClick={() => onSelect(group.key, opt.value)}
         >
-          {opt}
+          {opt.label}
         </button>
       ))}
     </div>
@@ -137,9 +145,12 @@ const FilterGroup = ({ group, value, onSelect }) => (
 const JewelryDetails = () => {
   const { sku } = useParams();
   const [product, setProduct] = useState(null);
+  const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS);
+  const [media, setMedia] = useState({ images: [], videos: [] });
+  const [activeMedia, setActiveMedia] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selection, setSelection] = useState(initialSelections);
+  const [selection, setSelection] = useState(DEFAULT_SELECTIONS);
   const [quantity, setQuantity] = useState(1);
 
   const updateSelection = (key, value) =>
@@ -160,7 +171,14 @@ const JewelryDetails = () => {
       .get(`/product-details/jewelry/${sku}`)
       .then((res) => {
         if (!active) return;
-        setProduct(res.data || null);
+        const data = res.data || {};
+        setProduct(data.product || null);
+        setMedia(data.media || { images: [], videos: [] });
+
+        const normalizedFilters = buildFilterOptions(data.filters);
+        setFilterOptions(normalizedFilters);
+        setSelection((prev) => syncSelectionWithOptions(prev, normalizedFilters));
+        setActiveMedia(0);
       })
       .catch((err) => {
         if (!active) return;
@@ -175,12 +193,127 @@ const JewelryDetails = () => {
     };
   }, [sku]);
 
-  const displaySku = sku || "B401200-14WE-R-H";
+  const displaySku = product?.products_style_no || sku || "B401200-14WE-R-H";
   const displayTitle =
-    product?.title || product?.name || "4 Prong Timeless Dreams Tennis Bracelet with Half Diamonds and Half Rubies";
+    product?.products_name ||
+    "4 Prong Timeless Dreams Tennis Bracelet with Half Diamonds and Half Rubies";
   const displayDescription =
-    product?.description ||
+    product?.products_description ||
     "14K White Gold 2 cttw 4 Prong Timeless Dreams Bracelet with G-H color and SI3-I1 clarity earthmined Half Diamonds and Half Rubies.";
+
+  const getSelectedLabel = (selectionKey) => {
+    const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
+    const sourceKey = group?.sourceKey;
+    const options = sourceKey ? filterOptions[sourceKey] || [] : [];
+    const match = options.find((opt) => opt.value === selection[selectionKey]);
+    return match?.label || "";
+  };
+
+  const selectedShape = getSelectedLabel("shape") || "Round";
+  const selectedWeight = getSelectedLabel("diamondWeight") || "2 ct";
+  const selectedMetal = getSelectedLabel("metalType") || "14K White Gold";
+  const selectedOrigin = getSelectedLabel("diamondOrigin") || "Earth Mined";
+  const selectedQuality = getSelectedLabel("diamondQuality") || "G-H / SI2-I1";
+  const ringSizeLabel =
+    (filterOptions.ring_sizes || []).find((opt) => opt.value === selection.ringSize)?.label ||
+    selection.ringSize ||
+    "7";
+
+  const formatPrice = (val) => {
+    const num = Number(val);
+    if (!num) return "";
+    return num.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+    });
+  };
+
+  const displayPrice =
+    formatPrice(
+      product?.products_price4 ??
+        product?.products_price3 ??
+        product?.products_price2 ??
+        product?.products_price1 ??
+        product?.products_msrp
+    ) || "$1,572.00";
+
+  const buildMediaUrl = (filename, type = "image") => {
+    if (!filename) return "";
+    if (/^https?:\/\//i.test(filename)) return filename;
+    const vendorPath = (product?.products_vendor_path || "ampvd")
+      .replace(/(^\/+)/g, "")
+      .replace(/(\/+$)/g, "");
+    const folder = type === "video" ? "product_video" : "product_images";
+    return `https://www.amipi.com/${vendorPath}/${folder}/${filename}`.replace(
+      /([^:]\/)\/+/g,
+      "$1"
+    );
+  };
+
+  const mediaItems = [
+    ...(media.images || []).map((img) => ({ type: "image", src: buildMediaUrl(img, "image") })),
+    ...(media.videos || []).map((vid) => ({ type: "video", src: buildMediaUrl(vid, "video") })),
+  ].filter((item) => item.src);
+
+  useEffect(() => {
+    setActiveMedia(0);
+  }, [sku, mediaItems.length]);
+
+  const activeMediaItem = mediaItems[activeMedia] || null;
+
+  const productDetails = [
+    {
+      title: "Product Information",
+      rows: [
+        { key: "Style No.", value: displaySku },
+        { key: "Standard Size", value: ringSizeLabel },
+        { key: "Metal Type", value: selectedMetal },
+        { key: "Stone Type", value: "Halfway Rubies" },
+        { key: "Shape", value: selectedShape },
+        { key: "Weight Group", value: selectedWeight },
+      ],
+    },
+    {
+      title: "Primary Stone Info",
+      rows: [
+        { key: "Type", value: "Diamond" },
+        { key: "Origin", value: selectedOrigin },
+        { key: "Shape", value: selectedShape },
+        { key: "Quality", value: selectedQuality },
+        { key: "Total Ct (W)", value: "1.03 ct" },
+        { key: "Stone Size", value: "0.03 ct" },
+        { key: "MM", value: "1.80 mm" },
+        { key: "Pieces", value: "41" },
+        { key: "Breakdown", value: "41-0.03 RD, actual weight may vary" },
+      ],
+    },
+    {
+      title: "Secondary Stone Info",
+      rows: [
+        { key: "Type", value: "Rubies" },
+        { key: "Origin", value: selectedOrigin },
+        { key: "Shape", value: selectedShape },
+        { key: "Quality", value: "AA Quality" },
+        { key: "Total Ct (W)", value: "1.00 ct" },
+        { key: "Stone Size", value: "0.03 ct" },
+        { key: "MM", value: "1.80 mm" },
+        { key: "Pieces", value: "40" },
+        { key: "Breakdown", value: "40-1.80 mm RD, actual weight may vary" },
+      ],
+    },
+    {
+      title: "Your Selection",
+      rows: [
+        { key: "Standard Size", value: ringSizeLabel },
+        { key: "Standard Total Ct (W)", value: "2.03 ct" },
+        { key: "Standard Pieces", value: "81" },
+        { key: "Selected Size", value: ringSizeLabel },
+        { key: "Est. Pieces", value: "81" },
+        { key: "Est. Ct (W)", value: "2.03 ct" },
+      ],
+    },
+  ];
 
   return (
     <>
@@ -193,14 +326,49 @@ const JewelryDetails = () => {
             {/* Media */}
             <div className="jd-media">
               <div className="jd-media-primary">
-                <span>Image / Video placeholder</span>
+                {activeMediaItem ? (
+                  activeMediaItem.type === "video" ? (
+                    <video
+                      src={activeMediaItem.src}
+                      controls
+                      loop
+                      muted
+                      playsInline
+                      className="jd-media-player"
+                    />
+                  ) : (
+                    <img src={activeMediaItem.src} alt={displayTitle} className="jd-media-img" />
+                  )
+                ) : (
+                  <span>Image / Video placeholder</span>
+                )}
               </div>
               <div className="jd-media-thumbs">
-                {["Image", "Video", "360 view", "Details"].map((label) => (
-                  <button key={label} type="button" className="jd-thumb">
-                    {label}
-                  </button>
-                ))}
+                {mediaItems.length
+                  ? mediaItems.map((item, idx) => (
+                      <button
+                        key={`${item.type}-${idx}`}
+                        type="button"
+                        className={`jd-thumb ${idx === activeMedia ? "is-active" : ""}`}
+                        onClick={() => setActiveMedia(idx)}
+                        title={item.type === "video" ? "Video" : "Image"}
+                      >
+                        {item.type === "video" ? (
+                          <span>Video</span>
+                        ) : (
+                          <img
+                            src={item.src}
+                            alt={`${displayTitle} view ${idx + 1}`}
+                            className="jd-thumb-img"
+                          />
+                        )}
+                      </button>
+                    ))
+                  : ["Image", "Video", "360 view", "Details"].map((label) => (
+                      <button key={label} type="button" className="jd-thumb">
+                        {label}
+                      </button>
+                    ))}
               </div>
               <p className="jd-note">
                 Note: Standard image displayed. Actual product image may vary based on selected options.
@@ -225,10 +393,11 @@ const JewelryDetails = () => {
                 <Accordion
                   key={group.key}
                   title={group.label}
-                  value={selection[group.key]}
+                  value={getSelectedLabel(group.key) || selection[group.key]}
                 >
                   <FilterGroup
                     group={group}
+                    options={filterOptions[group.sourceKey] || []}
                     value={selection[group.key]}
                     onSelect={updateSelection}
                   />
@@ -240,16 +409,23 @@ const JewelryDetails = () => {
                 <div className="jd-acc-header open">
 
                   {/* LEFT TITLE */}
-                  <span className="jd-acc-title">Custom Options</span>
+                  <span className="jd-acc-title">Ring Size</span>
 
                   {/* RIGHT DROPDOWN */}
                   <select
                     className="jd-acc-select"
-                    value={selection.customOption}
-                    onChange={(e) => updateSelection("customOption", e.target.value)}
+                    value={selection.ringSize}
+                    onChange={(e) => {
+                      const targetValue = e.target.value;
+                      const option =
+                        (filterOptions.ring_sizes || []).find(
+                          (opt) => String(opt.value) === String(targetValue)
+                        ) || null;
+                      updateSelection("ringSize", option ? option.value : targetValue);
+                    }}
                   >
-                    {CUSTOM_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
+                    {(filterOptions.ring_sizes || []).map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
 
@@ -271,7 +447,7 @@ const JewelryDetails = () => {
                 </div>
 
                 <div className="jd-price-add">
-                  <div className="jd-price">$1,572.00</div>
+                  <div className="jd-price">{displayPrice}</div>
                   <button type="button" className="btn btn-primary jd-add">
                     Add to Cart
                   </button>
@@ -294,7 +470,7 @@ const JewelryDetails = () => {
           </div>
 
           <div className="jd-details-grid">
-            {PRODUCT_DETAILS.map((card) => (
+            {productDetails.map((card) => (
               <article key={card.title} className="jd-detail-card">
                 <div className="jd-card-title">{card.title}</div>
                 <dl className="jd-detail-list">
