@@ -15,7 +15,7 @@ import smallogo from "../../assets/small-logo.png";
 
 const IMG_PATH = "https://www.amipi.com/images/category_navigation_image/";
 const THUMB_BASE =
-  "https://www.amipi.com/product_thumb.php?img=images/category_navigation_image/";
+  "https://www.amipi.com/images/category_navigation_image/";
 
 // ---------------- helpers ----------------
 const toInt = (v, d = 0) => {
@@ -210,7 +210,7 @@ const Header = () => {
   const renderMenuContent = (item) => {
     const itemTwoUp = toInt(item?.sub_nav_col, 1) > 1;
     const colClass = itemTwoUp ? "col-sm-6" : "col-sm-12";
-    const thumb = item?.image ? `${THUMB_BASE}${item.image}&w=150&h=150` : "";
+    const thumb = item?.image ? `${THUMB_BASE}${item.image}` : "";
 
     switch (toInt(item?.menu_type, 4)) {
       case 1:
