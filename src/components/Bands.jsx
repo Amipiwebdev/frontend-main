@@ -1997,6 +1997,85 @@ useEffect(() => {
                   <div className="k">Stone Type</div>
                   <div className="v">{product.stone_type_name || "--"}</div>
                 </div>
+              </div>  
+              <div className="details stone-one">
+                {/* First Stone information */}
+                <div className="kv">
+                  <div className="k">Type</div>
+                  <div className="v">{product.prmry_dcst_type || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Origin</div>
+                  <div className="v">{product.prmry_dcst_type || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Shape</div>
+                  <div className="v">{product.shapename || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Quality</div>
+                  <div className="v">{product.diamond_quality || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Total Ct (W)</div>
+                  <div className="v">{product.stn1_tw || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Stone Size</div>
+                  <div className="v">{product.center_stone_weight || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">MM</div>
+                  <div className="v">{product.center_stone_mm || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Pcs</div>
+                  <div className="v">{product.stn1_pcs || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Breakdown</div>
+                  <div className="v">{product.side_diamond_breakdown || "--"}</div>
+                </div>
+                 </div>  
+              <div className="details stone-two">
+                 {/* second Stone information */}
+                <div className="kv">
+                  <div className="k">Type</div>
+                  <div className="v">{product.pst_alias || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Origin</div>
+                  <div className="v">{product.center_stone_type || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Shape</div>
+                  <div className="v">{product.shapename2 || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Quality</div>
+                  <div className="v">{product.stn_diamond_quality || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Total Ct (W)</div>
+                  <div className="v">{product.stn2_cttw || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Stone Size</div>
+                  <div className="v">{product.stn2_wt_per_pc || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">MM</div>
+                  <div className="v">{product.stn2_mm || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Pcs</div>
+                  <div className="v">{product.stn2_pcs || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Breakdown</div>
+                  <div className="v">{product.col_stn_breakdown || "--"}</div>
+                </div>
+                
               </div>
 
               <p className="note">
