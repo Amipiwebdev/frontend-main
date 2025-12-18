@@ -349,7 +349,7 @@ const Header = () => {
     <header className="main-header">
       <nav className="navbar navbar-expand-lg abg-secondary p-0">
         <div className="container-fluid">
-          <a className="navbar-brand d-flex align-items-center" href="/">
+          <a className="navbar-brand d-flex align-items-center" href="https://www.amipi.com/">
             <img src={logo} alt="Amipi Logo" style={{ height: 48 }} />
           </a>
 

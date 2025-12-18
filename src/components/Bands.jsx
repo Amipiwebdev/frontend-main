@@ -1267,6 +1267,17 @@ useEffect(() => {
   const nextLightbox = () =>
     setLbIndex((i) => (i + 1) % Math.max(galleryItems.length, 1));
 
+  const formatDiamondSize = useCallback(
+    (val) => {
+      if (val === null || val === undefined) return "";
+      const num = Number(val);
+      if (Number.isNaN(num)) return String(val);
+      if (sizeUnit === "mm") return num.toFixed(2);
+      return String(val);
+    },
+    [sizeUnit]
+  );
+
   /* Selected labels for mobile accordion headers */
   const selectedLabels = useMemo(() => {
     const stoneType = data.stoneTypes.find((st) => (st.pst_id || st.id) === selected.stoneType);
@@ -1278,16 +1289,26 @@ useEffect(() => {
     const metal = data.metals.find((m) => (m.dmt_id || m.id) === selected.metal);
     const quality = data.qualities.find((q) => (q.dqg_id || q.id) === selected.quality);
     const ring = ringOptions.find((opt) => opt.value_id === selected.ringSize);
+    const metalLabel = metal?.dmt_name || metal?.name || metal?.dmt_tooltip || "";
+    const qualityAlias = quality?.dqg_alias || quality?.dqg_name || quality?.name || "";
+    const qualityOrigin = quality?.dqg_origin || quality?.origin || "";
+    const qualityLabel = qualityAlias
+      ? qualityOrigin
+        ? `${qualityAlias} - ${qualityOrigin}`
+        : qualityAlias
+      : qualityOrigin || "";
 
     return {
       stoneType: stoneType?.pst_description || stoneType?.pst_name || stoneType?.name || "",
       design: design?.psg_name || design?.name || "",
       shape: shape?.name || "",
       settingStyle: settingStyle?.psc_name || settingStyle?.name || "",
-      metal: metal?.dmt_tooltip || metal?.dmt_name || metal?.name || "",
-      quality: quality?.dqg_alias || quality?.dqg_name || quality?.name || "",
+      metal: metalLabel,
+      quality: qualityLabel,
       diamondSize:
-        selected.diamondSize != null ? `${selected.diamondSize} ${sizeUnit.toUpperCase()}` : "",
+        selected.diamondSize != null
+          ? `${formatDiamondSize(selected.diamondSize)} ${sizeUnit.toUpperCase()}`
+          : "",
       ringSize: ring?.value_name || "",
     };
   }, [
@@ -1300,6 +1321,7 @@ useEffect(() => {
     ringOptions,
     selected,
     sizeUnit,
+    formatDiamondSize,
   ]);
 
   // Filter click handler
@@ -1790,14 +1812,14 @@ useEffect(() => {
                         className={
                           "filter-card" + (selected.diamondSize === size ? " selected" : "")
                         }
-                        onClick={() => handleFilterChange("diamondSize", size)}
-                      >
-                        {size} {sizeUnit.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </AccordionShell>
+                    onClick={() => handleFilterChange("diamondSize", size)}
+                  >
+                    {formatDiamondSize(size)} {sizeUnit.toUpperCase()}
+                  </button>
+                ))}
               </div>
+            </AccordionShell>
+          </div>
 
               {/* Ring Size — keep visible once options exist */}
               <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12 ring-size-block">
@@ -1881,7 +1903,7 @@ useEffect(() => {
 
                 {/* Est Pcs */}
                 <div className="pill small" aria-label="Estimated diamond pieces">
-                  <strong>Est. Diamond Pcs*:</strong>
+                  <strong>Est. Pcs*:</strong>
                   <span>{estDiamondPcs !== null ? estDiamondPcs : product.estimated_pcs || "--"}</span>
                 </div>
 
@@ -1967,7 +1989,7 @@ useEffect(() => {
                   <div className="k">Stone Size</div>
                   <div className="v">
                     {selected.diamondSize != null
-                      ? `${selected.diamondSize} ${sizeUnit.toUpperCase()}`
+                      ? `${formatDiamondSize(selected.diamondSize)} ${sizeUnit.toUpperCase()}`
                       : product.diamond_size || `${product.total_carat_weight || "--"} CT (Each)`}
                   </div>
                 </div>
