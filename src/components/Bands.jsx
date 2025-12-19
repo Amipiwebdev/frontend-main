@@ -2023,15 +2023,15 @@ useEffect(() => {
                     </div>
                     <div className="kv">
                       <div className="k">Quality</div>
-                      <div className="v">{product.diamond_quality || "--"}  <p> {product.prmry_dcst_type || "--"} </p></div>
+                      <div className="v">{product.diamond_quality || "--"}  <p> {product.center_stone_name || "--"} </p></div>
                     </div>
                     <div className="kv">
                       <div className="k">Total Ct (W)</div>
-                      <div className="v">{product.stn1_tw || "--"}cts</div>
+                      <div className="v">{product.stn1_tw !== undefined && product.stn1_tw !== null ? Number(product.stn1_tw).toFixed(2) : "--"}cts</div>
                     </div>
                     <div className="kv">
                       <div className="k">Stone Size</div>
-                      <div className="v">{product.center_stone_weight || "--"}cts ({product.center_stone_mm || "--"}mm)</div>
+                      <div className="v">{product.center_stone_weight !== undefined && product.center_stone_weight !== null ? Number(product.center_stone_weight).toFixed(2) : "--"}cts ({product.center_stone_mm !== undefined && product.center_stone_mm !== null ? Number(product.center_stone_mm).toFixed(2) : "--"}mm)</div>
                     </div>                    
                     <div className="kv">
                       <div className="k">Pcs</div>
@@ -2047,7 +2047,7 @@ useEffect(() => {
                     {/* second Stone information */}                    
                     <div className="kv">
                       <div className="k">Type</div>
-                      <div className="v">{product.pst_alias || "--"}</div>
+                      <div className="v">{product.shortpst_alias || "--"}</div>
                     </div>                   
                     <div className="kv">
                       <div className="k">Shape</div>
@@ -2059,11 +2059,11 @@ useEffect(() => {
                     </div>
                     <div className="kv">
                       <div className="k">Total Ct (W)</div>
-                      <div className="v">{product.stn2_cttw || "--"}cts</div>
+                      <div className="v">{product.stn2_cttw !== undefined && product.stn2_cttw !== null ? Number(product.stn2_cttw).toFixed(2) : "--"}cts</div>
                     </div>
                     <div className="kv">
                       <div className="k">Stone Size</div>
-                      <div className="v">{product.stn2_wt_per_pc || "--"}cts ({product.stn2_mm || "--"}mm)</div>
+                      <div className="v">{product.stn2_wt_per_pc !== undefined && product.stn2_wt_per_pc !== null ? Number(product.stn2_wt_per_pc).toFixed(2) : "--"}cts ({product.stn2_mm !== undefined && product.stn2_mm !== null ? Number(product.stn2_mm).toFixed(2) : "--"}mm)</div>
                     </div>                    
                     <div className="kv">
                       <div className="k">Pcs</div>
