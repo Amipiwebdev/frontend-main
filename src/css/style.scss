@@ -3433,7 +3433,7 @@ button.gallery-image-link {
     .pill{
       background:var(--primary);
       color:#eef2ff;
-      padding:5px 10px;
+      padding:5px 5px;
       border-radius:10px;
       display:flex;            /* CHANGED: use flex for vertical centering */
       flex-direction:column;
@@ -4059,6 +4059,9 @@ button.previous-btn:hover svg, button.next-btn:hover svg{fill: #2c3b5c;}
     .widget.widget-1 li, .widget.widget-2 li {
     list-style: none !important;}
     .row.footer-flex.m-0 .col-md-4{padding-left: 15px; padding-right: 15px;}
+    .two-col {
+    width: 50%;
+}
 }
 .title-left-image.d-flex.row {
     margin-bottom: 10px;
@@ -4068,3 +4071,150 @@ button.btn.btn-link span {
     color: #FFF;
     text-decoration: none !important;
 }
+
+/* Navbar background like screenshot */
+.main-header .navbar.abg-secondary {
+  background: #2d3a55; /* dark navy */
+}
+
+/* Mobile top row spacing */
+.main-header .navbar .container-fluid {
+  min-height: 52px;
+}
+
+/* Hamburger icon */
+.main-header .navbar-toggler {
+  border: 0;
+  padding: 10px 10px;
+  box-shadow: none !important;
+}
+.main-header .navbar-toggler:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Make bootstrap toggler icon white on dark bg */
+.main-header .navbar-toggler-icon {
+  filter: invert(1) brightness(2);
+  opacity: 0.95;
+}
+
+/* Mobile logo sizing */
+.main-header .navbar-brand img {
+  display: block;
+}
+@media (max-width: 992px) {
+  .main-header .navbar-brand {
+    padding: 0;
+    margin-right: 0;
+  }
+  .abg-secondary{background-color: #2c3b5b !important;}
+}
+
+/* Right-side mobile icons row */
+.mobile-head-icons {
+  list-style: none;
+  padding: 0;
+}
+
+/* All icon buttons look like screenshot: yellow icons on dark bar */
+.mobile-head-icons .head-icon-btn,
+.mobile-head-icons .search-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #f3c21b; /* yellow */
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* Ensure SVG uses currentColor */
+.mobile-head-icons svg {
+  display: block;
+  color: currentColor;
+  fill: currentColor;
+}
+
+/* Hover/active subtle */
+.mobile-head-icons .head-icon-btn:hover,
+.mobile-head-icons .search-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.mobile-head-icons .head-icon-btn:active,
+.mobile-head-icons .search-toggle:active {
+  transform: translateY(1px);
+}
+
+/* Keep search pop aligned under search icon (mobile) */
+.circle-search {
+  position: relative;
+}
+
+/* Search dropdown like compact popup */
+.search-pop {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  z-index: 9999;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 10px;
+  width: 260px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Search form layout */
+.search-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.search-input {
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  padding: 0 10px;
+}
+.go-btn {
+  height: 36px;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #2d3a55;
+  color: #fff;
+  border: 0;
+}
+.go-btn:hover {
+  opacity: 0.92;
+}
+
+/* Mobile: keep icons tight like screenshot */
+@media (max-width: 991.98px) {
+  .mobile-head-icons {
+    gap: 6px !important;
+  }
+  .main-header .navbar-brand img {
+    height: 36px !important;
+  }
+}
+
+/* Optional: Desktop icons should remain default (no change) */
+@media (min-width: 992px) {
+  .mobile-head-icons {
+    display: none !important;
+  }
+}
+.icon-svg-pill{flex-direction: row;align-items: center;}
+.icon-svg-pill svg{
+    margin-top: -5px;
+    width: 40px;
+    padding-right: 10px;
+    fill: #FFF;
+}
+.icon-svg-pill strong{display: block;}

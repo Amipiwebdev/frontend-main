@@ -40,7 +40,7 @@ const Topbar = () => {
         )}
         {/* Schedule Meeting */}
         <a
-          href="/schedule-meeting"
+          href="https://www.amipi.com/schedule-meeting"
           className="btn btn-warning py-1 px-3 ms-3"
           style={{
             background: "#f9cd05",
@@ -94,7 +94,7 @@ const Topbar = () => {
         )}
         {/* Trade Shows Button */}
         <a
-          href="/trade-shows"
+          href="https://www.amipi.com/trade-shows"
           className="btn btn-warning py-1 px-3"
           style={{
             background: "#f9cd05",

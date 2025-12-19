@@ -30,13 +30,18 @@ function getClientIds() {
         Number(
           user.customers_id ??
             user.customer_id ??
-            user.retailerrid ?? // sometimes present
+            user.retailerrid ??      // sometimes present
             user.retailer_id ??
-            user.id ?? // Retailer::id
+            user.id ??                // Retailer::id
             0
         ) || 0;
 
-      parent_retailer_id = Number(user.parent_retailer_id ?? user.ParentRetailerID ?? 0) || 0;
+      parent_retailer_id =
+        Number(
+          user.parent_retailer_id ??
+            user.ParentRetailerID ??
+            0
+        ) || 0;
     }
   } catch {}
 
@@ -63,9 +68,7 @@ function getClientIds() {
 /** Pricing/user flags used by product/cart/wishlist/compare. */
 function getPricingParams() {
   let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem("amipiUser") || "null");
-  } catch {}
+  try { user = JSON.parse(localStorage.getItem("amipiUser") || "null"); } catch {}
 
   const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
   const { customers_id } = getClientIds(); // keep for APIs that expect it
@@ -73,14 +76,15 @@ function getPricingParams() {
   const AMIPI_FRONT_Retailer_Jewelry_Level =
     Number(g.AMIPI_FRONT_Retailer_Jewelry_Level ?? user?.retailer_level_id ?? 3) || 3;
 
-  const AMIPI_FRONT_RetailerProductFlat = Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
+  const AMIPI_FRONT_RetailerProductFlat =
+    Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
 
-  const AMIPI_FRONT_RetailerProductPer = Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
+  const AMIPI_FRONT_RetailerProductPer =
+    Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
 
   const AMIPI_FRONT_IS_REATILER =
-    (g.AMIPI_FRONT_IS_REATILER ?? (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes"
-      ? "Yes"
-      : "No";
+    ((g.AMIPI_FRONT_IS_REATILER ?? (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes")
+      ? "Yes" : "No";
 
   return {
     customers_id,
@@ -90,6 +94,7 @@ function getPricingParams() {
     AMIPI_FRONT_IS_REATILER,
   };
 }
+
 
 function SafeImage({ src, alt, className, style }) {
   const [ok, setOk] = useState(true);
@@ -106,7 +111,15 @@ function SafeImage({ src, alt, className, style }) {
   );
 }
 
-function SafeVideo({ src, className, style, autoPlay = true, muted = true, loop = true, controls = true }) {
+function SafeVideo({
+  src,
+  className,
+  style,
+  autoPlay = true,
+  muted = true,
+  loop = true,
+  controls = true,
+}) {
   const [ok, setOk] = useState(true);
   if (!ok || !src) return null;
   return (
@@ -133,7 +146,9 @@ function pickFirstAvailable(val, allowed) {
 /** Resolve any image/video ref to an absolute URL used by the CDN */
 function toAbsoluteMediaUrl(type, input) {
   const raw =
-    typeof input === "string" ? input : input?.url || input?.image || input?.src || input?.filename || "";
+    typeof input === "string"
+      ? input
+      : input?.url || input?.image || input?.src || input?.filename || "";
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw)) return raw;
   const folder = type === "video" ? "product_video" : "product_images";
@@ -170,10 +185,13 @@ const convertCurrency = (v) => Number(v || 0);
 
 function useAuthState() {
   const { user, status, refresh } = useAuth();
-  const goToLogin = useCallback((replace = false) => {
-    if (replace) window.location.replace(LOGIN_URL);
-    else window.location.href = LOGIN_URL;
-  }, []);
+  const goToLogin = useCallback(
+    (replace = false) => {
+      if (replace) window.location.replace(LOGIN_URL);
+      else window.location.href = LOGIN_URL;
+    },
+    []
+  );
 
   return {
     user,
@@ -210,7 +228,13 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
   const item = items[index];
 
   return createPortal(
-    <div className="lb-backdrop" role="dialog" aria-modal="true" aria-label="Product media viewer" onClick={onClose}>
+    <div
+      className="lb-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Product media viewer"
+      onClick={onClose}
+    >
       <style>{`
         .lb-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center}
         .lb-dialog{position:relative;max-width:92vw;max-height:92vh}
@@ -244,7 +268,15 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
         )}
         <div className="lb-content">
           {item.type === "video" ? (
-            <video src={item.src} controls autoPlay muted loop playsInline style={{ background: "#000" }} />
+            <video
+              src={item.src}
+              controls
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{ background: "#000" }}
+            />
           ) : (
             <img src={item.src} alt="Product media" />
           )}
@@ -298,7 +330,12 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
   }, [total, idx]);
 
   if (!items?.length) {
-    return <div className="gallery-image-link" style={{ background: "#f5f5f8", minHeight: height }} />;
+    return (
+      <div
+        className="gallery-image-link"
+        style={{ background: "#f5f5f8", minHeight: height }}
+      />
+    );
   }
 
   return (
@@ -393,12 +430,17 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
             className="previous-btn"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM199 303L279 223C288.4 213.6 303.6 213.6 312.9 223C322.2 232.4 322.3 247.6 312.9 256.9L273.9 295.9L424 295.9C437.3 295.9 448 306.6 448 319.9C448 333.2 437.3 343.9 424 343.9L273.9 343.9L312.9 382.9C322.3 392.3 322.3 407.5 312.9 416.8C303.5 426.1 288.3 426.2 279 416.8L199 336.8C189.6 327.4 189.6 312.2 199 302.9z" />
+              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM199 303L279 223C288.4 213.6 303.6 213.6 312.9 223C322.2 232.4 322.3 247.6 312.9 256.9L273.9 295.9L424 295.9C437.3 295.9 448 306.6 448 319.9C448 333.2 437.3 343.9 424 343.9L273.9 343.9L312.9 382.9C322.3 392.3 322.3 407.5 312.9 416.8C303.5 426.1 288.3 426.2 279 416.8L199 336.8C189.6 327.4 189.6 312.2 199 302.9z"/>
             </svg>
           </button>
-          <button type="button" aria-label="Next images" onClick={() => setIdx((i) => (i + 1) % total)} className="next-btn">
+          <button
+            type="button"
+            aria-label="Next images"
+            onClick={() => setIdx((i) => (i + 1) % total)}
+            className="next-btn"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM361 417C351.6 426.4 336.4 426.4 327.1 417C317.8 407.6 317.7 392.4 327.1 383.1L366.1 344.1L216 344.1C202.7 344.1 192 333.4 192 320.1C192 306.8 202.7 296.1 216 296.1L366.1 296.1L327.1 257.1C317.7 247.7 317.7 232.5 327.1 223.2C336.5 213.9 351.7 213.8 361 223.2L441 303.2C450.4 312.6 450.4 327.8 441 337.1L361 417.1z" />
+              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM361 417C351.6 426.4 336.4 426.4 327.1 417C317.8 407.6 317.7 392.4 327.1 383.1L366.1 344.1L216 344.1C202.7 344.1 192 333.4 192 320.1C192 306.8 202.7 296.1 216 296.1L366.1 296.1L327.1 257.1C317.7 247.7 317.7 232.5 327.1 223.2C336.5 213.9 351.7 213.8 361 223.2L441 303.2C450.4 312.6 450.4 327.8 441 337.1L361 417.1z"/>
             </svg>
           </button>
         </>
@@ -408,7 +450,15 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
 }
 
 /* -------------------- Mobile-only Accordion Shell -------------------- */
-function AccordionShell({ id, title, isMobile, openId, setOpenId, selectedLabel, children }) {
+function AccordionShell({
+  id,
+  title,
+  isMobile,
+  openId,
+  setOpenId,
+  selectedLabel,
+  children,
+}) {
   if (!isMobile) {
     return <>{children}</>;
   }
@@ -427,7 +477,10 @@ function AccordionShell({ id, title, isMobile, openId, setOpenId, selectedLabel,
         .acc-body-inner{padding:6px}
       `}</style>
       <section className="acc-card" id={`acc-${id}`}>
-        <header className="acc-head" onClick={() => setOpenId(open ? null : id)}>
+        <header
+          className="acc-head"
+          onClick={() => setOpenId(open ? null : id)}
+        >
           <div className="acc-title-row">
             <div className="acc-title">{title}</div>
             {selectedLabel ? (
@@ -589,7 +642,11 @@ const Bands = () => {
 
         // 2) Make sure Laravel session + cookies are in sync
         try {
-          await apiSession.post("/api/sso/exchange", {}, { headers: { Accept: "application/json" } });
+          await apiSession.post(
+            "/api/sso/exchange",
+            {},
+            { headers: { Accept: "application/json" } }
+          );
         } catch {
           // ignore – /api/me below will tell us if the session exists
         }
@@ -612,7 +669,9 @@ const Bands = () => {
         setAuthVersion((v) => v + 1);
         url.searchParams.delete("token");
         const cleanedSearch = url.searchParams.toString();
-        const nextUrl = `${url.origin}${url.pathname}${cleanedSearch ? `?${cleanedSearch}` : ""}${url.hash}`;
+        const nextUrl = `${url.origin}${url.pathname}${
+          cleanedSearch ? `?${cleanedSearch}` : ""
+        }${url.hash}`;
         window.history.replaceState({}, "", nextUrl);
         setBootstrapDone(true);
       }
@@ -623,6 +682,7 @@ const Bands = () => {
     };
   }, []);
 
+  // Restore session from cookie if amipiUser not in localStorage
   // Lightbox
   const [lbIndex, setLbIndex] = useState(-1);
 
@@ -660,9 +720,15 @@ const Bands = () => {
     document.title = pageTitle;
   }, [pageTitle]);
 
+
+
   // Helpers for filter card images
   const getImageUrl = (file, folder) =>
-    file?.startsWith("http") ? file : file ? `https://www.amipi.com/images/${folder}/${file}` : "";
+    file?.startsWith("http")
+      ? file
+      : file
+      ? `https://www.amipi.com/images/${folder}/${file}`
+      : "";
 
   /* 1) Initial: fetch catnav + display lists + defaults */
   useEffect(() => {
@@ -673,7 +739,9 @@ const Bands = () => {
       setPageHeaderText(String(nav.category_navigation_header_text || "").trim());
 
       const popupText = String(nav.category_navigation_popup_text || "").trim();
-      const popupKey = `catnav_popup_seen_${nav.category_navigation_id || nav.category_navigation_seo_url || SEO_URL}`;
+      const popupKey = `catnav_popup_seen_${
+        nav.category_navigation_id || nav.category_navigation_seo_url || SEO_URL
+      }`;
       const popupTitle = nav.category_navigation_title || nav.category_navigation_pagename || "Notice";
 
       setNavPopup({ key: popupKey, title: popupTitle, text: popupText });
@@ -748,15 +816,21 @@ const Bands = () => {
 
       setVendorParam(vendorIds.join(","));
 
-      const [stoneTypesRes, designsRes, shapesRes, settingStylesRes, metalsRes, qualitiesRes] =
-        await Promise.all([
-          api.get(`/productstonetype/byids/${stoneTypeIds.join(",")}`),
-          api.get(`/stylegroup/byids/${designIds.join(",")}`),
-          api.get(`/shapes/byids/${shapeIds.join(",")}`),
-          api.get(`/stylecategory/byids/${settingStyleIds.join(",")}`),
-          api.get(`/metaltype/byids/${metalIds.join(",")}`),
-          api.get(`/quality/byids/${qualityIds.join(",")}`),
-        ]);
+      const [
+        stoneTypesRes,
+        designsRes,
+        shapesRes,
+        settingStylesRes,
+        metalsRes,
+        qualitiesRes,
+      ] = await Promise.all([
+        api.get(`/productstonetype/byids/${stoneTypeIds.join(",")}`),
+        api.get(`/stylegroup/byids/${designIds.join(",")}`),
+        api.get(`/shapes/byids/${shapeIds.join(",")}`),
+        api.get(`/stylecategory/byids/${settingStyleIds.join(",")}`),
+        api.get(`/metaltype/byids/${metalIds.join(",")}`),
+        api.get(`/quality/byids/${qualityIds.join(",")}`),
+      ]);
 
       setData({
         stoneTypes: stoneTypesRes.data || [],
@@ -770,10 +844,19 @@ const Bands = () => {
 
       setSelected((prev) => ({
         ...prev,
-        stoneType: pickFirstAvailable(Number(nav.category_navigation_default_sub_stone_type), stoneTypeIds),
-        design: pickFirstAvailable(Number(nav.category_navigation_default_sub_category_group), designIds),
+        stoneType: pickFirstAvailable(
+          Number(nav.category_navigation_default_sub_stone_type),
+          stoneTypeIds
+        ),
+        design: pickFirstAvailable(
+          Number(nav.category_navigation_default_sub_category_group),
+          designIds
+        ),
         shape: pickFirstAvailable(Number(nav.shap_default), shapeIds),
-        settingStyle: pickFirstAvailable(Number(nav.category_navigation_default_sub_category), settingStyleIds),
+        settingStyle: pickFirstAvailable(
+          Number(nav.category_navigation_default_sub_category),
+          settingStyleIds
+        ),
         metal: pickFirstAvailable(Number(nav.metal_type_default), metalIds),
         quality: pickFirstAvailable(Number(nav.qualities_default), qualityIds),
         diamondSize: null,
@@ -785,22 +868,26 @@ const Bands = () => {
   /* 2) StoneType => Design */
   useEffect(() => {
     if (!selected.stoneType) return;
-    api.get(`/designs`, { params: { stoneType: selected.stoneType } }).then((res) => {
-      const allowedIds = allowed.designs;
-      const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
-      setData((d) => ({ ...d, designs: filtered }));
-      setSelected((sel) => ({
-        ...sel,
-        design: pickFirstAvailable(sel.design, filtered.map((x) => x.id)),
-      }));
-    });
+    api
+      .get(`/designs`, { params: { stoneType: selected.stoneType } })
+      .then((res) => {
+        const allowedIds = allowed.designs;
+        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
+        setData((d) => ({ ...d, designs: filtered }));
+        setSelected((sel) => ({
+          ...sel,
+          design: pickFirstAvailable(sel.design, filtered.map((x) => x.id)),
+        }));
+      });
   }, [selected.stoneType, allowed.designs]);
 
   /* 3) Design => Shape */
   useEffect(() => {
     if (!selected.stoneType || !selected.design) return;
     api
-      .get(`/shapesnew`, { params: { stoneType: selected.stoneType, design: selected.design } })
+      .get(`/shapesnew`, {
+        params: { stoneType: selected.stoneType, design: selected.design },
+      })
       .then((res) => {
         const allowedIds = allowed.shapes;
         const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
@@ -817,7 +904,11 @@ const Bands = () => {
     if (!selected.stoneType || !selected.design || !selected.shape) return;
     api
       .get(`/setting-styles`, {
-        params: { stoneType: selected.stoneType, design: selected.design, shape: selected.shape },
+        params: {
+          stoneType: selected.stoneType,
+          design: selected.design,
+          shape: selected.shape,
+        },
       })
       .then((res) => {
         const allowedIds = allowed.settingStyles;
@@ -825,14 +916,23 @@ const Bands = () => {
         setData((d) => ({ ...d, settingStyles: filtered }));
         setSelected((sel) => ({
           ...sel,
-          settingStyle: pickFirstAvailable(sel.settingStyle, filtered.map((x) => x.id)),
+          settingStyle: pickFirstAvailable(
+            sel.settingStyle,
+            filtered.map((x) => x.id)
+          ),
         }));
       });
   }, [selected.stoneType, selected.design, selected.shape, allowed.settingStyles]);
 
   /* 5) Setting Style => Metal */
   useEffect(() => {
-    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle) return;
+    if (
+      !selected.stoneType ||
+      !selected.design ||
+      !selected.shape ||
+      !selected.settingStyle
+    )
+      return;
     api
       .get(`/metals`, {
         params: {
@@ -851,7 +951,13 @@ const Bands = () => {
           metal: pickFirstAvailable(sel.metal, filtered.map((x) => x.id)),
         }));
       });
-  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, allowed.metals]);
+  }, [
+    selected.stoneType,
+    selected.design,
+    selected.shape,
+    selected.settingStyle,
+    allowed.metals,
+  ]);
 
   /* 6) Metal => Quality */
   useEffect(() => {
@@ -882,7 +988,14 @@ const Bands = () => {
           quality: pickFirstAvailable(sel.quality, filtered.map((x) => x.id)),
         }));
       });
-  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, allowed.qualities]);
+  }, [
+    selected.stoneType,
+    selected.design,
+    selected.shape,
+    selected.settingStyle,
+    selected.metal,
+    allowed.qualities,
+  ]);
 
   /* Decide size unit (ct/mm) */
   const selectedStoneType = useMemo(
@@ -890,14 +1003,24 @@ const Bands = () => {
     [data.stoneTypes, selected.stoneType]
   );
 
-  const fallbackUnit = /diamond/i.test(
-    String(selectedStoneType?.pst_name || selectedStoneType?.pst_description || selectedStoneType?.name || "")
-  )
-    ? "ct"
-    : "mm";
+  const fallbackUnit =
+    /diamond/i.test(
+      String(
+        selectedStoneType?.pst_name ||
+          selectedStoneType?.pst_description ||
+          selectedStoneType?.name ||
+          ""
+      )
+    )
+      ? "ct"
+      : "mm";
 
   const sizeUnit =
-    String(selectedStoneType?.pst_ct_mm_flag ?? selectedStoneType?.ct_mm_flag ?? fallbackUnit)
+    String(
+      selectedStoneType?.pst_ct_mm_flag ??
+        selectedStoneType?.ct_mm_flag ??
+        fallbackUnit
+    )
       .trim()
       .toLowerCase() === "mm"
       ? "mm"
@@ -933,7 +1056,12 @@ const Bands = () => {
         let sizes = rows.map((r) => {
           if (typeof r === "object" && r !== null) {
             const mm = r.size_mm ?? r.center_stone_mm ?? r.mm ?? null;
-            const ct = r.size_ct ?? r.size ?? r.center_stone_weight ?? r.weight ?? null;
+            const ct =
+              r.size_ct ??
+              r.size ??
+              r.center_stone_weight ??
+              r.weight ??
+              null;
             return sizeUnit === "mm" ? mm : ct;
           }
           return r;
@@ -962,109 +1090,110 @@ const Bands = () => {
     sizeUnit,
   ]);
 
-  /* 8) After diamond size → fetch ring size options from filters */
-  useEffect(() => {
-    if (!bootstrapDone) return;
-    if (
-      !selected.stoneType ||
-      !selected.design ||
-      !selected.shape ||
-      !selected.settingStyle ||
-      !selected.metal ||
-      !selected.quality ||
-      !selected.diamondSize
-    ) {
-      setRingOptions([]);
-      setSelected((sel) => ({ ...sel, ringSize: null }));
-      return;
-    }
+ /* 8) After diamond size → fetch ring size options from filters */
+useEffect(() => {
+  if (!bootstrapDone) return;
+  if (
+    !selected.stoneType ||
+    !selected.design ||
+    !selected.shape ||
+    !selected.settingStyle ||
+    !selected.metal ||
+    !selected.quality ||
+    !selected.diamondSize
+  ) {
+    setRingOptions([]);
+    setSelected((sel) => ({ ...sel, ringSize: null }));
+    return;
+  }
 
-    const params = {
-      stoneType: selected.stoneType,
-      design: selected.design,
-      shape: selected.shape,
-      settingStyle: selected.settingStyle,
-      metal: selected.metal,
-      quality: selected.quality,
-      diamondSize: selected.diamondSize,
-      unit: sizeUnit,
-      vendors: vendorParam || "",
-    };
+  const params = {
+    stoneType: selected.stoneType,
+    design: selected.design,
+    shape: selected.shape,
+    settingStyle: selected.settingStyle,
+    metal: selected.metal,
+    quality: selected.quality,
+    diamondSize: selected.diamondSize,
+    unit: sizeUnit,
+    vendors: vendorParam || "",
+  };
 
-    api.get("/ring-size-options", { params }).then((res) => {
-      const opts = Array.isArray(res.data) ? res.data : [];
-      setRingOptions(opts);
-      setSelected((sel) => {
-        const found = opts.find((x) => x.value_id === sel.ringSize);
-        return { ...sel, ringSize: found ? found.value_id : opts?.[0]?.value_id || null };
-      });
+  api.get("/ring-size-options", { params }).then((res) => {
+    const opts = Array.isArray(res.data) ? res.data : [];
+    setRingOptions(opts);
+    setSelected((sel) => {
+      const found = opts.find((x) => x.value_id === sel.ringSize);
+      return { ...sel, ringSize: found ? found.value_id : opts?.[0]?.value_id || null };
     });
-  }, [
-    selected.stoneType,
-    selected.design,
-    selected.shape,
-    selected.settingStyle,
-    selected.metal,
-    selected.quality,
-    selected.diamondSize,
-    sizeUnit,
-    vendorParam,
-  ]);
+  });
+}, [
+  selected.stoneType,
+  selected.design,
+  selected.shape,
+  selected.settingStyle,
+  selected.metal,
+  selected.quality,
+  selected.diamondSize,
+  sizeUnit,
+  vendorParam,
+]);
 
-  /* 9) All filters + ring size → Product */
-  useEffect(() => {
-    if (!bootstrapDone) return;
-    if (
-      !selected.stoneType ||
-      !selected.design ||
-      !selected.shape ||
-      !selected.settingStyle ||
-      !selected.metal ||
-      !selected.quality ||
-      !selected.diamondSize ||
-      !selected.ringSize
-    ) {
-      return;
-    }
+/* 9) All filters + ring size → Product */
+useEffect(() => {
+  if (!bootstrapDone) return;
+  if (
+    !selected.stoneType ||
+    !selected.design ||
+    !selected.shape ||
+    !selected.settingStyle ||
+    !selected.metal ||
+    !selected.quality ||
+    !selected.diamondSize ||
+    !selected.ringSize
+  ) {
+    // keep layout stable but clear product if not enough inputs
+    // (optional) setProduct(null);
+    return;
+  }
 
-    const pricing = getPricingParams();
-    const params = {
-      stoneType: selected.stoneType,
-      design: selected.design,
-      shape: selected.shape,
-      settingStyle: selected.settingStyle,
-      metal: selected.metal,
-      quality: selected.quality,
-      diamondSize: selected.diamondSize,
-      ringSize: selected.ringSize, // <-- NEW: send ring size
-      unit: sizeUnit,
-      vendors: vendorParam || "",
-      ...pricing,
-    };
+  const pricing = getPricingParams();
+  const params = {
+    stoneType: selected.stoneType,
+    design: selected.design,
+    shape: selected.shape,
+    settingStyle: selected.settingStyle,
+    metal: selected.metal,
+    quality: selected.quality,
+    diamondSize: selected.diamondSize,
+    ringSize: selected.ringSize,      // <-- NEW: send ring size
+    unit: sizeUnit,
+    vendors: vendorParam || "",
+    ...pricing,
+  };
 
-    let cancelled = false;
-    setProductLoading(true);
-    api
-      .get(`/productnew`, { params })
-      .then((res) => !cancelled && setProduct(res.data || null))
-      .finally(() => !cancelled && setProductLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    selected.stoneType,
-    selected.design,
-    selected.shape,
-    selected.settingStyle,
-    selected.metal,
-    selected.quality,
-    selected.diamondSize,
-    selected.ringSize, // <-- depends on ringSize now
-    sizeUnit,
-    vendorParam,
-    authVersion,
-    bootstrapDone,
-  ]);
+  let cancelled = false;
+  setProductLoading(true);
+  api
+    .get(`/productnew`, { params })
+    .then((res) => !cancelled && setProduct(res.data || null))
+    .finally(() => !cancelled && setProductLoading(false));
+  return () => { cancelled = true; };
+}, [
+  selected.stoneType,
+  selected.design,
+  selected.shape,
+  selected.settingStyle,
+  selected.metal,
+  selected.quality,
+  selected.diamondSize,
+  selected.ringSize,     // <-- depends on ringSize now
+  sizeUnit,
+  vendorParam,
+  authVersion,
+  bootstrapDone,
+]);
+
 
   /* 10) Estimates for pcs / carat / price w.r.t ring size */
   useEffect(() => {
@@ -1072,65 +1201,40 @@ const Bands = () => {
     let diamondPcs = Number(product.estimated_pcs || product.diamond_pics || 0);
     let caratWeight = Number(product.total_carat_weight || 0);
 
-    let price = Number(product.products_price ?? product.base_price ?? product.products_price1 ?? 0);
+    let price = Number(
+      product.products_price ?? product.base_price ?? product.products_price1 ?? 0
+    );
 
     const selectedRingOption = ringOptions.find((o) => o.value_id === selected.ringSize);
     if (selectedRingOption) {
       if (selectedRingOption.options_symbol && selectedRingOption.estimated_weight !== null) {
         const estW = Number(selectedRingOption.estimated_weight);
         switch (selectedRingOption.options_symbol) {
-          case "+":
-            diamondPcs += estW;
-            break;
-          case "-":
-            diamondPcs -= estW;
-            break;
-          case "*":
-            diamondPcs *= estW;
-            break;
-          case "/":
-            diamondPcs /= estW;
-            break;
-          default:
-            break;
+          case "+": diamondPcs += estW; break;
+          case "-": diamondPcs -= estW; break;
+          case "*": diamondPcs *= estW; break;
+          case "/": diamondPcs /= estW; break;
+          default: break;
         }
       }
       if (selectedRingOption.estimated_symbol && selectedRingOption.estimated_weight !== null) {
         const estW = Number(selectedRingOption.estimated_weight);
         switch (selectedRingOption.estimated_symbol) {
-          case "+":
-            caratWeight += estW;
-            break;
-          case "-":
-            caratWeight -= estW;
-            break;
-          case "*":
-            caratWeight *= estW;
-            break;
-          case "/":
-            caratWeight /= estW;
-            break;
-          default:
-            break;
+          case "+": caratWeight += estW; break;
+          case "-": caratWeight -= estW; break;
+          case "*": caratWeight *= estW; break;
+          case "/": caratWeight /= estW; break;
+          default: break;
         }
       }
       if (selectedRingOption.options_symbol && selectedRingOption.options_price !== null) {
         const optPrice = Number(selectedRingOption.options_price);
         switch (selectedRingOption.options_symbol) {
-          case "+":
-            price += optPrice;
-            break;
-          case "-":
-            price -= optPrice;
-            break;
-          case "*":
-            price *= optPrice;
-            break;
-          case "/":
-            price /= optPrice;
-            break;
-          default:
-            break;
+          case "+": price += optPrice; break;
+          case "-": price -= optPrice; break;
+          case "*": price *= optPrice; break;
+          case "/": price /= optPrice; break;
+          default: break;
         }
       }
     }
@@ -1143,10 +1247,14 @@ const Bands = () => {
   const galleryItems = useMemo(() => {
     const arr = [];
     if (product?.videos?.length) {
-      product.videos.forEach((v) => arr.push({ type: "video", src: toAbsoluteMediaUrl("video", v) }));
+      product.videos.forEach((v) =>
+        arr.push({ type: "video", src: toAbsoluteMediaUrl("video", v) })
+      );
     }
     if (product?.images?.length) {
-      product.images.forEach((im) => arr.push({ type: "image", src: toAbsoluteMediaUrl("image", im) }));
+      product.images.forEach((im) =>
+        arr.push({ type: "image", src: toAbsoluteMediaUrl("image", im) })
+      );
     }
     return arr;
   }, [product]);
@@ -1154,8 +1262,10 @@ const Bands = () => {
   // Lightbox handlers
   const openLightbox = (i) => setLbIndex(i);
   const closeLightbox = () => setLbIndex(-1);
-  const prevLightbox = () => setLbIndex((i) => (i <= 0 ? galleryItems.length - 1 : i - 1));
-  const nextLightbox = () => setLbIndex((i) => (i + 1) % Math.max(galleryItems.length, 1));
+  const prevLightbox = () =>
+    setLbIndex((i) => (i <= 0 ? galleryItems.length - 1 : i - 1));
+  const nextLightbox = () =>
+    setLbIndex((i) => (i + 1) % Math.max(galleryItems.length, 1));
 
   const formatDiamondSize = useCallback(
     (val) => {
@@ -1173,15 +1283,20 @@ const Bands = () => {
     const stoneType = data.stoneTypes.find((st) => (st.pst_id || st.id) === selected.stoneType);
     const design = data.designs.find((d) => (d.psg_id || d.id) === selected.design);
     const shape = data.shapes.find((sh) => sh.id === selected.shape);
-    const settingStyle = data.settingStyles.find((sc) => (sc.psc_id || sc.id) === selected.settingStyle);
+    const settingStyle = data.settingStyles.find(
+      (sc) => (sc.psc_id || sc.id) === selected.settingStyle
+    );
     const metal = data.metals.find((m) => (m.dmt_id || m.id) === selected.metal);
     const quality = data.qualities.find((q) => (q.dqg_id || q.id) === selected.quality);
     const ring = ringOptions.find((opt) => opt.value_id === selected.ringSize);
-
     const metalLabel = metal?.dmt_name || metal?.name || metal?.dmt_tooltip || "";
     const qualityAlias = quality?.dqg_alias || quality?.dqg_name || quality?.name || "";
     const qualityOrigin = quality?.dqg_origin || quality?.origin || "";
-    const qualityLabel = qualityAlias ? (qualityOrigin ? `${qualityAlias} - ${qualityOrigin}` : qualityAlias) : qualityOrigin || "";
+    const qualityLabel = qualityAlias
+      ? qualityOrigin
+        ? `${qualityAlias} - ${qualityOrigin}`
+        : qualityAlias
+      : qualityOrigin || "";
 
     return {
       stoneType: stoneType?.pst_description || stoneType?.pst_name || stoneType?.name || "",
@@ -1190,7 +1305,10 @@ const Bands = () => {
       settingStyle: settingStyle?.psc_name || settingStyle?.name || "",
       metal: metalLabel,
       quality: qualityLabel,
-      diamondSize: selected.diamondSize != null ? `${formatDiamondSize(selected.diamondSize)} ${sizeUnit.toUpperCase()}` : "",
+      diamondSize:
+        selected.diamondSize != null
+          ? `${formatDiamondSize(selected.diamondSize)} ${sizeUnit.toUpperCase()}`
+          : "",
       ringSize: ring?.value_name || "",
     };
   }, [
@@ -1247,7 +1365,10 @@ const Bands = () => {
       Number(baseIds.customers_id || 0) ||
       Number(u?.customers_id ?? u?.customer_id ?? u?.retailerrid ?? u?.id ?? 0) ||
       0;
-    const prid = Number(baseIds.parent_retailer_id || 0) || Number(u?.parent_retailer_id ?? 0) || 0;
+    const prid =
+      Number(baseIds.parent_retailer_id || 0) ||
+      Number(u?.parent_retailer_id ?? 0) ||
+      0;
 
     return { customers_id: cid, parent_retailer_id: prid };
   }
@@ -1263,7 +1384,11 @@ const Bands = () => {
 
     apiSession
       .get("/api/wishlist/check", {
-        params: { products_id: product.products_id, customers_id: ids.customers_id, parent_retailer_id: ids.parent_retailer_id },
+        params: {
+          products_id: product.products_id,
+          customers_id: ids.customers_id,
+          parent_retailer_id: ids.parent_retailer_id,
+        },
         headers: { Accept: "application/json" },
       })
       .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
@@ -1289,7 +1414,9 @@ const Bands = () => {
 
     try {
       setWishLoading(true);
-      const { data } = await apiSession.post("/api/wishlist/toggle", payload, { headers: { Accept: "application/json" } });
+      const { data } = await apiSession.post("/api/wishlist/toggle", payload, {
+        headers: { Accept: "application/json" },
+      });
       setIsWishlisted(data?.status === "added");
     } catch (e) {
       console.error("Wishlist toggle failed", e?.response?.data || e.message);
@@ -1299,6 +1426,24 @@ const Bands = () => {
   }
 
   /* -------------------- Compare -------------------- */
+  // useEffect(() => {
+  //   if (!product?.products_id || !isAuthenticated) {
+  //     setIsCompared(false);
+  //     return;
+  //   }
+  //   const { customers_id, parent_retailer_id } = getClientIds();
+  //   api
+  //     .get("/compare/check_product", {
+  //       params: {
+  //         products_id: product.products_id,
+  //         customers_id,
+  //         parent_retailer_id,
+  //       },
+  //     })
+  //     .then((res) => setIsCompared(Boolean(res.data?.compared)))
+  //     .catch(() => setIsCompared(false));
+  // }, [product?.products_id, isAuthenticated]);
+
   async function handleCompareToggle() {
     if (!isAuthenticated) {
       redirectToLogin();
@@ -1309,7 +1454,12 @@ const Bands = () => {
     const { customers_id, parent_retailer_id } = getClientIds();
     try {
       setComparLoading(true);
-      const { data } = await api.post("/compare/toggle_product", { products_id: product.products_id, customers_id, parent_retailer_id, ...pricing });
+      const { data } = await api.post("/compare/toggle_product", {
+        products_id: product.products_id,
+        customers_id,
+        parent_retailer_id,
+        ...pricing,
+      });
       setIsCompared(data?.status === "added");
     } catch (e) {
       console.error("Compare toggle failed", e);
@@ -1369,7 +1519,9 @@ const Bands = () => {
 
     try {
       setCartLoading(true);
-      const { data } = await apiSession.post("/api/carttoggle", payload, { headers: { Accept: "application/json" } });
+      const { data } = await apiSession.post("/api/carttoggle", payload, {
+        headers: { Accept: "application/json" },
+      });
       setIsInCart(data?.status === "added");
     } catch (e) {
       console.error("Cart toggle failed", e?.response?.data || e.message);
@@ -1392,18 +1544,6 @@ const Bands = () => {
     String(product.stn2_pcs).trim() !== "";
   const showStoneDetails = hasStoneOneType && hasStoneTwoPcs;
 
-  // ✅ NEW: Primary/Secondary accordion state (default closed) + one-at-a-time toggle
-  const [stoneAcc, setStoneAcc] = useState({ primary: false, secondary: false });
-  const toggleStoneAcc = (key) => {
-    setStoneAcc((prev) => {
-      const nextOpen = !prev[key]; // same header click => toggle
-      return {
-        primary: key === "primary" ? nextOpen : false,
-        secondary: key === "secondary" ? nextOpen : false,
-      };
-    });
-  };
-
   return (
     <div>
       {/* one-time CSS for stable layout + overlay */}
@@ -1425,16 +1565,6 @@ const Bands = () => {
         .price-item{flex:1 1 220px}
         .price-row{display:flex;align-items:center;justify-content:space-between}
         .price-item.right .price-row{justify-content:space-between}
-
-        /* ✅ NEW: Primary/Secondary accordion styles (only for stone info section) */
-        .stone-acc{margin-top:10px}
-        .stone-acc-item{border:1px solid #e6e9f2;border-radius:10px;overflow:hidden;margin:10px 0;background:#fff}
-        .stone-acc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#f1f1f1;border:0;cursor:pointer}
-        .stone-acc-title{font-weight:700;color:#223052}
-        .stone-acc-chevron{width:18px;height:18px;transition:transform .25s ease}
-        .stone-acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
-        .stone-acc-closed{max-height:0;padding:0 12px}
-        .stone-acc-open{max-height:1200px;padding:10px 12px}
       `}</style>
 
       <Topbar />
@@ -1454,11 +1584,18 @@ const Bands = () => {
             {/* GALLERY */}
             <div className="left-gallery-band row col-12 p-3">
               <GalleryCarousel items={galleryItems} onOpen={openLightbox} />
-              <Lightbox items={galleryItems} index={lbIndex} onClose={closeLightbox} onPrev={prevLightbox} onNext={nextLightbox} />
+              <Lightbox
+                items={galleryItems}
+                index={lbIndex}
+                onClose={closeLightbox}
+                onPrev={prevLightbox}
+                onNext={nextLightbox}
+              />
             </div>
 
             {/* FILTERS + DETAILS */}
             <div className="right-filters row col-12 d-flex flex-wrap align-items-start">
+
               {/* Stone Type */}
               <div className="filter-block stone-type col-12 col-lg-6 col-md-12 col-sm-12">
                 {!isMobile && <div className="filter-title">STONE TYPE</div>}
@@ -1475,10 +1612,16 @@ const Bands = () => {
                       <button
                         key={st.pst_id || st.id}
                         type="button"
-                        className={"filter-card" + (selected.stoneType === (st.pst_id || st.id) ? " selected" : "")}
+                        className={
+                          "filter-card" +
+                          (selected.stoneType === (st.pst_id || st.id) ? " selected" : "")
+                        }
                         onClick={() => handleFilterChange("stoneType", st.pst_id || st.id)}
                       >
-                        <SafeImage src={getImageUrl(st.pst_image || st.image, "stone_type")} alt={st.pst_name || st.name} />
+                        <SafeImage
+                          src={getImageUrl(st.pst_image || st.image, "stone_type")}
+                          alt={st.pst_name || st.name}
+                        />
                         <span className="filter-label">{st.pst_description || st.name}</span>
                       </button>
                     ))}
@@ -1502,10 +1645,16 @@ const Bands = () => {
                       <button
                         key={d.psg_id || d.id}
                         type="button"
-                        className={"filter-card" + (selected.design === (d.psg_id || d.id) ? " selected" : "")}
+                        className={
+                          "filter-card" +
+                          (selected.design === (d.psg_id || d.id) ? " selected" : "")
+                        }
                         onClick={() => handleFilterChange("design", d.psg_id || d.id)}
                       >
-                        <SafeImage src={getImageUrl(d.psg_image || d.image, "style_group")} alt={d.psg_name || d.name} />
+                        <SafeImage
+                          src={getImageUrl(d.psg_image || d.image, "style_group")}
+                          alt={d.psg_name || d.name}
+                        />
                         <span className="filter-label">{d.psg_name || d.name}</span>
                       </button>
                     ))}
@@ -1556,10 +1705,16 @@ const Bands = () => {
                       <button
                         key={sc.psc_id || sc.id}
                         type="button"
-                        className={"filter-card" + (selected.settingStyle === (sc.psc_id || sc.id) ? " selected" : "")}
+                        className={
+                          "filter-card" +
+                          (selected.settingStyle === (sc.psc_id || sc.id) ? " selected" : "")
+                        }
                         onClick={() => handleFilterChange("settingStyle", sc.psc_id || sc.id)}
                       >
-                        <SafeImage src={getImageUrl(sc.psc_image || sc.image, "style_category")} alt={sc.psc_name || sc.name} />
+                        <SafeImage
+                          src={getImageUrl(sc.psc_image || sc.image, "style_category")}
+                          alt={sc.psc_name || sc.name}
+                        />
                         <span className="filter-label">{sc.psc_name || sc.name}</span>
                       </button>
                     ))}
@@ -1583,7 +1738,10 @@ const Bands = () => {
                       <button
                         key={m.dmt_id || m.id}
                         type="button"
-                        className={"filter-card" + (selected.metal === (m.dmt_id || m.id) ? " selected" : "")}
+                        className={
+                          "filter-card" +
+                          (selected.metal === (m.dmt_id || m.id) ? " selected" : "")
+                        }
                         onClick={() => handleFilterChange("metal", m.dmt_id || m.id)}
                         title={m.dmt_name}
                       >
@@ -1620,7 +1778,10 @@ const Bands = () => {
                       <button
                         key={q.dqg_id || q.id}
                         type="button"
-                        className={"filter-card" + (selected.quality === (q.dqg_id || q.id) ? " selected" : "")}
+                        className={
+                          "filter-card" +
+                          (selected.quality === (q.dqg_id || q.id) ? " selected" : "")
+                        }
                         onClick={() => handleFilterChange("quality", q.dqg_id || q.id)}
                       >
                         <div className="quality-alias">{q.dqg_alias || q.name}</div>
@@ -1640,7 +1801,9 @@ const Bands = () => {
 
               {/* Stone Size */}
               <div className="filter-block diamond-s col-12 col-lg-3 col-md-12 col-sm-12">
-                {!isMobile && <div className="filter-title">STONE SIZE ({sizeUnit.toUpperCase()})</div>}
+                {!isMobile && (
+                  <div className="filter-title">STONE SIZE ({sizeUnit.toUpperCase()})</div>
+                )}
                 <AccordionShell
                   id="diamondSize"
                   title={`STONE SIZE (${sizeUnit.toUpperCase()})`}
@@ -1654,15 +1817,17 @@ const Bands = () => {
                       <button
                         key={String(size)}
                         type="button"
-                        className={"filter-card" + (selected.diamondSize === size ? " selected" : "")}
-                        onClick={() => handleFilterChange("diamondSize", size)}
-                      >
-                        {formatDiamondSize(size)} {sizeUnit.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </AccordionShell>
+                        className={
+                          "filter-card" + (selected.diamondSize === size ? " selected" : "")
+                        }
+                    onClick={() => handleFilterChange("diamondSize", size)}
+                  >
+                    {formatDiamondSize(size)} {sizeUnit.toUpperCase()}
+                  </button>
+                ))}
               </div>
+            </AccordionShell>
+          </div>
 
               {/* Ring Size — keep visible once options exist */}
               <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12 ring-size-block">
@@ -1676,11 +1841,7 @@ const Bands = () => {
                   setOpenId={setOpenId}
                 >
                   <div className={`stable-wrap ${optionsLoading ? "is-loading" : ""}`}>
-                    {optionsLoading && (
-                      <div className="block-overlay">
-                        <div className="spinner" />
-                      </div>
-                    )}
+                    {optionsLoading && (<div className="block-overlay"><div className="spinner" /></div>)}
                     {ringOptions.length > 0 ? (
                       <select
                         value={selected.ringSize || ""}
@@ -1688,9 +1849,7 @@ const Bands = () => {
                         onChange={(e) => handleFilterChange("ringSize", Number(e.target.value))}
                       >
                         {ringOptions.map((opt) => (
-                          <option key={opt.value_id} value={opt.value_id}>
-                            {opt.value_name}
-                          </option>
+                          <option key={opt.value_id} value={opt.value_id}>{opt.value_name}</option>
                         ))}
                       </select>
                     ) : (
@@ -1702,457 +1861,426 @@ const Bands = () => {
                 </AccordionShell>
               </div>
 
+
               {/* PRODUCT DETAILS / ACTIONS */}
-              <div className="product-details col-12 col-lg-6 col-md-12 col-sm-12 filter-block">
-                <div className={`stable-wrap ${productLoading ? "is-loading" : ""}`}>
-                  {productLoading && (
-                    <div className="block-overlay">
-                      <div className="spinner" />
-                    </div>
-                  )}
 
-                  {product ? (
-                    <div className="detail">
-                      <div className="box-grey table-responsive">
-                        <main className="wrap">
-                          <section className="selection-card" role="region" aria-labelledby="ys-title">
-                            <header className="card-head">
-                              <h2 id="ys-title" className="card-title">
-                                YOUR SELECTION
-                              </h2>
-                              <span className="order-no">#{product.products_style_no || "--"}</span>
-                            </header>
+             {/* PRODUCT DETAILS / ACTIONS */}
+<div className="product-details col-12 col-lg-6 col-md-12 col-sm-12 filter-block">
+  <div className={`stable-wrap ${productLoading ? "is-loading" : ""}`}>
+    {productLoading && (
+      <div className="block-overlay">
+        <div className="spinner" />
+      </div>
+    )}
 
-                            <div className="pillbar" aria-label="Key attributes">
-                              {/* Color/Clarity */}
-                              <div className="pill icon-svg-pill" aria-label="Color and clarity">
-                                    {product.dqg_icon ? (
-                                  <span
-                                    dangerouslySetInnerHTML={{ __html: product.dqg_icon }}
-                                  />
-                                ) : (
-                                  <span>--</span>
-                                )}
-                               <div>
-                                 <strong>{product.dqg_alias || "--"}</strong>
-                                <span className="sub">{product.center_stone_name || "--"}</span>
-                               </div>
-                              </div>
+    {product ? (
+      <div className="detail">
+        <div className="box-grey table-responsive">
+          <main className="wrap">
+            <section className="selection-card" role="region" aria-labelledby="ys-title">
+              <header className="card-head">
+                <h2 id="ys-title" className="card-title">YOUR SELECTION</h2>
+                <span className="order-no">#{product.products_style_no || "--"}</span>
+              </header>
 
-                              {/* Ring Size */}
-                              <div className="pill small" aria-label="Ring size">
-                                <strong>Ring Size:</strong>
-                                <span>{ringOptions.find((o) => o.value_id === selected.ringSize)?.value_name || "--"}</span>
-                              </div>
-
-                              {/* Est Carat */}
-                              <div className="pill" aria-label="Estimated carat weight">
-                                <strong>Est. Carat Wt*</strong>
-                                <span className="sub l-pill">
-                                  {estCaratWt !== null ? Number(estCaratWt).toFixed(2) : product.total_carat_weight || "--"} CT [+/− 5%]
-                                </span>
-                              </div>
-
-                              {/* Est Pcs */}
-                              <div className="pill small" aria-label="Estimated diamond pieces">
-                                <strong>Est. Pcs*:</strong>
-                                <span>{estDiamondPcs !== null ? estDiamondPcs : product.estimated_pcs || "--"}</span>
-                              </div>
-
-                              {/* PRICE */}
-                              <div className="pill price" aria-label="Price">
-                                {(() => {
-                                  if (!isAuthenticated) {
-                                    return (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          redirectToLogin();
-                                        }}
-                                        className="btn btn-link p-0 d-flex align-items-center gap-2 text-uppercase"
-                                      >
-                                        <span>Login to view price</span>
-                                      </button>
-                                    );
-                                  }
-
-                                  const base =
-                                    estPrice !== null
-                                      ? Number(estPrice)
-                                      : Number(product?.products_price ?? product?.base_price ?? product?.products_price1 ?? NaN);
-
-                                  if (Number.isNaN(base)) return <>$ --</>;
-
-                                  const tariffPer = Number(product?.tariff_per ?? 0);
-                                  const regularConverted = convertCurrency(base);
-
-                                  if (tariffPer > 0) {
-                                    const withTariff = Math.round(base * ((100 + tariffPer) / 100));
-                                    const withTariffConverted = convertCurrency(withTariff);
-                                    return (
-                                      <div className="price-grid">
-                                        <div className="price-item">
-                                          <div className="price-row">
-                                            <span className="label">Regular Price</span>
-                                            <span className="value">${money0(regularConverted)}</span>
-                                          </div>
-                                        </div>
-                                        <div className="price-item right">
-                                          <div className="price-row">
-                                            <span className="label">With {money0(tariffPer)}% Tariff</span>
-                                            <span className="value">${money0(withTariffConverted)}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-
-                                  return <>$ {money0(regularConverted)}</>;
-                                })()}
-                              </div>
-                            </div>
-
-                            {/* Details grid */}
-                            <div className="details">
-                              <div className="kv">
-                                <div className="k">Metal</div>
-                                <div className="v">{product.metal_name || "--"}</div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Design</div>
-                                <div className="v">{product.style_group_name || "--"}</div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Setting Style</div>
-                                <div className="v">{product.style_category_name || "--"}</div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Stone Shape</div>
-                                <div className="v">{product.diamond_shape_name || "--"}</div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Stone Size</div>
-                                <div className="v">
-                                  {selected.diamondSize != null
-                                    ? `${formatDiamondSize(selected.diamondSize)} ${sizeUnit.toUpperCase()}`
-                                    : product.diamond_size || `${product.total_carat_weight || "--"} CT (Each)`}
-                                </div>
-                              </div>
-                              <div className="kv">
-                                <div className="k">Stone Type</div>
-                                <div className="v">{product.stone_type_name || "--"}</div>
-                              </div>
-                            </div>
-
-                            {/* ✅ CHANGED ONLY THIS PART: Primary/Secondary -> accordion */}
-                            {showStoneDetails && (
-                              <div className="stone-acc">
-                                {/* Primary */}
-                                <div className="stone-acc-item">
-                                  <button
-                                    type="button"
-                                    className="stone-acc-head"
-                                    onClick={() => toggleStoneAcc("primary")}
-                                    aria-expanded={stoneAcc.primary}
-                                  >
-                                    <span className="stone-acc-title">Primary Stone Info</span>
-                                    <svg
-                                      className="stone-acc-chevron"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      style={{
-                                        transform: stoneAcc.primary ? "rotate(180deg)" : "rotate(0deg)",
-                                        transformOrigin: "12px 12px",
-                                      }}
-                                    >
-                                      <path
-                                        d="M6 9l6 6 6-6"
-                                        stroke="#223052"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </button>
-
-                                  <div className={`stone-acc-body ${stoneAcc.primary ? "stone-acc-open" : "stone-acc-closed"}`}>
-                                    <div className="details stone-one">
-                                      <div className="kv">
-                                        <div className="k">Type</div>
-                                        <div className="v">{product.prmry_dcst_type || "--"}</div>
-                                      </div>
-
-                                      <div className="kv">
-                                        <div className="k">Shape</div>
-                                        <div className="v">{product.shapename || "--"}</div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Quality</div>
-                                        <div className="v">
-                                          {product.diamond_quality || "--"} <p> {product.center_stone_name || "--"} </p>
-                                        </div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Total Ct (W)</div>
-                                        <div className="v">
-                                          {product.stn1_tw !== undefined && product.stn1_tw !== null ? Number(product.stn1_tw).toFixed(2) : "--"}cts
-                                        </div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Stone Size</div>
-                                        <div className="v">
-                                          {product.center_stone_weight !== undefined && product.center_stone_weight !== null
-                                            ? Number(product.center_stone_weight).toFixed(2)
-                                            : "--"}
-                                          cts (
-                                          {product.center_stone_mm !== undefined && product.center_stone_mm !== null
-                                            ? Number(product.center_stone_mm).toFixed(2)
-                                            : "--"}
-                                          mm)
-                                        </div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Pcs</div>
-                                        <div className="v">{product.stn1_pcs || "--"}</div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Breakdown</div>
-                                        <div className="v">{product.side_diamond_breakdown || "--"}</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Secondary */}
-                                <div className="stone-acc-item">
-                                  <button
-                                    type="button"
-                                    className="stone-acc-head"
-                                    onClick={() => toggleStoneAcc("secondary")}
-                                    aria-expanded={stoneAcc.secondary}
-                                  >
-                                    <span className="stone-acc-title">Secondary Stone Info</span>
-                                    <svg
-                                      className="stone-acc-chevron"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      style={{
-                                        transform: stoneAcc.secondary ? "rotate(180deg)" : "rotate(0deg)",
-                                        transformOrigin: "12px 12px",
-                                      }}
-                                    >
-                                      <path
-                                        d="M6 9l6 6 6-6"
-                                        stroke="#223052"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </button>
-
-                                  <div className={`stone-acc-body ${stoneAcc.secondary ? "stone-acc-open" : "stone-acc-closed"}`}>
-                                    <div className="details stone-two">
-                                      <div className="kv">
-                                        <div className="k">Type</div>
-                                        <div className="v">{product.shortpst_alias || "--"}</div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Shape</div>
-                                        <div className="v">{product.shapename2 || "--"}</div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Quality</div>
-                                        <div className="v">
-                                          {product.stn_diamond_quality || "--"} <p> {product.center_stone_type || "--"} </p>
-                                        </div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Total Ct (W)</div>
-                                        <div className="v">
-                                          {product.stn2_cttw !== undefined && product.stn2_cttw !== null ? Number(product.stn2_cttw).toFixed(2) : "--"}cts
-                                        </div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Stone Size</div>
-                                        <div className="v">
-                                          {product.stn2_wt_per_pc !== undefined && product.stn2_wt_per_pc !== null
-                                            ? Number(product.stn2_wt_per_pc).toFixed(2)
-                                            : "--"}
-                                          cts (
-                                          {product.stn2_mm !== undefined && product.stn2_mm !== null ? Number(product.stn2_mm).toFixed(2) : "--"}
-                                          mm)
-                                        </div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Pcs</div>
-                                        <div className="v">{product.stn2_pcs || "--"}</div>
-                                      </div>
-                                      <div className="kv">
-                                        <div className="k">Breakdown</div>
-                                        <div className="v">{product.col_stn_breakdown || "--"}</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            <p className="note">
-                              *customization may cause some variation in final product. Actual pieces & weight may vary upto 5%
-                            </p>
-                          </section>
-                        </main>
-                      </div>
-                    </div>
-                  ) : (
-                    // skeleton shell to preserve height
-                    <div className="selection-card box-grey" />
-                  )}
+              <div className="pillbar" aria-label="Key attributes">
+                {/* Color/Clarity */}
+                <div className="pill" aria-label="Color and clarity">
+                  {product.dqg_icon ? (
+                  <span
+                    dangerouslySetInnerHTML={{ __html: product.dqg_icon }}
+                  />
+                ) : (
+                  <span>--</span>
+                )}
+                  <strong>{product.dqg_alias || "--"}</strong>
+                  <span className="sub">{product.center_stone_name || "--"}</span>
                 </div>
-              </div>
 
-              {/* RIGHT SIDE (as-is) */}
-              <div className="col-12 col-lg-3 col-md-12 col-sm-12 filter-block">
-                <div className={`stable-wrap ${productLoading ? "is-loading" : ""}`}>
-                  {productLoading && (
-                    <div className="block-overlay">
-                      <div className="spinner" />
-                    </div>
-                  )}
+                {/* Ring Size */}
+                <div className="pill small" aria-label="Ring size">
+                  <strong>Ring Size:</strong>
+                  <span>
+                    {ringOptions.find((o) => o.value_id === selected.ringSize)?.value_name || "--"}
+                  </span>
+                </div>
 
-                  {product ? (
-                    <>
-                      <div className="band-heading-type">
-                        <p className="product-description__title detail-three stud-para">
-                          <a
-                            id="product-title-link"
-                            href={`https://www.amipi.com/${product.products_seo_url || ""}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ cursor: "pointer" }}
-                          >
-                            {product.products_blurb || "--"}
-                          </a>
-                        </p>
-                        <p className="stud-subtitle">{product.products_description || "--"}</p>
-                      </div>
+                {/* Est Carat */}
+                <div className="pill" aria-label="Estimated carat weight">
+                  <strong>Est. Carat Wt*</strong>
+                  <span className="sub l-pill">
+                    {estCaratWt !== null
+                      ? Number(estCaratWt).toFixed(2)
+                      : product.total_carat_weight || "--"}{" "}
+                    CT [+/− 5%]
+                  </span>
+                </div>
 
-                      <div className="d-flex c_flex_box justify-content-center">
-                        <div className="col-xs-12 col-sm-12 product-description-variation-details-action stud-action-filter">
-                          <ul className="action product-d-action">
-                            {/* View details */}
-                            <li className="common-btn svg-design">
-                              <a
-                                href={`https://www.amipi.com/${product.products_seo_url || ""}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="View Full Details"
-                              >
-                                <div className="band-cart-btn">
-                                  <i className="fa fa-cog" aria-hidden="true"></i>
-                                </div>
-                              </a>
-                            </li>
+                {/* Est Pcs */}
+                <div className="pill small" aria-label="Estimated diamond pieces">
+                  <strong>Est. Pcs*:</strong>
+                  <span>{estDiamondPcs !== null ? estDiamondPcs : product.estimated_pcs || "--"}</span>
+                </div>
 
-                            {/* Share (opens modal) */}
-                            <li
-                              className="common-btn"
-                              style={{ cursor: "pointer" }}
-                              title="Share With A Friend"
-                              onClick={() => setShareOpen(true)}
-                            >
-                              <i className="fa fa-share-alt" aria-hidden="true"></i>
-                            </li>
+                {/* PRICE */}
+                <div className="pill price" aria-label="Price">
+                  {(() => {
+                    if (!isAuthenticated) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            redirectToLogin();
+                          }}
+                          className="btn btn-link p-0 d-flex align-items-center gap-2 text-uppercase"
+                        >                          
+                          <span>Login to view price</span>
+                        </button>
+                      );
+                    }
 
-                            {/* Wishlist */}
-                            <li className="common-btn" title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"} style={{ cursor: wishLoading ? "wait" : "pointer" }}>
-                              {(() => {
-                                if (!isAuthenticated) {
-                                  // 🔒 Guest user — show redirect button
-                                  return (
-                                    <button
-                                      type="button"
-                                      onClick={() => redirectToLogin()}
-                                      disabled={wishLoading}
-                                      className="btn btn-link p-0"
-                                      style={{ textTransform: "uppercase" }}
-                                    >
-                                      <i className="fa fa-heart" aria-hidden="true" />
-                                    </button>
-                                  );
-                                } else {
-                                  // ✅ Logged-in user — show normal wishlist toggle
-                                  return (
-                                    <button
-                                      type="button"
-                                      onClick={handleWishlistToggle}
-                                      disabled={wishLoading}
-                                      className="btn btn-link p-0"
-                                      aria-pressed={isWishlisted}
-                                      aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                                    >
-                                      <i
-                                        className="fa fa-heart"
-                                        aria-hidden="true"
-                                        style={{ color: isWishlisted ? "#e74c3c" : "#2c3b5b" }}
-                                      />
-                                    </button>
-                                  );
-                                }
-                              })()}
-                            </li>
+                    const base =
+                      estPrice !== null
+                        ? Number(estPrice)
+                        : Number(
+                            product?.products_price ??
+                              product?.base_price ??
+                              product?.products_price1 ??
+                              NaN
+                          );
 
-                            {/* Cart */}
-                            <li className="hover-none" title={isInCart ? "Remove From Cart" : "Add to Cart"} style={{ cursor: cartLoading ? "wait" : "pointer" }}>
-                              <div className="band-cart-btn">
-                                {(() => {
-                                  if (!isAuthenticated) {
-                                    // 🔒 Guest user — show login redirect button
-                                    return (
-                                      <button type="button" onClick={() => redirectToLogin()} className="common-btn band-cart">
-                                        <i className="fa fa-shopping-cart" aria-hidden="true" /> Add to Cart
-                                      </button>
-                                    );
-                                  } else {
-                                    // ✅ Logged-in user — show normal Add/Remove button
-                                    return (
-                                      <button
-                                        type="button"
-                                        onClick={handleCartToggle}
-                                        disabled={cartLoading}
-                                        className="common-btn band-cart"
-                                        aria-pressed={isInCart}
-                                        aria-label={isInCart ? "Remove from cart" : "Add to cart"}
-                                      >
-                                        <i
-                                          className="fa fa-shopping-cart"
-                                          aria-hidden="true"
-                                          style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
-                                        />{" "}
-                                        {isInCart ? "Remove From Cart" : "Add To Cart"}
-                                      </button>
-                                    );
-                                  }
-                                })()}
-                              </div>
-                            </li>
-                          </ul>
+                    if (Number.isNaN(base)) return <>$ --</>;
+
+                    const tariffPer = Number(product?.tariff_per ?? 0);
+                    const regularConverted = convertCurrency(base);
+
+                    if (tariffPer > 0) {
+                      const withTariff = Math.round(base * ((100 + tariffPer) / 100));
+                      const withTariffConverted = convertCurrency(withTariff);
+                      return (
+                        <div className="price-grid">
+                          <div className="price-item">
+                            <div className="price-row">
+                              <span className="label">Regular Price</span>
+                              <span className="value">${money0(regularConverted)}</span>
+                            </div>
+                          </div>
+                          <div className="price-item right">
+                            <div className="price-row">
+                              <span className="label">With {money0(tariffPer)}% Tariff</span>
+                              <span className="value">${money0(withTariffConverted)}</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </>
-                  ) : (
-                    // skeleton shell to preserve height
-                    <div className="band-heading-type" />
-                  )}
+                      );
+                    }
+
+                    return <>$ {money0(regularConverted)}</>;
+                  })()}
+                </div>
+
+              </div>
+
+              {/* Details grid */}
+              <div className="details">
+                <div className="kv">
+                  <div className="k">Metal</div>
+                  <div className="v">{product.metal_name || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Design</div>
+                  <div className="v">{product.style_group_name || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Setting Style</div>
+                  <div className="v">{product.style_category_name || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Stone Shape</div>
+                  <div className="v">{product.diamond_shape_name || "--"}</div>
+                </div>
+                <div className="kv">
+                  <div className="k">Stone Size</div>
+                  <div className="v">
+                    {selected.diamondSize != null
+                      ? `${formatDiamondSize(selected.diamondSize)} ${sizeUnit.toUpperCase()}`
+                      : product.diamond_size || `${product.total_carat_weight || "--"} CT (Each)`}
+                  </div>
+                </div>
+                <div className="kv">
+                  <div className="k">Stone Type</div>
+                  <div className="v">{product.stone_type_name || "--"}</div>
                 </div>
               </div>
-            </div>
+              {showStoneDetails && (
+                <>
+                 <p>Primary Stone Info</p>
+                  <div className="details stone-one">
+                    {/* First Stone information */}
+                   
+                    <div className="kv">
+                      <div className="k">Type</div>
+                      <div className="v">{product.prmry_dcst_type || "--"}</div>
+                    </div>
+                    
+                    <div className="kv">
+                      <div className="k">Shape</div>
+                      <div className="v">{product.shapename || "--"}</div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Quality</div>
+                      <div className="v">{product.diamond_quality || "--"}  <p> {product.center_stone_name || "--"} </p></div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Total Ct (W)</div>
+                      <div className="v">{product.stn1_tw !== undefined && product.stn1_tw !== null ? Number(product.stn1_tw).toFixed(2) : "--"}cts</div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Stone Size</div>
+                      <div className="v">{product.center_stone_weight !== undefined && product.center_stone_weight !== null ? Number(product.center_stone_weight).toFixed(2) : "--"}cts ({product.center_stone_mm !== undefined && product.center_stone_mm !== null ? Number(product.center_stone_mm).toFixed(2) : "--"}mm)</div>
+                    </div>                    
+                    <div className="kv">
+                      <div className="k">Pcs</div>
+                      <div className="v">{product.stn1_pcs || "--"}</div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Breakdown</div>
+                      <div className="v">{product.side_diamond_breakdown || "--"}</div>
+                    </div>
+                  </div>
+                  <p>Secondary Stone Info</p>
+                  <div className="details stone-two">
+                    {/* second Stone information */}                    
+                    <div className="kv">
+                      <div className="k">Type</div>
+                      <div className="v">{product.shortpst_alias || "--"}</div>
+                    </div>                   
+                    <div className="kv">
+                      <div className="k">Shape</div>
+                      <div className="v">{product.shapename2 || "--"}</div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Quality</div>
+                      <div className="v">{product.stn_diamond_quality || "--"} <p> {product.center_stone_type || "--"} </p></div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Total Ct (W)</div>
+                      <div className="v">{product.stn2_cttw !== undefined && product.stn2_cttw !== null ? Number(product.stn2_cttw).toFixed(2) : "--"}cts</div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Stone Size</div>
+                      <div className="v">{product.stn2_wt_per_pc !== undefined && product.stn2_wt_per_pc !== null ? Number(product.stn2_wt_per_pc).toFixed(2) : "--"}cts ({product.stn2_mm !== undefined && product.stn2_mm !== null ? Number(product.stn2_mm).toFixed(2) : "--"}mm)</div>
+                    </div>                    
+                    <div className="kv">
+                      <div className="k">Pcs</div>
+                      <div className="v">{product.stn2_pcs || "--"}</div>
+                    </div>
+                    <div className="kv">
+                      <div className="k">Breakdown</div>
+                      <div className="v">{product.col_stn_breakdown || "--"}</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <p className="note">
+                *customization may cause some variation in final product. Actual pieces & weight may vary upto 5%
+              </p>
+            </section>
+          </main>
+        </div>
+      </div>
+    ) : (
+      // skeleton shell to preserve height
+      <div className="selection-card box-grey" />
+    )}
+  </div>
+</div>
+
+<div className="col-12 col-lg-3 col-md-12 col-sm-12 filter-block">
+  <div className={`stable-wrap ${productLoading ? "is-loading" : ""}`}>
+    {productLoading && (
+      <div className="block-overlay">
+        <div className="spinner" />
+      </div>
+    )}
+
+    {product ? (
+      <>
+        <div className="band-heading-type">
+          <p className="product-description__title detail-three stud-para">
+            <a
+              id="product-title-link"
+              href={`https://www.amipi.com/${product.products_seo_url || ""}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ cursor: "pointer" }}
+            >
+              {product.products_blurb || "--"}
+            </a>
+          </p>
+          <p className="stud-subtitle">{product.products_description || "--"}</p>
+        </div>
+
+        <div className="d-flex c_flex_box justify-content-center">
+          <div className="col-xs-12 col-sm-12 product-description-variation-details-action stud-action-filter">
+            <ul className="action product-d-action">
+              {/* View details */}
+             
+              <li className="common-btn svg-design">
+                <a
+                  href={`https://www.amipi.com/${product.products_seo_url || ""}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="View Full Details"
+                >
+                 
+                  <div className="band-cart-btn">
+                  
+                    <i className="fa fa-cog" aria-hidden="true"></i> 
+                 
+                  </div>
+                </a>
+              </li>
+            
+
+              {/* Share (opens modal) */}
+               <li
+                className="common-btn"
+                style={{ cursor: "pointer" }}
+                title="Share With A Friend"
+                onClick={() => setShareOpen(true)}
+              >
+                <i className="fa fa-share-alt" aria-hidden="true"></i>
+              </li> 
+
+              {/* Wishlist */}
+               <li
+                  className="common-btn"
+                  title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
+                  style={{ cursor: wishLoading ? "wait" : "pointer" }}
+                >
+                  {(() => {
+                    if (!isAuthenticated) {
+                      // 🔒 Guest user — show redirect button
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => (redirectToLogin())}
+                          disabled={wishLoading}
+                          className="btn btn-link p-0"
+                          style={{ textTransform: "uppercase" }}
+                        >
+                          <i className="fa fa-heart" aria-hidden="true" /> 
+                        </button>
+                      );
+                    } else {
+                      // ✅ Logged-in user — show normal wishlist toggle
+                      return (
+                        <button
+                          type="button"
+                          onClick={handleWishlistToggle}
+                          disabled={wishLoading}
+                          className="btn btn-link p-0"
+                          aria-pressed={isWishlisted}
+                          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                        >
+                          <i
+                            className="fa fa-heart"
+                            aria-hidden="true"
+                            style={{ color: isWishlisted ? "#e74c3c" : "#2c3b5b" }}
+                          />
+                        </button>
+                      );
+                    }
+                  })()}
+                </li>
+
+
+              {/* Compare */}
+              {/* <li
+                className="AddCompareButtClass wishlist-btn common-btn"
+                title={isCompared ? "Remove From Compare" : "Add to Compare"}
+                style={{ cursor: comparLoading ? "wait" : "pointer" }}
+              >
+                <button
+                  type="button"
+                  onClick={handleCompareToggle}
+                  disabled={comparLoading}
+                  className="btn btn-link p-0"
+                  aria-pressed={isCompared}
+                  aria-label={isCompared ? "Remove from compare" : "Add to compare"}
+                >
+                  <i
+                    className="fa fa-compress"
+                    aria-hidden="true"
+                    style={{ color: isCompared ? "#e74c3c" : "#2c3b5b" }}
+                  />
+                </button>
+              </li> */}
+
+              {/* Cart */}
+               
+               <li
+                  className="hover-none"
+                  title={isInCart ? "Remove From Cart" : "Add to Cart"}
+                  style={{ cursor: cartLoading ? "wait" : "pointer" }}
+                >
+                  <div className="band-cart-btn">
+                    {(() => {
+                      if (!isAuthenticated) {
+                        // 🔒 Guest user — show login redirect button
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => (redirectToLogin())}
+                            className="common-btn band-cart"                            
+                          >
+                            <i className="fa fa-shopping-cart" aria-hidden="true" />{" "}
+                            Add to Cart
+                          </button>
+                        );
+                      } else {
+                        // ✅ Logged-in user — show normal Add/Remove button
+                        return (
+                          <button
+                            type="button"
+                            onClick={handleCartToggle}
+                            disabled={cartLoading}
+                            className="common-btn band-cart"
+                            aria-pressed={isInCart}
+                            aria-label={isInCart ? "Remove from cart" : "Add to cart"}
+                          >
+                            <i
+                              className="fa fa-shopping-cart"
+                              aria-hidden="true"
+                              style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
+                            />{" "}
+                            {isInCart ? "Remove From Cart" : "Add To Cart"}
+                          </button>
+                        );
+                      }
+                    })()}
+                  </div>
+                </li>
+            </ul>
+          </div>
+        </div>
+      </>
+    ) : (
+      // skeleton shell to preserve height
+      <div className="band-heading-type" />
+    )}
+  </div>
+</div>
+
+
+
+              </div>
           </div>
         </div>
       </div>
-
       <Footer />
 
       {showNavPopup && navPopup.text
@@ -2202,8 +2330,15 @@ const Bands = () => {
                 >
                   &times;
                 </button>
-                {navPopup.title ? <h2 style={{ margin: "0 0 10px", fontWeight: 700 }}>{navPopup.title}</h2> : null}
-                <div style={{ fontSize: 15, lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: navPopup.text }} />
+                {navPopup.title ? (
+                  <h2 style={{ margin: "0 0 10px", fontWeight: 700 }}>
+                    {navPopup.title}
+                  </h2>
+                ) : null}
+                <div
+                  style={{ fontSize: 15, lineHeight: 1.5 }}
+                  dangerouslySetInnerHTML={{ __html: navPopup.text }}
+                />
               </div>
             </div>,
             document.body
@@ -2219,12 +2354,16 @@ const Bands = () => {
           optionId={selected.ringSize}
           productTitle={product?.products_name || ""}
           productUrl={`https://www.amipi.com/${product?.products_seo_url || ""}`}
-          productImage={Array.isArray(product?.images) && product.images[0] ? toAbsoluteMediaUrl("image", product.images[0]) : ""}
+          productImage={
+            Array.isArray(product?.images) && product.images[0]
+              ? toAbsoluteMediaUrl("image", product.images[0])
+              : ""
+          }
           authUser={null}
         />
       )}
 
-      {/* Login modal */}
+       {/* Login modal */}
       {loginOpen && (
         <LoginModal
           open={loginOpen}
@@ -2235,9 +2374,11 @@ const Bands = () => {
           }}
         />
       )}
+      
     </div>
   );
 };
+
 
 function LoginModal({ open, onClose, onSuccess }) {
   const [email, setEmail] = useState("");
@@ -2247,53 +2388,55 @@ function LoginModal({ open, onClose, onSuccess }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    function onKey(e) {
-      if (e.key === "Escape") onClose();
-    }
+    function onKey(e) { if (e.key === "Escape") onClose(); }
     if (open) document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!open) return null;
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  
 
-    try {
-      const payload = {
-        login_uname: email.trim(),
-        login_pass: password,
-        jump_to: jump || undefined,
-      };
+ async function handleLogin(e) {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
 
-      const { data } = await apiSession.post("api/login", payload, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        withCredentials: true, // Required for cookie session
-      });
+  try {
+    const payload = {
+      login_uname: email.trim(),
+      login_pass: password,
+      jump_to: jump || undefined,
+    };
 
-      if (data?.status === "success" && data?.user) {
-        // ✅ No need to manually check for amipi_sso cookie
-        localStorage.setItem("amipiUser", JSON.stringify(data.user));
-        onSuccess?.(data.user);
-      } else {
-        setError(data?.message || "Login failed");
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Login failed. Please check credentials.";
-      setError(msg);
-    } finally {
-      setLoading(false);
+    const { data } = await apiSession.post("api/login", payload, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      withCredentials: true // Required for cookie session
+    });
+
+    if (data?.status === "success" && data?.user) {
+      // ✅ No need to manually check for amipi_sso cookie
+      localStorage.setItem("amipiUser", JSON.stringify(data.user));
+      onSuccess?.(data.user);
+      
+    } else {
+      setError(data?.message || "Login failed");
     }
+  } catch (err) {
+    console.error("Login error:", err);
+    const msg =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      "Login failed. Please check credentials.";
+    setError(msg);
+  } finally {
+    setLoading(false);
   }
+}
+
 
   return createPortal(
     <div
@@ -2302,31 +2445,24 @@ function LoginModal({ open, onClose, onSuccess }) {
       aria-label="Login"
       onClick={onClose}
       style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
+        position: "fixed", inset: 0, background: "rgba(0,0,0,.6)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 560,
-          maxWidth: "92vw",
-          background: "#fff",
-          borderRadius: 6,
-          boxShadow: "0 12px 32px rgba(0,0,0,.25)",
-          overflow: "hidden",
+          width: 560, maxWidth: "92vw", background: "#fff", borderRadius: 6,
+          boxShadow: "0 12px 32px rgba(0,0,0,.25)", overflow: "hidden"
         }}
       >
         <div style={{ padding: "26px 28px 10px" }}>
           <h2 style={{ margin: 0, fontWeight: 700, color: "#223052", textAlign: "center" }}>
             WELCOME <span style={{ fontWeight: 400 }}>TO AMIPI</span>
           </h2>
-          <p style={{ margin: "8px 0 18px", textAlign: "center", color: "#666" }}>Please login to view prices</p>
+          <p style={{ margin: "8px 0 18px", textAlign: "center", color: "#666" }}>
+            Please login to view prices
+          </p>
 
           <form onSubmit={handleLogin}>
             <label style={{ display: "block", fontSize: 12, color: "#555", marginBottom: 6 }}>EMAIL</label>
@@ -2336,13 +2472,7 @@ function LoginModal({ open, onClose, onSuccess }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email ID"
-              style={{
-                width: "100%",
-                height: 38,
-                padding: "0 10px",
-                border: "1px solid #d7dbe6",
-                borderRadius: 4,
-              }}
+              style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #d7dbe6", borderRadius: 4 }}
             />
 
             <label style={{ display: "block", fontSize: 12, color: "#555", margin: "12px 0 6px" }}>PASSWORD</label>
@@ -2352,81 +2482,41 @@ function LoginModal({ open, onClose, onSuccess }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="*****"
-              style={{
-                width: "100%",
-                height: 38,
-                padding: "0 10px",
-                border: "1px solid #d7dbe6",
-                borderRadius: 4,
-              }}
+              style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #d7dbe6", borderRadius: 4 }}
             />
 
             <label style={{ display: "block", fontSize: 12, color: "#555", margin: "12px 0 6px" }}>JUMP TO</label>
             <select
               value={jump}
               onChange={(e) => setJump(e.target.value)}
-              style={{
-                width: "100%",
-                height: 38,
-                padding: "0 10px",
-                border: "1px solid #d7dbe6",
-                borderRadius: 4,
-              }}
+              style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #d7dbe6", borderRadius: 4 }}
             >
               <option value="">Select</option>
               <option value="bands">Bands</option>
               <option value="diamonds">Diamonds</option>
             </select>
 
-            {error && <div style={{ color: "#b00020", marginTop: 10, fontSize: 14 }}>{error}</div>}
+            {error && (
+              <div style={{ color: "#b00020", marginTop: 10, fontSize: 14 }}>{error}</div>
+            )}
 
             <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "center" }}>
               <button
                 type="submit"
                 disabled={loading}
                 style={{
-                  minWidth: 110,
-                  height: 36,
-                  borderRadius: 4,
-                  border: 0,
-                  background: "#2c3b5b",
-                  color: "#fff",
-                  fontWeight: 600,
-                  cursor: loading ? "wait" : "pointer",
+                  minWidth: 110, height: 36, borderRadius: 4, border: 0,
+                  background: "#2c3b5b", color: "#fff", fontWeight: 600, cursor: loading ? "wait" : "pointer"
                 }}
               >
                 {loading ? "Logging in…" : "LOGIN"}
               </button>
-              <a
-                href="/forgot-password"
-                style={{
-                  minWidth: 150,
-                  height: 36,
-                  lineHeight: "36px",
-                  textAlign: "center",
-                  borderRadius: 4,
-                  border: "1px solid #d7dbe6",
-                  color: "#2c3b5b",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                }}
-              >
+              <a href="/forgot-password" style={{ minWidth: 150, height: 36, lineHeight: "36px", textAlign: "center",
+                borderRadius: 4, border: "1px solid #d7dbe6", color: "#2c3b5b", textDecoration: "none", fontWeight: 600 }}>
                 FORGOT PASSWORD
               </a>
-              <a
-                href="/register"
-                style={{
-                  minWidth: 120,
-                  height: 36,
-                  lineHeight: "36px",
-                  textAlign: "center",
-                  borderRadius: 4,
-                  border: "1px solid #d7dbe6",
-                  color: "#2c3b5b",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                }}
-              >
+              <a href="/register" style={{ minWidth: 120, height: 36, lineHeight: "36px", textAlign: "center",
+                borderRadius: 4, border: "1px solid #d7dbe6", color: "#2c3b5b", textDecoration: "none", fontWeight: 600 }}>
                 NEW USER
               </a>
             </div>
@@ -2438,22 +2528,17 @@ function LoginModal({ open, onClose, onSuccess }) {
           aria-label="Close"
           onClick={onClose}
           style={{
-            position: "absolute",
-            right: 10,
-            top: 10,
-            border: 0,
-            background: "transparent",
-            fontSize: 24,
-            color: "#99a2b3",
-            cursor: "pointer",
+            position: "absolute", right: 10, top: 10, border: 0,
+            background: "transparent", fontSize: 24, color: "#99a2b3", cursor: "pointer"
           }}
         >
           ×
         </button>
       </div>
     </div>,
-    document.body
+    document.body 
   );
 }
+
 
 export default Bands;

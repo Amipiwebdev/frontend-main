@@ -5,12 +5,20 @@ import Footer from "../common/Footer";
 import { api } from "../../apiClient";
 import "./jewelryDetails.scss";
 
+const SHAPE_ICONS = {
+  Round: "src/assets/shapes/round.png",
+  Oval: "src/assets/shapes/oval.svg",
+  Emerald: "src/assets/shapes/emerald.svg",
+  Princess: "src/assets/shapes/princess.svg",
+};
+
+
 const CUSTOM_OPTIONS = ["6", "6.5", "7", "7.5"];
 
 const FALLBACK_FILTER_VALUES = {
   diamond_weight_groups: ["1 1/2 ct", "2 ct", "3 ct", "4 ct"],
   shapes: ["Round", "Oval", "Emerald", "Princess"],
-  metal_types: ["14K White Gold", "14K Yellow Gold", "14K Rose Gold"],
+  metal_types: ["14W", "14Y", "14R"],
   origins: ["Earth Mined", "Lab Grown"],
   diamond_qualities: ["G-H / SI2-I1", "F-G / VS1", "D-F / VVS"],
   ring_sizes: CUSTOM_OPTIONS.map((value) => ({ value_id: value, value_name: value })),
@@ -85,25 +93,38 @@ const syncSelectionWithOptions = (selection, options) => {
 const DEFAULT_FILTER_OPTIONS = buildFilterOptions();
 const DEFAULT_SELECTIONS = buildInitialSelections(DEFAULT_FILTER_OPTIONS);
 
+// Metal Type Full Bubble value
+const getSelectedLabelSafe = (selectionKey) => {
+  const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
+  const sourceKey = group?.sourceKey;
+  const options = sourceKey ? filterOptions[sourceKey] || [] : [];
+  const match = options.find((opt) => opt.value === selection[selectionKey]);
+  return match?.label || "";
+};
+
 // ---------------------- ACCORDION COMPONENT ----------------------
 const Accordion = ({ title, value, children }) => {
   const [open, setOpen] = useState(false);
 
+  // ✅ title text se class banegi
+  const slug = String(title || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
   return (
-    <div className="jd-accordion">
+    <div className={`jd-accordion jd-acc-${slug}`}>
       <button
         type="button"
         className={`jd-acc-header ${open ? "open" : ""}`}
         onClick={() => setOpen(!open)}
       >
-        
-        {/* LEFT GROUP — Title + Value */}
         <div className="jd-acc-left">
           <span className="jd-acc-title">{title}</span>
           <span className="jd-acc-value">{value}</span>
         </div>
 
-        {/* RIGHT — Filled Arrow Icon */}
         <span className="jd-acc-icon">
           {open ? (
             <svg width="14" height="14" viewBox="0 0 20 20" fill="#2c3b5c">
@@ -122,24 +143,33 @@ const Accordion = ({ title, value, children }) => {
   );
 };
 
+
 // ---------------------- FILTER GROUP COMPONENT ----------------------
 const FilterGroup = ({ group, options, value, onSelect }) => (
   <div className="jd-filter-block">
-    {/* <div className="jd-filter-label">{group.label}</div> */}
     <div className="jd-pill-row">
-      {options.map((opt) => (
-        <button
-          key={`${group.key}-${opt.value}`}
-          type="button"
-          className={`jd-pill ${value === opt.value ? "is-active" : ""}`}
-          onClick={() => onSelect(group.key, opt.value)}
-        >
-          {opt.label}
-        </button>
-      ))}
+      {options.map((opt) => {
+        const label = opt.label;
+        const iconSrc = group.key === "shape" ? SHAPE_ICONS[label] : null;
+
+        return (
+          <button
+            key={`${group.key}-${opt.value}`}
+            type="button"
+            className={`jd-pill ${value === opt.value ? "is-active" : ""}`}
+            onClick={() => onSelect(group.key, opt.value)}
+          >
+            {iconSrc ? (
+              <img className="jd-pill-icon" src={iconSrc} alt={label} />
+            ) : null}
+            <span className="jd-pill-text">{label}</span>
+          </button>
+        );
+      })}
     </div>
   </div>
 );
+
 
 // ---------------------- MAIN COMPONENT ----------------------
 const JewelryDetails = () => {
@@ -485,7 +515,7 @@ const JewelryDetails = () => {
             ))}
           </div>
 
-          <p className="jd-footnote">*Actual pieces & weight may vary up to 5%.</p>
+          <p className="jd-footnote">*Customization may cause some variation in final product.Actual pieces & weight may vary up to 5%.</p>
         </section>
       </main>
 
