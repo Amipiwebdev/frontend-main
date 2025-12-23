@@ -507,7 +507,7 @@ const JewelryDetails = () => {
                   {card.rows.map((row) => (
                     <div key={`${card.title}-${row.key}`} className="jd-detail-row">
                       <dt>{row.key}</dt>
-                      <dd>{row.value}</dd>
+                      <dd>{row.value}</dd>                                          
                     </div>
                   ))}
                 </dl>
