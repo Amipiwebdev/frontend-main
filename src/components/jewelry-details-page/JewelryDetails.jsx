@@ -45,7 +45,14 @@ const toOptionList = (list, fallback = []) => {
         item.name ??
         item;
       const label = item.value_name ?? item.label ?? item.name ?? item.title ?? String(value);
-      return { value, label };
+      // Preserve extra fields (image for shapes, color_code/dmt_tooltip for metals, etc.)
+      const meta = {
+        image: item.image,
+        color_code: item.color_code,
+        dmt_tooltip: item.dmt_tooltip,
+        tooltip: item.tooltip,
+      };
+      return { value, label, ...meta };
     }
     return { value: item, label: String(item) };
   });
@@ -146,23 +153,40 @@ const Accordion = ({ title, value, children }) => {
 
 // ---------------------- FILTER GROUP COMPONENT ----------------------
 const FilterGroup = ({ group, options, value, onSelect }) => (
-  <div className="jd-filter-block">
+  <div className={`jd-filter-block jd-acc-${group.key}`}>
     <div className="jd-pill-row">
       {options.map((opt) => {
         const label = opt.label;
-        const iconSrc = group.key === "shape" ? SHAPE_ICONS[label] : null;
+        const isShape = group.key === "shape";
+        const isMetal = group.key === "metalType";
+        const iconSrc = isShape ? opt.image || SHAPE_ICONS[label] : null;
+        const metalStyle = isMetal && opt.color_code ? { background: opt.color_code } : undefined;
+        const pillText = isMetal ? opt.dmt_tooltip || opt.tooltip || label : label;
 
         return (
           <button
             key={`${group.key}-${opt.value}`}
             type="button"
-            className={`jd-pill ${value === opt.value ? "is-active" : ""}`}
+            className={`jd-pill ${isMetal ? "jd-metal-pill" : ""} ${isShape ? "jd-shape-pill" : ""} ${
+              value === opt.value ? "is-active" : ""
+            }`}
+            style={metalStyle}
             onClick={() => onSelect(group.key, opt.value)}
           >
             {iconSrc ? (
-              <img className="jd-pill-icon" src={iconSrc} alt={label} />
+              <img
+                className="jd-pill-icon"
+                src={iconSrc}
+                alt={label}
+                onError={(e) => {
+                  const fallback = SHAPE_ICONS[label] || "";
+                  if (fallback && e.target.src !== fallback) {
+                    e.target.src = fallback;
+                  }
+                }}
+              />
             ) : null}
-            <span className="jd-pill-text">{label}</span>
+            <span className="jd-pill-text">{pillText}</span>
           </button>
         );
       })}

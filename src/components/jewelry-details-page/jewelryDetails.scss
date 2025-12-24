@@ -164,6 +164,48 @@ button.jd-pill.is-active .jd-pill-text {
     color: #2c3b5c;
     // border:1px solid #2c3b5c !important;
 }
+.jd-shape-pill{
+  padding:0;
+  background:#fff;
+  border:1px solid #e1e6f2;
+  overflow:hidden;
+}
+.jd-shape-pill .jd-pill-icon{
+  width:90px;
+  height:90px;
+  object-fit:contain;
+  background:#f8f9fb;
+  border-radius:12px 12px 0 0;
+}
+.jd-shape-pill .jd-pill-text{
+  width:100%;
+  border-top:1px solid #e5e8f2;
+  border-radius:0 0 12px 12px;
+  justify-content:center;
+}
+.jd-metal-pill{
+  flex-direction:row;
+  align-items:center;
+  justify-content:center;
+  min-width:70px;
+  padding:8px 12px;
+  background-size:160% 100%;
+  border:1px solid #d4d9e5;
+  box-shadow:0 6px 16px rgba(34,48,82,0.12);
+}
+.jd-metal-pill .jd-pill-text{
+  width:auto;
+  padding:0;
+  border:0;
+  background:transparent;
+  font-weight:800;
+  font-size:13px;
+  color:#223052;
+}
+.jd-metal-pill.is-active{
+  border-color:#2c3b5c;
+  box-shadow:0 8px 22px rgba(34,48,82,0.18);
+}
 
 .jd-static-accordion .jd-acc-header {
   cursor: default !important;
