@@ -7,7 +7,6 @@ import Topbar from "./common/Topbar";
 import { api, apiSession } from "../apiClient";
 import { useAuth } from "../auth.jsx";
 import ShareProductModal from "./share/ShareProductModal.jsx"; // NEW
-import Select from "react-select";
 
 const SEO_URL = "bands-test";
 const APP_BANDS_URL = "https://jewelry.amipi.com/bands";
@@ -60,56 +59,6 @@ function getClientIds() {
 
   return { customers_id, parent_retailer_id };
 }
-
-/* ================= Ring Size Select2 ================= */
-function RingSizeSelect2({
-  options,
-  value,
-  onChange,
-  loading,
-  disabled,
-}) {
-  const selectOptions = useMemo(
-    () =>
-      (options || []).map((o) => ({
-        value: o.value_id,
-        label: o.value_name,
-      })),
-    [options]
-  );
-
-  const selectedOption =
-    selectOptions.find((o) => o.value === value) || null;
-
-  return (
-    <>
-      <style>{`
-        .ring-select2 .react-select__control{
-          min-height:40px;
-          border:1px solid #d7dbe6;
-          border-radius:6px;
-          font-weight:600;
-        }
-        .ring-select2 .react-select__menu{
-          z-index:9999;
-        }
-      `}</style>
-
-      <Select
-        className="ring-select2"
-        classNamePrefix="react-select"
-        isSearchable
-        isLoading={loading}
-        isDisabled={disabled}
-        options={selectOptions}
-        value={selectedOption}
-        placeholder="Choose ring size"
-        onChange={(opt) => onChange(opt ? opt.value : null)}
-      />
-    </>
-  );
-}
-
 
 /** Pricing/user flags used by product/cart/wishlist/compare. */
 function getPricingParams() {
@@ -1732,13 +1681,23 @@ const Bands = () => {
                         <div className="spinner" />
                       </div>
                     )}
-                    <RingSizeSelect2
-  options={ringOptions}
-  value={selected.ringSize}
-  loading={optionsLoading}
-  disabled={!ringOptions.length}
-  onChange={(val) => handleFilterChange("ringSize", val)}
-/>
+                    {ringOptions.length > 0 ? (
+                      <select
+                        value={selected.ringSize || ""}
+                        className="ring-size-select"
+                        onChange={(e) => handleFilterChange("ringSize", Number(e.target.value))}
+                      >
+                        {ringOptions.map((opt) => (
+                          <option key={opt.value_id} value={opt.value_id}>
+                            {opt.value_name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <select className="ring-size-select" disabled>
+                        <option>Loading…</option>
+                      </select>
+                    )}
                   </div>
                 </AccordionShell>
               </div>
@@ -1782,22 +1741,22 @@ const Bands = () => {
 
                               {/* Ring Size */}
                               <div className="pill small" aria-label="Ring size">
-                                <span>Ring Size:</span>
-                                <strong>{ringOptions.find((o) => o.value_id === selected.ringSize)?.value_name || "--"}</strong>
+                                <strong>Ring Size:</strong>
+                                <span>{ringOptions.find((o) => o.value_id === selected.ringSize)?.value_name || "--"}</span>
                               </div>
 
                               {/* Est Carat */}
                               <div className="pill" aria-label="Estimated carat weight">
                                 <strong>Est. Carat Wt*</strong>
-                                <strong className="sub l-pill">
-                                  {estCaratWt !== null ? Number(estCaratWt).toFixed(2) : product.total_carat_weight || "--"} <span className="font-normal">CT [+/− 5%]</span>
-                                </strong>
+                                <span className="sub l-pill">
+                                  {estCaratWt !== null ? Number(estCaratWt).toFixed(2) : product.total_carat_weight || "--"} CT [+/− 5%]
+                                </span>
                               </div>
 
                               {/* Est Pcs */}
                               <div className="pill small" aria-label="Estimated diamond pieces">
-                                <span>Est. Pcs*:</span>
-                                <strong>{estDiamondPcs !== null ? estDiamondPcs : product.estimated_pcs || "--"}</strong>
+                                <strong>Est. Pcs*:</strong>
+                                <span>{estDiamondPcs !== null ? estDiamondPcs : product.estimated_pcs || "--"}</span>
                               </div>
 
                               {/* PRICE */}

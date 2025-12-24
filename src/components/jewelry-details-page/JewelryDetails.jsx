@@ -365,9 +365,10 @@ const JewelryDetails = () => {
                       muted
                       playsInline
                       className="jd-media-player"
+                      width={600}
                     />
                   ) : (
-                    <img src={activeMediaItem.src} alt={displayTitle} className="jd-media-img" />
+                    <img src={activeMediaItem.src} alt={displayTitle} className="jd-media-img" width={600} />
                   )
                 ) : (
                   <span>Image / Video placeholder</span>
@@ -390,6 +391,7 @@ const JewelryDetails = () => {
                             src={item.src}
                             alt={`${displayTitle} view ${idx + 1}`}
                             className="jd-thumb-img"
+                            width={50}
                           />
                         )}
                       </button>
@@ -515,7 +517,7 @@ const JewelryDetails = () => {
             ))}
           </div>
 
-          <p className="jd-footnote">*Customization may cause some variation in final product.Actual pieces & weight may vary up to 5%.</p>
+          <p className="jd-footnote">*Customization may cause some variation in final product. Actual pieces & weight may vary up to 5%.</p>
         </section>
       </main>
 

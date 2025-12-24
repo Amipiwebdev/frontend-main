@@ -3413,7 +3413,7 @@ button.gallery-image-link {
     }
 
     /* Header */
-    .card-head{display:flex; align-items:center;padding:0px;color: #2c3b5c;justify-content: center;gap: 0 20px;}
+    .card-head{display:flex; align-items:center;padding:5px 0 5px;color: #2c3b5c;justify-content: center;gap: 0 20px;}
     .card-title{margin:0; font-size:clamp(16px, 2.2vw, 18px); letter-spacing:.2px; font-weight:700}
     .order-no{color:var(--muted); font-size:clamp(12px, 1.8vw, 14px)}
 
@@ -3424,7 +3424,7 @@ button.gallery-image-link {
           display: grid;
     grid-template-columns: repeat(5, 1fr);
     align-items: stretch;
-    padding:0px 0 5px;
+    padding:5px 0 5px;
     background: #2c3b5c;
     margin: 10px 0;
     border-radius: 10px;
@@ -3438,7 +3438,7 @@ button.gallery-image-link {
       display:flex;            /* CHANGED: use flex for vertical centering */
       flex-direction:column;
       justify-content:center;
-      font-size: 16px;
+      font-size: 15px;
     }
     .pill.small{align-items:center;}
     .pill strong{font-weight:700}
@@ -3450,7 +3450,7 @@ button.gallery-image-link {
     }
 
     /* Details grid */
-    .details{display:grid; grid-template-columns: repeat(6, 1fr); column-gap:24px; row-gap:18px; padding:0;margin:0}
+    .details{display:grid; grid-template-columns: repeat(6, 1fr); column-gap:24px; row-gap:18px; padding:5px 0 5px;margin:10px 0}
     .kv{display:grid; grid-template-columns:1fr; gap:0; align-content:start;position: relative;}
     .k{color:var(--muted); font-weight:bold; font-size:16px;color: #2c3b5c;}
     .v{font-weight:normal;color: #606060;}
@@ -4117,150 +4117,92 @@ button.btn.btn-link span {
   padding: 0;
 }
 
-/* =========================
-   MOBILE TOP HEADER BAR
-   (matches screenshot)
-========================= */
-@media (max-width: 992px) {
-/* Hamburger icon: force white */
-  .main-header .navbar.abg-secondary .navbar-toggler .navbar-toggler-icon{
-    background-image: none !important;
-    width: 22px !important;
-    height: 2px !important;
-    background-color: #000 !important;
-    position: relative !important;
-    display: inline-block !important;
-  }
-  .main-header .navbar.abg-secondary .navbar-toggler .navbar-toggler-icon::before,
-  .main-header .navbar.abg-secondary .navbar-toggler .navbar-toggler-icon::after{
-    content:"";
-    position:absolute;
-    left:0;
-    width:22px;
-    height:2px;
-    background:#000 !important;
-  }
-  .main-header .navbar.abg-secondary .navbar-toggler .navbar-toggler-icon::before{ top:-7px; }
-  .main-header .navbar.abg-secondary .navbar-toggler .navbar-toggler-icon::after{ top:7px; }
-
-  .main-header .navbar.abg-secondary .navbar-toggler{
-    border:0 !important;
-    box-shadow:none !important;
-  }
-  /* blue bar height + alignment */
-  .main-header .navbar.abg-secondary {
-    background: #223052 !important;
-    height: 48px;
-    padding: 0 !important;
-  }
-
-  .main-header .navbar.abg-secondary .container-fluid {
-    height: 48px;
-    display: flex;
-    align-items: center;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  /* hamburger */
-  .main-header .navbar-toggler {
-    width: 38px;
-    height: 38px;
-    padding: 0;
-    border: 0 !important;
-    box-shadow: none !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 !important;
-  }
-
-  /* bootstrap default toggler icon override */
-  .main-header .navbar-toggler .navbar-toggler-icon {
-    background-image: none !important;
-    width: 22px;
-    height: 2px;
-    background: #fff;
-    position: relative;
-    display: inline-block;
-  }
-  .main-header .navbar-toggler .navbar-toggler-icon::before,
-  .main-header .navbar-toggler .navbar-toggler-icon::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    width: 22px;
-    height: 2px;
-    background: #fff;
-  }
-  .main-header .navbar-toggler .navbar-toggler-icon::before { top: -7px; }
-  .main-header .navbar-toggler .navbar-toggler-icon::after { top: 7px; }
-
-  /* logo alignment */
-  .main-header .navbar-brand {
-    margin: 0 8px !important;
-    padding: 0 !important;
-    display: flex;
-    align-items: center;
-  }
-
-  .main-header .navbar-brand img {
-    height: 26px !important; /* screenshot jaisa */
-    width: auto;
-    display: block;
-  }
-
-  /* right icons list */
-  .main-header .head-icon-list {
-    display: flex;
-    align-items: center;
-    gap: 0x;
-    margin: 0 !important;
-    padding: 0 !important;
-    list-style: none;
-  }
-
-  /* icon button */
-  .main-header .head-icon-btn {
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-
-  /* icons color = yellow like screenshot */
-  .main-header .head-icon-btn svg,
-  .main-header .head-icon-btn i {
-    color: #ffd200 !important;
-    fill: #ffd200 !important;
-    stroke: #ffd200 !important;
-  }
-
-  /* ensure inline svgs size */
-  .main-header .head-icon-btn svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  /* links inside icons list */
-  .main-header .head-icon-list a.head-icon-btn {
-    text-decoration: none;
-  }
-
-  /* search popup position fix (mobile) */
-  .main-header .search-pop {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
-    z-index: 9999;
-  }
+/* All icon buttons look like screenshot: yellow icons on dark bar */
+.mobile-head-icons .head-icon-btn,
+.mobile-head-icons .search-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #f3c21b; /* yellow */
+  cursor: pointer;
+  text-decoration: none;
 }
 
+/* Ensure SVG uses currentColor */
+.mobile-head-icons svg {
+  display: block;
+  color: currentColor;
+  fill: currentColor;
+}
+
+/* Hover/active subtle */
+.mobile-head-icons .head-icon-btn:hover,
+.mobile-head-icons .search-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.mobile-head-icons .head-icon-btn:active,
+.mobile-head-icons .search-toggle:active {
+  transform: translateY(1px);
+}
+
+/* Keep search pop aligned under search icon (mobile) */
+.circle-search {
+  position: relative;
+}
+
+/* Search dropdown like compact popup */
+.search-pop {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  z-index: 9999;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 10px;
+  width: 260px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Search form layout */
+.search-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.search-input {
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  padding: 0 10px;
+}
+.go-btn {
+  height: 36px;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #2d3a55;
+  color: #fff;
+  border: 0;
+}
+.go-btn:hover {
+  opacity: 0.92;
+}
+
+/* Mobile: keep icons tight like screenshot */
+@media (max-width: 991.98px) {
+  .mobile-head-icons {
+    gap: 6px !important;
+  }
+  .main-header .navbar-brand img {
+    height: 36px !important;
+  }
+}
 
 /* Optional: Desktop icons should remain default (no change) */
 @media (min-width: 992px) {
@@ -4276,149 +4218,3 @@ button.btn.btn-link span {
     fill: #FFF;
 }
 .icon-svg-pill strong{display: block;}
-.font-normal{font-weight: normal;} 
-
-.about p.amipi-list-heading, .more p.amipi-list-heading{
-    font-weight: normal;
-    line-height: 24px;
-}
-
-/* ===============================
-   Ring Size – Select2 Style CSS
-   =============================== */
-
-.ring-select2 {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-/* main input */
-.ring-select2 .react-select__control {
-  min-height: 40px;
-  border-radius: 6px;
-  border: 1px solid #d7dbe6;
-  box-shadow: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.ring-select2 .react-select__control:hover {
-  border-color: #223052;
-}
-
-.ring-select2 .react-select__control--is-focused {
-  border-color: #223052;
-  box-shadow: 0 0 0 2px rgba(34, 48, 82, 0.15);
-}
-
-/* value text */
-.ring-select2 .react-select__single-value {
-  color: #223052;
-  font-weight: 700;
-}
-
-/* placeholder */
-.ring-select2 .react-select__placeholder {
-  color: #94a0b3;
-  font-weight: 600;
-}
-
-/* arrow */
-.ring-select2 .react-select__dropdown-indicator {
-  color: #223052;
-  padding: 6px;
-}
-
-.ring-select2 .react-select__indicator-separator {
-  display: none;
-}
-
-/* dropdown menu */
-.ring-select2 .react-select__menu {
-  z-index: 9999;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
-}
-
-/* option */
-.ring-select2 .react-select__option {
-  padding: 10px 12px;
-  cursor: pointer;
-  font-weight: 600;
-  color: #223052;
-  background: #fff;
-}
-
-.ring-select2 .react-select__option--is-focused {
-  background: #f1f3f8;
-}
-
-.ring-select2 .react-select__option--is-selected {
-  background: #223052;
-  color: #fff;
-  font-weight: 700;
-}
-
-/* disabled */
-.ring-select2 .react-select__control--is-disabled {
-  background: #f5f6fa;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-/* loading spinner align */
-.ring-select2 .react-select__loading-indicator {
-  color: #223052;
-}
-
-/* mobile improvement */
-@media (max-width: 768px) {
-  .ring-select2 .react-select__menu {
-    max-height: 240px;
-  }
-}
-
-.stable-wrap{position:relative}
-        .stable-wrap.is-loading{pointer-events:none}
-        .stable-wrap .block-overlay{position:absolute;inset:0;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;z-index:2}
-        .stable-wrap .spinner{width:38px;height:38px;border-radius:50%;border:4px solid #dfe3ec;border-top-color:#2c3b5b;animation:spin .9s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
-
-        /* lock heights so cards don't collapse while content swaps */
-        .selection-card{min-height:210px}
-        .band-heading-type{min-height:120px; margin-top:15px}
-        .ring-size-select{min-height:40px}
-
-        /* preserve grid structure even if ring options are loading */
-        .ring-size-block{min-height:82px}
-        .price-grid{display:flex;gap:16px;flex-wrap:wrap}
-        .price-item{flex:1 1 220px}
-        .price-row{display:flex;align-items:center;justify-content:space-between}
-        .price-item.right .price-row{justify-content:space-between}
-
-        /* ✅ NEW: Primary/Secondary accordion styles (only for stone info section) */
-        .stone-acc{margin-top:10px}
-        .stone-acc-item{border:1px solid #e6e9f2;border-radius:10px;overflow:hidden;margin:2px 0;background:#fff}
-        .stone-acc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 12px;background:#FFFFFF;border:0;cursor:pointer}
-        .stone-acc-title{font-weight:700;color:#223052}
-        .stone-acc-chevron{width:18px;height:18px;transition:transform .25s ease}
-        .stone-acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
-        .stone-acc-closed{max-height:0;padding:0 12px}
-        .stone-acc-open{max-height:1200px;padding:0px}
-        .details.stone-one, .details.stone-two {grid-template-columns: repeat(7, 1fr);border: 1px solid #d9d9d9;border-left: 0;border-right: 0;border-bottom: 0;}
-        @media (max-width: 720px) {
-     .details.stone-one, .details.stone-two {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-}
-@media (max-width: 1024px) {
-    .details.stone-one, .details.stone-two{
-        grid-template-columns: repeat(3, 1fr) !important;
-    }
-}
-@media (min-width: 1025px) and (max-width:1199px) {
-    .details.stone-one, .details.stone-two{
-        grid-template-columns: repeat(4, 1fr) !important;
-    }
-}
