@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import Header from "../common/Header";
 import Footer from "../common/Footer";
@@ -56,6 +56,8 @@ const toOptionList = (list, fallback = []) => {
         color_code: item.color_code,
         dmt_tooltip: item.dmt_tooltip,
         tooltip: item.tooltip,
+        id: item.id ?? item.value_id ?? item.value,
+        value_id: item.value_id,
         center_stone_name:
           item.center_stone_name ?? item.centerStoneName ?? item.diamond_type ?? item.diamondType,
       };
@@ -107,13 +109,64 @@ const syncSelectionWithOptions = (selection, options) => {
 const DEFAULT_FILTER_OPTIONS = buildFilterOptions();
 const DEFAULT_SELECTIONS = buildInitialSelections(DEFAULT_FILTER_OPTIONS);
 
-// Metal Type Full Bubble value
-const getSelectedLabelSafe = (selectionKey) => {
-  const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
-  const sourceKey = group?.sourceKey;
-  const options = sourceKey ? filterOptions[sourceKey] || [] : [];
-  const match = options.find((opt) => opt.value === selection[selectionKey]);
-  return match?.label || "";
+const selectionFromProduct = (product = {}) => {
+  const safeRingSize =
+    product.default_size && product.default_size !== "0" ? product.default_size : "";
+
+  return {
+    diamondWeight: product.diamond_weight_group_id ?? product.diamondWeight,
+    shape: product.shape_id ?? product.shape,
+    metalType: product.sptmt_metal_type_id ?? product.metal_type_id ?? product.metalType,
+    diamondOrigin: product.center_stone_type_id ?? product.diamondOrigin,
+    diamondQuality: product.diamond_quality_id ?? product.diamondQuality,
+    ringSize: safeRingSize,
+  };
+};
+
+const buildSelectionParams = (selection = {}, options = {}, designId) => {
+  const resolve = (sourceKey, selectionKey) => {
+    const list = options[sourceKey] || [];
+    const selVal = selection[selectionKey];
+    const selValStr = selVal !== undefined && selVal !== null ? String(selVal) : "";
+    const match = list.find(
+      (opt) => String(opt.value) === selValStr || String(opt.label) === selValStr
+    );
+    const numericLike =
+      selValStr && /^[0-9]+(\.[0-9]+)?$/.test(selValStr) ? Number(selValStr) : undefined;
+    const paramVal =
+      match?.id ??
+      match?.value_id ??
+      (Number.isFinite(match?.value) ? match.value : undefined) ??
+      numericLike ??
+      (selValStr || undefined);
+    if (paramVal === 0) return 0;
+    return paramVal || undefined;
+  };
+
+  return {
+    diamond_weight_group_id: resolve("diamond_weight_groups", "diamondWeight"),
+    shape_id: resolve("shapes", "shape"),
+    metal_type_id: resolve("metal_types", "metalType"),
+    sptmt_metal_type_id: resolve("metal_types", "metalType"),
+    center_stone_type_id: resolve("origins", "diamondOrigin"),
+    diamond_quality_id: resolve("diamond_qualities", "diamondQuality"),
+    ring_size_id: resolve("ring_sizes", "ringSize"),
+    design_id: designId || undefined,
+  };
+};
+
+const deriveSelection = (options, product, currentSelection = {}, preferProductValues = false) => {
+  const base = buildInitialSelections(options);
+  const fromProduct = Object.fromEntries(
+    Object.entries(selectionFromProduct(product)).filter(
+      ([, v]) => v !== undefined && v !== null && v !== "" && v !== "0"
+    )
+  );
+  const merged = preferProductValues
+    ? { ...base, ...currentSelection, ...fromProduct }
+    : { ...base, ...fromProduct, ...currentSelection };
+
+  return syncSelectionWithOptions(merged, options);
 };
 
 // ---------------------- ACCORDION COMPONENT ----------------------
@@ -212,7 +265,6 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
   </div>
 );
 
-
 // ---------------------- MAIN COMPONENT ----------------------
 const JewelryDetails = () => {
   const { sku } = useParams();
@@ -223,7 +275,10 @@ const JewelryDetails = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selection, setSelection] = useState(DEFAULT_SELECTIONS);
+  const [designId, setDesignId] = useState("");
+  const designIdRef = useRef("");
   const [quantity, setQuantity] = useState(1);
+  const requestIdRef = useRef(0);
 
   const valueOrDash = (val) =>
     val === undefined || val === null || val === "" ? "-" : val;
@@ -243,44 +298,87 @@ const JewelryDetails = () => {
     return `${num.toFixed(2)} CT`;
   };
 
-  const updateSelection = (key, value) =>
-    setSelection((prev) => ({ ...prev, [key]: value }));
+  const fetchProductDetails = (
+    nextSelection = selection,
+    { resetSelection = false, designOverride } = {}
+  ) => {
+    if (!sku) return;
+    const params = buildSelectionParams(
+      nextSelection,
+      filterOptions,
+      designOverride || designIdRef.current || designId || product?.design_id || product?.designId
+    );
+    requestIdRef.current += 1;
+    const requestId = requestIdRef.current;
+
+    setLoading(true);
+    setError("");
+
+    api
+      .get(`/product-details/jewelry/${sku}`, { params })
+      .then((res) => {
+        if (requestId !== requestIdRef.current) return;
+        const data = res.data || {};
+        const normalizedFilters = buildFilterOptions(data.filters);
+
+        setProduct(data.product || null);
+        setMedia(data.media || { images: [], videos: [] });
+        setFilterOptions(normalizedFilters);
+        setSelection(
+          deriveSelection(normalizedFilters, data.product, resetSelection ? {} : nextSelection, resetSelection)
+        );
+        const nextDesignId = data.product?.design_id || data.product?.designId || designIdRef.current || "";
+        setDesignId(nextDesignId);
+        designIdRef.current = nextDesignId;
+        setActiveMedia(0);
+      })
+      .catch((err) => {
+        if (requestId !== requestIdRef.current) return;
+        setError(err?.response?.data?.message || "Unable to load product details.");
+      })
+      .finally(() => {
+        if (requestId === requestIdRef.current) setLoading(false);
+      });
+  };
+
+  const handleFilterSelect = (key, value) => {
+    if (selection[key] === value) return;
+    const nextSelection = { ...selection, [key]: value };
+    setSelection(nextSelection);
+    fetchProductDetails(nextSelection);
+  };
+
+  const handleRingSizeChange = (e) => {
+    const targetValue = e.target.value;
+    const option =
+      (filterOptions.ring_sizes || []).find((opt) => String(opt.value) === String(targetValue)) ||
+      null;
+    const nextSelection = { ...selection, ringSize: option ? option.value : targetValue };
+    setSelection(nextSelection);
+    fetchProductDetails(nextSelection);
+  };
 
   const handleQuantityChange = (e) => {
     const next = Math.max(1, Number(e.target.value) || 1);
     setQuantity(next);
   };
 
+  const handleResetFilters = () => {
+    const resetSelection = buildInitialSelections(filterOptions);
+    setSelection(resetSelection);
+    setQuantity(1);
+    fetchProductDetails(resetSelection, {
+      resetSelection: true,
+      designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+    });
+  };
+
   useEffect(() => {
     if (!sku) return;
-    let active = true;
-    setLoading(true);
-    setError("");
-
-    api
-      .get(`/product-details/jewelry/${sku}`)
-      .then((res) => {
-        if (!active) return;
-        const data = res.data || {};
-        setProduct(data.product || null);
-        setMedia(data.media || { images: [], videos: [] });
-
-        const normalizedFilters = buildFilterOptions(data.filters);
-        setFilterOptions(normalizedFilters);
-        setSelection((prev) => syncSelectionWithOptions(prev, normalizedFilters));
-        setActiveMedia(0);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setError(err?.response?.data?.message || "Unable to load product details.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
+    fetchProductDetails(buildInitialSelections(filterOptions), {
+      resetSelection: true,
+      designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+    });
   }, [sku]);
 
   const displaySku = product?.products_style_no || sku || "B401200-14WE-R-H";
@@ -562,7 +660,7 @@ const JewelryDetails = () => {
 
               <div className="jd-reset-row">
                 <span className="jd-sku">#{displaySku}</span>
-                <button type="button" className="jd-link-button">Reset Filter</button>
+                <button type="button" className="jd-link-button" onClick={handleResetFilters}>Reset Filter</button>
               </div>
 
               <h1 className="jd-title">{displayTitle}</h1>
@@ -579,7 +677,7 @@ const JewelryDetails = () => {
                     group={group}
                     options={filterOptions[group.sourceKey] || []}
                     value={selection[group.key]}
-                    onSelect={updateSelection}
+                    onSelect={handleFilterSelect}
                   />
                 </Accordion>
               ))}
@@ -595,14 +693,7 @@ const JewelryDetails = () => {
                   <select
                     className="jd-acc-select"
                     value={selection.ringSize}
-                    onChange={(e) => {
-                      const targetValue = e.target.value;
-                      const option =
-                        (filterOptions.ring_sizes || []).find(
-                          (opt) => String(opt.value) === String(targetValue)
-                        ) || null;
-                      updateSelection("ringSize", option ? option.value : targetValue);
-                    }}
+                    onChange={handleRingSizeChange}
                   >
                     {(filterOptions.ring_sizes || []).map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>

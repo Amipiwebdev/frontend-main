@@ -62,13 +62,7 @@ function getClientIds() {
 }
 
 /* ================= Ring Size Select2 ================= */
-function RingSizeSelect2({
-  options,
-  value,
-  onChange,
-  loading,
-  disabled,
-}) {
+function RingSizeSelect2({ options, value, onChange, loading, disabled }) {
   const selectOptions = useMemo(
     () =>
       (options || []).map((o) => ({
@@ -78,8 +72,7 @@ function RingSizeSelect2({
     [options]
   );
 
-  const selectedOption =
-    selectOptions.find((o) => o.value === value) || null;
+  const selectedOption = selectOptions.find((o) => o.value === value) || null;
 
   return (
     <>
@@ -109,7 +102,6 @@ function RingSizeSelect2({
     </>
   );
 }
-
 
 /** Pricing/user flags used by product/cart/wishlist/compare. */
 function getPricingParams() {
@@ -157,7 +149,15 @@ function SafeImage({ src, alt, className, style }) {
   );
 }
 
-function SafeVideo({ src, className, style, autoPlay = true, muted = true, loop = true, controls = true }) {
+function SafeVideo({
+  src,
+  className,
+  style,
+  autoPlay = true,
+  muted = true,
+  loop = true,
+  controls = true,
+}) {
   const [ok, setOk] = useState(true);
   if (!ok || !src) return null;
   return (
@@ -184,7 +184,9 @@ function pickFirstAvailable(val, allowed) {
 /** Resolve any image/video ref to an absolute URL used by the CDN */
 function toAbsoluteMediaUrl(type, input) {
   const raw =
-    typeof input === "string" ? input : input?.url || input?.image || input?.src || input?.filename || "";
+    typeof input === "string"
+      ? input
+      : input?.url || input?.image || input?.src || input?.filename || "";
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw)) return raw;
   const folder = type === "video" ? "product_video" : "product_images";
@@ -261,7 +263,13 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
   const item = items[index];
 
   return createPortal(
-    <div className="lb-backdrop" role="dialog" aria-modal="true" aria-label="Product media viewer" onClick={onClose}>
+    <div
+      className="lb-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Product media viewer"
+      onClick={onClose}
+    >
       <style>{`
         .lb-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center}
         .lb-dialog{position:relative;max-width:92vw;max-height:92vh}
@@ -295,7 +303,15 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
         )}
         <div className="lb-content">
           {item.type === "video" ? (
-            <video src={item.src} controls autoPlay muted loop playsInline style={{ background: "#000" }} />
+            <video
+              src={item.src}
+              controls
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{ background: "#000" }}
+            />
           ) : (
             <img src={item.src} alt="Product media" />
           )}
@@ -447,7 +463,12 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
               <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM199 303L279 223C288.4 213.6 303.6 213.6 312.9 223C322.2 232.4 322.3 247.6 312.9 256.9L273.9 295.9L424 295.9C437.3 295.9 448 306.6 448 319.9C448 333.2 437.3 343.9 424 343.9L273.9 343.9L312.9 382.9C322.3 392.3 322.3 407.5 312.9 416.8C303.5 426.1 288.3 426.2 279 416.8L199 336.8C189.6 327.4 189.6 312.2 199 302.9z" />
             </svg>
           </button>
-          <button type="button" aria-label="Next images" onClick={() => setIdx((i) => (i + 1) % total)} className="next-btn">
+          <button
+            type="button"
+            aria-label="Next images"
+            onClick={() => setIdx((i) => (i + 1) % total)}
+            className="next-btn"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
               <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM361 417C351.6 426.4 336.4 426.4 327.1 417C317.8 407.6 317.7 392.4 327.1 383.1L366.1 344.1L216 344.1C202.7 344.1 192 333.4 192 320.1C192 306.8 202.7 296.1 216 296.1L366.1 296.1L327.1 257.1C317.7 247.7 317.7 232.5 327.1 223.2C336.5 213.9 351.7 213.8 361 223.2L441 303.2C450.4 312.6 450.4 327.8 441 337.1L361 417.1z" />
             </svg>
@@ -906,13 +927,7 @@ const Bands = () => {
 
   /* 6) Metal => Quality */
   useEffect(() => {
-    if (
-      !selected.stoneType ||
-      !selected.design ||
-      !selected.shape ||
-      !selected.settingStyle ||
-      !selected.metal
-    )
+    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal)
       return;
     api
       .get(`/qualities`, {
@@ -956,14 +971,7 @@ const Bands = () => {
 
   /* 7) Quality => Stone Size */
   useEffect(() => {
-    if (
-      !selected.stoneType ||
-      !selected.design ||
-      !selected.shape ||
-      !selected.settingStyle ||
-      !selected.metal ||
-      !selected.quality
-    )
+    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal || !selected.quality)
       return;
 
     api
@@ -1003,28 +1011,12 @@ const Bands = () => {
           diamondSize: pickFirstAvailable(sel.diamondSize, sizes),
         }));
       });
-  }, [
-    selected.stoneType,
-    selected.design,
-    selected.shape,
-    selected.settingStyle,
-    selected.metal,
-    selected.quality,
-    sizeUnit,
-  ]);
+  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, selected.quality, sizeUnit]);
 
   /* 8) After diamond size → fetch ring size options from filters */
   useEffect(() => {
     if (!bootstrapDone) return;
-    if (
-      !selected.stoneType ||
-      !selected.design ||
-      !selected.shape ||
-      !selected.settingStyle ||
-      !selected.metal ||
-      !selected.quality ||
-      !selected.diamondSize
-    ) {
+    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal || !selected.quality || !selected.diamondSize) {
       setRingOptions([]);
       setSelected((sel) => ({ ...sel, ringSize: null }));
       return;
@@ -1050,31 +1042,12 @@ const Bands = () => {
         return { ...sel, ringSize: found ? found.value_id : opts?.[0]?.value_id || null };
       });
     });
-  }, [
-    selected.stoneType,
-    selected.design,
-    selected.shape,
-    selected.settingStyle,
-    selected.metal,
-    selected.quality,
-    selected.diamondSize,
-    sizeUnit,
-    vendorParam,
-  ]);
+  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, selected.quality, selected.diamondSize, sizeUnit, vendorParam]);
 
   /* 9) All filters + ring size → Product */
   useEffect(() => {
     if (!bootstrapDone) return;
-    if (
-      !selected.stoneType ||
-      !selected.design ||
-      !selected.shape ||
-      !selected.settingStyle ||
-      !selected.metal ||
-      !selected.quality ||
-      !selected.diamondSize ||
-      !selected.ringSize
-    ) {
+    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal || !selected.quality || !selected.diamondSize || !selected.ringSize) {
       return;
     }
 
@@ -1102,20 +1075,7 @@ const Bands = () => {
     return () => {
       cancelled = true;
     };
-  }, [
-    selected.stoneType,
-    selected.design,
-    selected.shape,
-    selected.settingStyle,
-    selected.metal,
-    selected.quality,
-    selected.diamondSize,
-    selected.ringSize, // <-- depends on ringSize now
-    sizeUnit,
-    vendorParam,
-    authVersion,
-    bootstrapDone,
-  ]);
+  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, selected.quality, selected.diamondSize, selected.ringSize, sizeUnit, vendorParam, authVersion, bootstrapDone]);
 
   /* 10) Estimates for pcs / carat / price w.r.t ring size */
   useEffect(() => {
@@ -1244,18 +1204,7 @@ const Bands = () => {
       diamondSize: selected.diamondSize != null ? `${formatDiamondSize(selected.diamondSize)} ${sizeUnit.toUpperCase()}` : "",
       ringSize: ring?.value_name || "",
     };
-  }, [
-    data.stoneTypes,
-    data.designs,
-    data.shapes,
-    data.settingStyles,
-    data.metals,
-    data.qualities,
-    ringOptions,
-    selected,
-    sizeUnit,
-    formatDiamondSize,
-  ]);
+  }, [data.stoneTypes, data.designs, data.shapes, data.settingStyles, data.metals, data.qualities, ringOptions, selected, sizeUnit, formatDiamondSize]);
 
   // Filter click handler
   function handleFilterChange(key, value) {
@@ -1314,7 +1263,11 @@ const Bands = () => {
 
     apiSession
       .get("/api/wishlist/check", {
-        params: { products_id: product.products_id, customers_id: ids.customers_id, parent_retailer_id: ids.parent_retailer_id },
+        params: {
+          products_id: product.products_id,
+          customers_id: ids.customers_id,
+          parent_retailer_id: ids.parent_retailer_id,
+        },
         headers: { Accept: "application/json" },
       })
       .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
@@ -1443,50 +1396,11 @@ const Bands = () => {
     String(product.stn2_pcs).trim() !== "";
   const showStoneDetails = hasStoneOneType && hasStoneTwoPcs;
 
-  // ✅ NEW: Primary/Secondary accordion state (default closed) + one-at-a-time toggle
-  const [stoneAcc, setStoneAcc] = useState({ primary: false, secondary: false });
-  const toggleStoneAcc = (key) => {
-    setStoneAcc((prev) => {
-      const nextOpen = !prev[key]; // same header click => toggle
-      return {
-        primary: key === "primary" ? nextOpen : false,
-        secondary: key === "secondary" ? nextOpen : false,
-      };
-    });
-  };
+  // ✅ ONLY CHANGE: Primary/Secondary section converted from accordion to tabs
+  const [stoneTab, setStoneTab] = useState("primary");
 
   return (
     <div>
-      {/* one-time CSS for stable layout + overlay */}
-      <style>{`
-        .stable-wrap{position:relative}
-        .stable-wrap.is-loading{pointer-events:none}
-        .stable-wrap .block-overlay{position:absolute;inset:0;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;z-index:2}
-        .stable-wrap .spinner{width:38px;height:38px;border-radius:50%;border:4px solid #dfe3ec;border-top-color:#2c3b5b;animation:spin .9s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
-
-        /* lock heights so cards don't collapse while content swaps */
-        .selection-card{min-height:210px}
-        .band-heading-type{min-height:120px; margin-top:15px}
-        .ring-size-select{min-height:40px}
-
-        /* preserve grid structure even if ring options are loading */
-        .ring-size-block{min-height:82px}
-        .price-grid{display:flex;gap:16px;flex-wrap:wrap}
-        .price-item{flex:1 1 220px}
-        .price-row{display:flex;align-items:center;justify-content:space-between}
-        .price-item.right .price-row{justify-content:space-between}
-
-        /* ✅ NEW: Primary/Secondary accordion styles (only for stone info section) */
-        .stone-acc{margin-top:10px}
-        .stone-acc-item{border:1px solid #e6e9f2;border-radius:10px;overflow:hidden;margin:10px 0;background:#fff}
-        .stone-acc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#f1f1f1;border:0;cursor:pointer}
-        .stone-acc-title{font-weight:700;color:#223052}
-        .stone-acc-chevron{width:18px;height:18px;transition:transform .25s ease}
-        .stone-acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
-        .stone-acc-closed{max-height:0;padding:0 12px}
-        .stone-acc-open{max-height:1200px;padding:10px 12px}
-      `}</style>
 
       <Topbar />
       <Header />
@@ -1675,12 +1589,7 @@ const Bands = () => {
                         onClick={() => handleFilterChange("quality", q.dqg_id || q.id)}
                       >
                         <div className="quality-alias">{q.dqg_alias || q.name}</div>
-                        <div
-                          className={
-                            "quality-origin " +
-                            ((q.dqg_origin || q.origin) === "Lab Grown" ? "lab-grown" : "earth-mined")
-                          }
-                        >
+                        <div className={"quality-origin " + ((q.dqg_origin || q.origin) === "Lab Grown" ? "lab-grown" : "earth-mined")}>
                           {q.dqg_origin || q.origin}
                         </div>
                       </button>
@@ -1733,12 +1642,12 @@ const Bands = () => {
                       </div>
                     )}
                     <RingSizeSelect2
-  options={ringOptions}
-  value={selected.ringSize}
-  loading={optionsLoading}
-  disabled={!ringOptions.length}
-  onChange={(val) => handleFilterChange("ringSize", val)}
-/>
+                      options={ringOptions}
+                      value={selected.ringSize}
+                      loading={optionsLoading}
+                      disabled={!ringOptions.length}
+                      onChange={(val) => handleFilterChange("ringSize", val)}
+                    />
                   </div>
                 </AccordionShell>
               </div>
@@ -1767,17 +1676,15 @@ const Bands = () => {
                             <div className="pillbar" aria-label="Key attributes">
                               {/* Color/Clarity */}
                               <div className="pill icon-svg-pill" aria-label="Color and clarity">
-                                    {product.dqg_icon ? (
-                                  <span
-                                    dangerouslySetInnerHTML={{ __html: product.dqg_icon }}
-                                  />
+                                {product.dqg_icon ? (
+                                  <span dangerouslySetInnerHTML={{ __html: product.dqg_icon }} />
                                 ) : (
                                   <span>--</span>
                                 )}
-                               <div>
-                                 <strong>{product.dqg_alias || "--"}</strong>
-                                <span className="sub">{product.center_stone_name || "--"}</span>
-                               </div>
+                                <div>
+                                  <strong>{product.dqg_alias || "--"}</strong>
+                                  <span className="sub">{product.center_stone_name || "--"}</span>
+                                </div>
                               </div>
 
                               {/* Ring Size */}
@@ -1790,7 +1697,8 @@ const Bands = () => {
                               <div className="pill" aria-label="Estimated carat weight">
                                 <strong>Est. Carat Wt*</strong>
                                 <strong className="sub l-pill">
-                                  {estCaratWt !== null ? Number(estCaratWt).toFixed(2) : product.total_carat_weight || "--"} <span className="font-normal">CT [+/− 5%]</span>
+                                  {estCaratWt !== null ? Number(estCaratWt).toFixed(2) : product.total_carat_weight || "--"}{" "}
+                                  <span className="font-normal">CT [+/− 5%]</span>
                                 </strong>
                               </div>
 
@@ -1886,38 +1794,32 @@ const Bands = () => {
                               </div>
                             </div>
 
-                            {/* ✅ CHANGED ONLY THIS PART: Primary/Secondary -> accordion */}
+                            {/* ✅ ONLY CHANGE: Primary/Secondary -> TABS */}
                             {showStoneDetails && (
-                              <div className="stone-acc">
-                                {/* Primary */}
-                                <div className="stone-acc-item">
+                              <div className="stone-tabs">
+                                <div className="stone-tab-bar" role="tablist" aria-label="Stone info tabs">
                                   <button
                                     type="button"
-                                    className="stone-acc-head"
-                                    onClick={() => toggleStoneAcc("primary")}
-                                    aria-expanded={stoneAcc.primary}
+                                    role="tab"
+                                    aria-selected={stoneTab === "primary"}
+                                    className={`stone-tab-btn ${stoneTab === "primary" ? "active" : ""}`}
+                                    onClick={() => setStoneTab("primary")}
                                   >
-                                    <span className="stone-acc-title">Primary Stone Info</span>
-                                    <svg
-                                      className="stone-acc-chevron"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      style={{
-                                        transform: stoneAcc.primary ? "rotate(180deg)" : "rotate(0deg)",
-                                        transformOrigin: "12px 12px",
-                                      }}
-                                    >
-                                      <path
-                                        d="M6 9l6 6 6-6"
-                                        stroke="#223052"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
+                                    Primary Stone Info
                                   </button>
+                                  <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={stoneTab === "secondary"}
+                                    className={`stone-tab-btn ${stoneTab === "secondary" ? "active" : ""}`}
+                                    onClick={() => setStoneTab("secondary")}
+                                  >
+                                    Secondary Stone Info
+                                  </button>
+                                </div>
 
-                                  <div className={`stone-acc-body ${stoneAcc.primary ? "stone-acc-open" : "stone-acc-closed"}`}>
+                                <div className="stone-tab-panel" role="tabpanel">
+                                  {stoneTab === "primary" ? (
                                     <div className="details stone-one">
                                       <div className="kv">
                                         <div className="k">Type</div>
@@ -1962,38 +1864,7 @@ const Bands = () => {
                                         <div className="v">{product.side_diamond_breakdown || "--"}</div>
                                       </div>
                                     </div>
-                                  </div>
-                                </div>
-
-                                {/* Secondary */}
-                                <div className="stone-acc-item">
-                                  <button
-                                    type="button"
-                                    className="stone-acc-head"
-                                    onClick={() => toggleStoneAcc("secondary")}
-                                    aria-expanded={stoneAcc.secondary}
-                                  >
-                                    <span className="stone-acc-title">Secondary Stone Info</span>
-                                    <svg
-                                      className="stone-acc-chevron"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      style={{
-                                        transform: stoneAcc.secondary ? "rotate(180deg)" : "rotate(0deg)",
-                                        transformOrigin: "12px 12px",
-                                      }}
-                                    >
-                                      <path
-                                        d="M6 9l6 6 6-6"
-                                        stroke="#223052"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </button>
-
-                                  <div className={`stone-acc-body ${stoneAcc.secondary ? "stone-acc-open" : "stone-acc-closed"}`}>
+                                  ) : (
                                     <div className="details stone-two">
                                       <div className="kv">
                                         <div className="k">Type</div>
@@ -2035,7 +1906,7 @@ const Bands = () => {
                                         <div className="v">{product.col_stn_breakdown || "--"}</div>
                                       </div>
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -2108,7 +1979,11 @@ const Bands = () => {
                             </li>
 
                             {/* Wishlist */}
-                            <li className="common-btn" title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"} style={{ cursor: wishLoading ? "wait" : "pointer" }}>
+                            <li
+                              className="common-btn"
+                              title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
+                              style={{ cursor: wishLoading ? "wait" : "pointer" }}
+                            >
                               {(() => {
                                 if (!isAuthenticated) {
                                   // 🔒 Guest user — show redirect button
@@ -2146,7 +2021,11 @@ const Bands = () => {
                             </li>
 
                             {/* Cart */}
-                            <li className="hover-none" title={isInCart ? "Remove From Cart" : "Add to Cart"} style={{ cursor: cartLoading ? "wait" : "pointer" }}>
+                            <li
+                              className="hover-none"
+                              title={isInCart ? "Remove From Cart" : "Add to Cart"}
+                              style={{ cursor: cartLoading ? "wait" : "pointer" }}
+                            >
                               <div className="band-cart-btn">
                                 {(() => {
                                   if (!isAuthenticated) {
@@ -2326,10 +2205,7 @@ function LoginModal({ open, onClose, onSuccess }) {
       }
     } catch (err) {
       console.error("Login error:", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Login failed. Please check credentials.";
+      const msg = err?.response?.data?.message || err?.response?.data?.error || "Login failed. Please check credentials.";
       setError(msg);
     } finally {
       setLoading(false);

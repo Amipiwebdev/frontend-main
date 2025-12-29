@@ -4386,7 +4386,7 @@ button.btn.btn-link span {
         @keyframes spin{to{transform:rotate(360deg)}}
 
         /* lock heights so cards don't collapse while content swaps */
-        .selection-card{min-height:210px}
+        // .selection-card{min-height:210px}
         .band-heading-type{min-height:120px; margin-top:15px}
         .ring-size-select{min-height:40px}
 
@@ -4406,7 +4406,7 @@ button.btn.btn-link span {
         .stone-acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
         .stone-acc-closed{max-height:0;padding:0 12px}
         .stone-acc-open{max-height:1200px;padding:0px}
-        .details.stone-one, .details.stone-two {grid-template-columns: repeat(7, 1fr);border: 1px solid #d9d9d9;border-left: 0;border-right: 0;border-bottom: 0;}
+        .details.stone-one, .details.stone-two {grid-template-columns: repeat(7, 1fr);border:0;border-left: 0;border-right: 0;border-bottom: 0;}
         @media (max-width: 720px) {
      .details.stone-one, .details.stone-two {
         grid-template-columns: repeat(2, 1fr) !important;
@@ -4523,3 +4523,50 @@ button.btn.btn-link span {
   .option-chip{min-width:48px;padding:8px 10px;}
   .search-card{padding:14px;}
 }
+
+ .stable-wrap{position:relative}
+        .stable-wrap.is-loading{pointer-events:none}
+        .stable-wrap .block-overlay{position:absolute;inset:0;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;z-index:2}
+        .stable-wrap .spinner{width:38px;height:38px;border-radius:50%;border:4px solid #dfe3ec;border-top-color:#2c3b5b;animation:spin .9s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* lock heights so cards don't collapse while content swaps */
+        // .selection-card{min-height:210px}
+        .band-heading-type{min-height:120px; margin-top:15px}
+        .ring-size-select{min-height:40px}
+
+        /* preserve grid structure even if ring options are loading */
+        .ring-size-block{min-height:82px}
+        .price-grid{display:flex;gap:16px;flex-wrap:wrap}
+        .price-item{flex:1 1 220px}
+        .price-row{display:flex;align-items:center;justify-content:space-between}
+        .price-item.right .price-row{justify-content:space-between}
+
+        /* ✅ ONLY CHANGE: stone info as TABS */
+        .stone-tabs{margin-top:10px}
+        .stone-tab-bar{
+          display:flex;
+          gap:8px;
+          background:#f1f1f1;
+        }
+        .stone-tab-btn{
+          flex:1;
+          border:0;
+          background:transparent;
+          padding:3px 5px;
+          border-radius:8px;
+          font-weight:800;
+          color:#223052;
+          cursor:pointer;
+          transition:background .2s ease, box-shadow .2s ease;
+          border:1px solid #223052
+        }
+        .stone-tab-btn.active{
+          background:#fff;
+          box-shadow:0 2px 10px rgba(34,48,82,.10);
+        }
+        .stone-tab-panel{
+          margin-top:10px;
+          background:transparent;
+          padding:0px 12px;
+        }
