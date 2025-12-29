@@ -159,6 +159,28 @@ button.jd-link-button {
     line-height: 13px;
     width: 80px;
 }
+.jd-pill-text.jd-pill-text-dual{
+    height: auto;
+    min-height: 46px;
+    flex-direction: column;
+    gap: 4px;
+    line-height: 1.15;
+}
+.jd-pill-line{
+    width: 100%;
+    text-align: center;
+}
+.jd-pill-primary{
+    font-weight: 700;
+}
+.jd-pill-sub{
+    font-size: 11px;
+    color: #2c3b5c;
+    opacity: 0.85;
+}
+.jd-pill.is-active .jd-pill-sub{
+    opacity: 1;
+}
 
 button.jd-pill.is-active .jd-pill-text {
     color: #2c3b5c;

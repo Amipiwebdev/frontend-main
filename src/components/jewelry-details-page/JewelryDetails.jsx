@@ -20,7 +20,12 @@ const FALLBACK_FILTER_VALUES = {
   shapes: ["Round", "Oval", "Emerald", "Princess"],
   metal_types: ["14W", "14Y", "14R"],
   origins: ["Earth Mined", "Lab Grown"],
-  diamond_qualities: ["G-H / SI2-I1", "F-G / VS1", "D-F / VVS"],
+  diamond_qualities: [
+    { value: "G/H - VS1/VS2", label: "G/H - VS1/VS2", center_stone_name: "Earth Mined" },
+    { value: "G/H - SI", label: "G/H - SI", center_stone_name: "Earth Mined" },
+    { value: "G/H - SI3/I1", label: "G/H - SI3/I1", center_stone_name: "Earth Mined" },
+    { value: "F+ VS+", label: "F+ VS+", center_stone_name: "Lab Grown" },
+  ],
   ring_sizes: CUSTOM_OPTIONS.map((value) => ({ value_id: value, value_name: value })),
 };
 
@@ -51,6 +56,8 @@ const toOptionList = (list, fallback = []) => {
         color_code: item.color_code,
         dmt_tooltip: item.dmt_tooltip,
         tooltip: item.tooltip,
+        center_stone_name:
+          item.center_stone_name ?? item.centerStoneName ?? item.diamond_type ?? item.diamondType,
       };
       return { value, label, ...meta };
     }
@@ -159,9 +166,13 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
         const label = opt.label;
         const isShape = group.key === "shape";
         const isMetal = group.key === "metalType";
+        const isDiamondQuality = group.key === "diamondQuality";
         const iconSrc = isShape ? opt.image || SHAPE_ICONS[label] : null;
         const metalStyle = isMetal && opt.color_code ? { background: opt.color_code } : undefined;
         const pillText = isMetal ? opt.dmt_tooltip || opt.tooltip || label : label;
+        const centerStone = isDiamondQuality
+          ? opt.center_stone_name || opt.centerStoneName || opt.diamond_type || opt.diamondType
+          : "";
 
         return (
           <button
@@ -186,7 +197,14 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
                 }}
               />
             ) : null}
-            <span className="jd-pill-text">{pillText}</span>
+            {isDiamondQuality && centerStone ? (
+              <span className="jd-pill-text jd-pill-text-dual">
+                <span className="jd-pill-line jd-pill-primary">{pillText}</span>
+                <span className="jd-pill-line jd-pill-sub">{centerStone}</span>
+              </span>
+            ) : (
+              <span className="jd-pill-text">{pillText}</span>
+            )}
           </button>
         );
       })}
@@ -206,6 +224,24 @@ const JewelryDetails = () => {
   const [error, setError] = useState("");
   const [selection, setSelection] = useState(DEFAULT_SELECTIONS);
   const [quantity, setQuantity] = useState(1);
+
+  const valueOrDash = (val) =>
+    val === undefined || val === null || val === "" ? "-" : val;
+
+  const getProductValue = (...keys) => {
+    for (const key of keys) {
+      const value = product?.[key];
+      if (value !== undefined && value !== null && value !== "") return value;
+    }
+    return null;
+  };
+
+  const formatCt = (val) => {
+    if (val === undefined || val === null || val === "") return "-";
+    const num = Number(val);
+    if (Number.isNaN(num)) return valueOrDash(val);
+    return `${num.toFixed(2)} CT`;
+  };
 
   const updateSelection = (key, value) =>
     setSelection((prev) => ({ ...prev, [key]: value }));
@@ -255,23 +291,109 @@ const JewelryDetails = () => {
     product?.products_description ||
     "14K White Gold 2 cttw 4 Prong Timeless Dreams Bracelet with G-H color and SI3-I1 clarity earthmined Half Diamonds and Half Rubies.";
 
-  const getSelectedLabel = (selectionKey) => {
+  const getSelectedOption = (selectionKey) => {
     const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
     const sourceKey = group?.sourceKey;
     const options = sourceKey ? filterOptions[sourceKey] || [] : [];
-    const match = options.find((opt) => opt.value === selection[selectionKey]);
-    return match?.label || "";
+    return options.find((opt) => opt.value === selection[selectionKey]) || null;
+  };
+
+  const getSelectedLabel = (selectionKey) => getSelectedOption(selectionKey)?.label || "";
+
+  const getSelectedSummary = (selectionKey) => {
+    if (selectionKey === "diamondQuality") {
+      const option = getSelectedOption(selectionKey);
+      if (option) {
+        const centerStone =
+          option.center_stone_name || option.centerStoneName || option.diamond_type || option.diamondType;
+        return [option.label, centerStone].filter(Boolean).join(" | ");
+      }
+    }
+    return getSelectedLabel(selectionKey) || selection[selectionKey];
   };
 
   const selectedShape = getSelectedLabel("shape") || "Round";
   const selectedWeight = getSelectedLabel("diamondWeight") || "2 ct";
   const selectedMetal = getSelectedLabel("metalType") || "14K White Gold";
   const selectedOrigin = getSelectedLabel("diamondOrigin") || "Earth Mined";
-  const selectedQuality = getSelectedLabel("diamondQuality") || "G-H / SI2-I1";
+  const selectedQuality =
+    getSelectedLabel("diamondQuality") ||
+    filterOptions?.diamond_qualities?.[0]?.label ||
+    "G/H - VS1/VS2";
   const ringSizeLabel =
     (filterOptions.ring_sizes || []).find((opt) => opt.value === selection.ringSize)?.label ||
     selection.ringSize ||
     "7";
+
+  const productStoneType = getProductValue(
+    "stone_type",
+    "stoneType",
+    "primary_stone_type",
+    "primaryStoneType",
+    "pstonetype1",
+    "total_carat_weight",
+    "diamond_pics"
+  );
+
+  const primaryStone = {
+    type: getProductValue(
+      "prmry_dcst_type",
+      "primaryStoneType",
+      "stone_type",
+      "stoneType"
+    ),
+    origin: getProductValue("primary_origin", "primary_stone_origin", "stone_origin"),
+    shape: getProductValue("primary_shape", "primary_stone_shape","shapename"),
+    quality: getProductValue("primary_quality", "primary_stone_quality"),
+    totalCt: getProductValue(
+      "primary_total_ct_w",
+      "primary_total_ct",
+      "primary_total_carat_weight",
+      "primary_total_carat",
+      "stn1_tw"
+    ),
+    stoneSize: getProductValue("primary_stone_size", "primary_stone_carat", "primary_stone_weight","center_stone_weight"),
+    mm: getProductValue("primary_mm", "primary_millimeter", "primary_size_mm","center_stone_mm"),
+    pieces: getProductValue("primary_pieces", "primary_piece_count","stn1_pcs"),
+    breakdown: getProductValue("primary_breakdown", "primary_stone_breakdown","side_diamond_breakdown"),
+  };
+
+  const secondaryStone = {
+    type: getProductValue("secondary_stone_type", "secondaryStoneType","pst_alias"),
+    origin: getProductValue("secondary_origin", "secondary_stone_origin","center_stone_type"),
+    shape: getProductValue("secondary_shape", "secondary_stone_shape","shapename2"),
+    quality: getProductValue("secondary_quality", "secondary_stone_quality","stn_diamond_quality"),
+    totalCt: getProductValue(
+      "secondary_total_ct_w",
+      "secondary_total_ct",
+      "secondary_total_carat_weight",
+      "secondary_total_carat",
+      "stn2_cttw"
+    ),
+    stoneSize: getProductValue(
+      "secondary_stone_size",
+      "secondary_stone_carat",
+      "secondary_stone_weight",
+      "stn2_wt_per_pc"
+    ),
+    mm: getProductValue("secondary_mm", "secondary_millimeter", "secondary_size_mm","stn2_mm"),
+    pieces: getProductValue("secondary_pieces", "secondary_piece_count","stn2_pcs"),
+    breakdown: getProductValue("secondary_breakdown", "secondary_stone_breakdown","col_stn_breakdown"),
+  };
+
+  const selectionStats = {
+    standardTotalCt: getProductValue("standard_total_ct_w", "standard_total_ct", "total_ct_w"),
+    standardPieces: getProductValue("standard_pieces", "standard_piece_count"),
+    estimatedPieces: getProductValue("estimated_pieces", "estimated_piece_count"),
+    estimatedCt: getProductValue(
+      "estimated_ct_w",
+      "estimated_total_ct_w",
+      "estimated_total_carat_weight"
+    ),
+  };
+
+  const productEstTotalCt = getProductValue("total_carat_weight", "total_carat", "total_ct_w");
+  const productTotalPcs = getProductValue("diamond_pics", "stn1_pcs", "stn2_pcs");
 
   const formatPrice = (val) => {
     const num = Number(val);
@@ -323,48 +445,50 @@ const JewelryDetails = () => {
         { key: "Style No.", value: displaySku },
         { key: "Standard Size", value: ringSizeLabel },
         { key: "Metal Type", value: selectedMetal },
-        { key: "Stone Type", value: "Halfway Rubies" },
+        { key: "Stone Type", value: valueOrDash(productStoneType) },
         { key: "Shape", value: selectedShape },
         { key: "Weight Group", value: selectedWeight },
+        { key: "Est Total Ct (W)", value: formatCt(productEstTotalCt) },
+        { key: "Total Pcs", value: valueOrDash(productTotalPcs) },
       ],
     },
     {
       title: "Primary Stone Info",
       rows: [
-        { key: "Type", value: "Diamond" },
-        { key: "Origin", value: selectedOrigin },
-        { key: "Shape", value: selectedShape },
-        { key: "Quality", value: selectedQuality },
-        { key: "Total Ct (W)", value: "1.03 ct" },
-        { key: "Stone Size", value: "0.03 ct" },
-        { key: "MM", value: "1.80 mm" },
-        { key: "Pieces", value: "41" },
-        { key: "Breakdown", value: "41-0.03 RD, actual weight may vary" },
+        { key: "Type", value: valueOrDash(primaryStone.type) },
+        { key: "Origin", value: valueOrDash(primaryStone.origin ?? selectedOrigin) },
+        { key: "Shape", value: valueOrDash(primaryStone.shape ?? selectedShape) },
+        { key: "Quality", value: valueOrDash(primaryStone.quality ?? selectedQuality) },
+        { key: "Total Ct (W)", value: valueOrDash(primaryStone.totalCt) },
+        { key: "Stone Size", value: valueOrDash(primaryStone.stoneSize) },
+        { key: "MM", value: valueOrDash(primaryStone.mm) },
+        { key: "Pieces", value: valueOrDash(primaryStone.pieces) },
+        { key: "Breakdown", value: valueOrDash(primaryStone.breakdown) },
       ],
     },
     {
       title: "Secondary Stone Info",
       rows: [
-        { key: "Type", value: "Rubies" },
-        { key: "Origin", value: selectedOrigin },
-        { key: "Shape", value: selectedShape },
-        { key: "Quality", value: "AA Quality" },
-        { key: "Total Ct (W)", value: "1.00 ct" },
-        { key: "Stone Size", value: "0.03 ct" },
-        { key: "MM", value: "1.80 mm" },
-        { key: "Pieces", value: "40" },
-        { key: "Breakdown", value: "40-1.80 mm RD, actual weight may vary" },
+        { key: "Type", value: valueOrDash(secondaryStone.type) },
+        { key: "Origin", value: valueOrDash(secondaryStone.origin) },
+        { key: "Shape", value: valueOrDash(secondaryStone.shape || selectedShape) },
+        { key: "Quality", value: valueOrDash(secondaryStone.quality) },
+        { key: "Total Ct (W)", value: valueOrDash(secondaryStone.totalCt) },
+        { key: "Stone Size", value: valueOrDash(secondaryStone.stoneSize) },
+        { key: "MM", value: valueOrDash(secondaryStone.mm) },
+        { key: "Pieces", value: valueOrDash(secondaryStone.pieces) },
+        { key: "Breakdown", value: valueOrDash(secondaryStone.breakdown) },
       ],
     },
     {
       title: "Your Selection",
       rows: [
         { key: "Standard Size", value: ringSizeLabel },
-        { key: "Standard Total Ct (W)", value: "2.03 ct" },
-        { key: "Standard Pieces", value: "81" },
+        { key: "Standard Total Ct (W)", value: valueOrDash(selectionStats.standardTotalCt) },
+        { key: "Standard Pieces", value: valueOrDash(selectionStats.standardPieces) },
         { key: "Selected Size", value: ringSizeLabel },
-        { key: "Est. Pieces", value: "81" },
-        { key: "Est. Ct (W)", value: "2.03 ct" },
+        { key: "Est. Pieces", value: valueOrDash(selectionStats.estimatedPieces) },
+        { key: "Est. Ct (W)", value: valueOrDash(selectionStats.estimatedCt) },
       ],
     },
   ];
@@ -449,7 +573,7 @@ const JewelryDetails = () => {
                 <Accordion
                   key={group.key}
                   title={group.label}
-                  value={getSelectedLabel(group.key) || selection[group.key]}
+                  value={getSelectedSummary(group.key) || selection[group.key]}
                 >
                   <FilterGroup
                     group={group}
