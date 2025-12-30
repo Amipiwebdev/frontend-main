@@ -3287,7 +3287,7 @@ table.c_table_grey_box {margin-top: 0; }
 }
 p.product-description__title{margin-bottom: 0 !important;margin-top: 0px;}
 p.product-description__title a{
-    font-size: 14px;
+    font-size: 18px;
     color: #2c3b5c;
     line-height: 21px;
     margin-top: 0;
@@ -3426,7 +3426,7 @@ button.gallery-image-link {
     align-items: stretch;
     padding:0px 0 5px;
     background: #2c3b5c;
-    margin: 10px 0;
+    margin: 5px 0 0;
     border-radius: 10px;
     }
 
@@ -3453,7 +3453,7 @@ button.gallery-image-link {
     .details{display:grid; grid-template-columns: repeat(6, 1fr); column-gap:24px; row-gap:18px; padding:0;margin:0}
     .kv{display:grid; grid-template-columns:1fr; gap:0; align-content:start;position: relative;}
     .k{color:var(--muted); font-weight:bold; font-size:16px;color: #2c3b5c;}
-    .v{font-weight:normal;color: #606060;}
+    .v{font-weight:normal;color: #606060;line-height: 20px;}
 
     .note{padding:0px 0; color:#2c3b5c; font-size:16px;text-align: center;margin-bottom: 0;}
 
@@ -4542,36 +4542,36 @@ button.btn.btn-link span {
         .price-row{display:flex;align-items:center;justify-content:space-between}
         .price-item.right .price-row{justify-content:space-between}
 
-                /* container */
+        /* container */
 .stone-tabs{
-  margin-top:14px;
+  margin-top:5px;
 }
- 
+
 /* tab bar */
 .stone-tab-bar{
   display:flex;
   gap:28px;              /* spacing like screenshot */
   justify-content: center;
-  border-bottom:1px solid #d9d9d9;
+//   border-bottom:1px solid #d9d9d9;
 }
- 
+
 /* each tab */
 .stone-tab-btn{
   position:relative;
   background:transparent;
   border:0;
-  padding:10px 2px 14px;
+  padding:8px 2px 8px;
   cursor:pointer;
- 
+
   font-weight:700;
   font-size:14px;
   text-transform:uppercase;
   letter-spacing:.6px;
-  color:#8a8a8a;          /* inactive text */
- 
+  color:#223052;          /* inactive text */
+
   outline:none;
 }
- 
+
 /* small grey line (inactive) */
 .stone-tab-btn::after{
   content:"";
@@ -4580,33 +4580,41 @@ button.btn.btn-link span {
   right:0;
   bottom:-1px;
   margin:auto;
- 
+
   width:22px;
   height:3px;
   background:#bdbdbd;
   transition:all .25s ease;
 }
- 
+
 /* active tab */
 .stone-tab-btn.active{
   color:#223052;
 }
- 
+
 /* active underline */
 .stone-tab-btn.active::after{
   background:#223052;
   width:28px;
 }
- 
+
 /* panel spacing */
 .stone-tab-panel{
-  padding-top:14px;
+  padding:5px 0;
+  background: #FFF;
+    border-radius: 10px;
 }
- 
+
 .stone-tab-btn.active {
     color: #223052;
     border: 1px solid #d9d9d9;
-    border-bottom: 1px solid #f1f1f1;
+    border-bottom: 1px solid #FFFFFF;
     margin-bottom: -1px;
     padding: 0 14px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    background-color: #FFF;
+}
+.kv p {
+    margin-bottom: 0;
 }
