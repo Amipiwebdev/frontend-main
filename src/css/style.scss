@@ -4542,31 +4542,71 @@ button.btn.btn-link span {
         .price-row{display:flex;align-items:center;justify-content:space-between}
         .price-item.right .price-row{justify-content:space-between}
 
-        /* ✅ ONLY CHANGE: stone info as TABS */
-        .stone-tabs{margin-top:10px}
-        .stone-tab-bar{
-          display:flex;
-          gap:8px;
-          background:#f1f1f1;
-        }
-        .stone-tab-btn{
-          flex:1;
-          border:0;
-          background:transparent;
-          padding:3px 5px;
-          border-radius:8px;
-          font-weight:800;
-          color:#223052;
-          cursor:pointer;
-          transition:background .2s ease, box-shadow .2s ease;
-          border:1px solid #223052
-        }
-        .stone-tab-btn.active{
-          background:#fff;
-          box-shadow:0 2px 10px rgba(34,48,82,.10);
-        }
-        .stone-tab-panel{
-          margin-top:10px;
-          background:transparent;
-          padding:0px 12px;
-        }
+                /* container */
+.stone-tabs{
+  margin-top:14px;
+}
+ 
+/* tab bar */
+.stone-tab-bar{
+  display:flex;
+  gap:28px;              /* spacing like screenshot */
+  justify-content: center;
+  border-bottom:1px solid #d9d9d9;
+}
+ 
+/* each tab */
+.stone-tab-btn{
+  position:relative;
+  background:transparent;
+  border:0;
+  padding:10px 2px 14px;
+  cursor:pointer;
+ 
+  font-weight:700;
+  font-size:14px;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  color:#8a8a8a;          /* inactive text */
+ 
+  outline:none;
+}
+ 
+/* small grey line (inactive) */
+.stone-tab-btn::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-1px;
+  margin:auto;
+ 
+  width:22px;
+  height:3px;
+  background:#bdbdbd;
+  transition:all .25s ease;
+}
+ 
+/* active tab */
+.stone-tab-btn.active{
+  color:#223052;
+}
+ 
+/* active underline */
+.stone-tab-btn.active::after{
+  background:#223052;
+  width:28px;
+}
+ 
+/* panel spacing */
+.stone-tab-panel{
+  padding-top:14px;
+}
+ 
+.stone-tab-btn.active {
+    color: #223052;
+    border: 1px solid #d9d9d9;
+    border-bottom: 1px solid #f1f1f1;
+    margin-bottom: -1px;
+    padding: 0 14px;
+}

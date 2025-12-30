@@ -178,6 +178,18 @@ button.jd-link-button {
     color: #2c3b5c;
     opacity: 0.85;
 }
+.jd-pill-sub.jd-pill-earth{
+    background: #2c3b5c;
+    color: #fed700;
+    border-radius: 8px;
+    padding: 4px 8px;
+}
+.jd-pill-sub.jd-pill-lab{
+    background: #6abf69;
+    color: #0d2b0d;
+    border-radius: 8px;
+    padding: 4px 8px;
+}
 .jd-pill.is-active .jd-pill-sub{
     opacity: 1;
 }

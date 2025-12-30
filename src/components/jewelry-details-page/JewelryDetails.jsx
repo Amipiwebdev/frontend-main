@@ -58,6 +58,7 @@ const toOptionList = (list, fallback = []) => {
         tooltip: item.tooltip,
         id: item.id ?? item.value_id ?? item.value,
         value_id: item.value_id,
+        diamond_type: item.diamond_type ?? item.diamondType,
         center_stone_name:
           item.center_stone_name ?? item.centerStoneName ?? item.diamond_type ?? item.diamondType,
       };
@@ -82,18 +83,25 @@ const buildFilterOptions = (apiFilters) => ({
   ring_sizes: toOptionList(apiFilters?.ring_sizes, FALLBACK_FILTER_VALUES.ring_sizes),
 });
 
+const optionValue = (opt) => opt?.id ?? opt?.value_id ?? opt?.value;
+
 const buildInitialSelections = (options) => ({
-  diamondWeight: options.diamond_weight_groups[0]?.value || "",
-  shape: options.shapes[0]?.value || "",
-  metalType: options.metal_types[0]?.value || "",
-  diamondOrigin: options.origins[0]?.value || "",
-  diamondQuality: options.diamond_qualities[0]?.value || "",
-  ringSize: options.ring_sizes[0]?.value || "",
+  diamondWeight: optionValue(options.diamond_weight_groups[0]) || "",
+  shape: optionValue(options.shapes[0]) || "",
+  metalType: optionValue(options.metal_types[0]) || "",
+  diamondOrigin: optionValue(options.origins[0]) || "",
+  diamondQuality: optionValue(options.diamond_qualities[0]) || "",
+  ringSize: optionValue(options.ring_sizes[0]) || "",
 });
 
 const syncSelectionWithOptions = (selection, options) => {
-  const ensure = (key, list) =>
-    list.some((opt) => opt.value === selection[key]) ? selection[key] : list[0]?.value || "";
+  const ensure = (key, list) => {
+    const sel = selection[key];
+    if (list.some((opt) => opt.value === sel)) return sel;
+    const matchByLabel = list.find((opt) => String(opt.label) === String(sel));
+    if (matchByLabel) return matchByLabel.value;
+    return list[0]?.value || "";
+  };
 
   return {
     ...selection,
@@ -226,16 +234,25 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
         const centerStone = isDiamondQuality
           ? opt.center_stone_name || opt.centerStoneName || opt.diamond_type || opt.diamondType
           : "";
+        const selectedValue = optionValue(opt);
+        const diamondType = isDiamondQuality ? (opt.diamond_type || centerStone || "").trim() : "";
+        const diamondTypeClass = diamondType
+          ? diamondType.toLowerCase().includes("lab")
+            ? "jd-pill-lab"
+            : diamondType.toLowerCase().includes("earth")
+            ? "jd-pill-earth"
+            : ""
+          : "";
 
         return (
           <button
-            key={`${group.key}-${opt.value}`}
+            key={`${group.key}-${selectedValue}`}
             type="button"
             className={`jd-pill ${isMetal ? "jd-metal-pill" : ""} ${isShape ? "jd-shape-pill" : ""} ${
-              value === opt.value ? "is-active" : ""
+              value === selectedValue ? "is-active" : ""
             }`}
             style={metalStyle}
-            onClick={() => onSelect(group.key, opt.value)}
+            onClick={() => onSelect(group.key, selectedValue)}
           >
             {iconSrc ? (
               <img
@@ -253,7 +270,7 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
             {isDiamondQuality && centerStone ? (
               <span className="jd-pill-text jd-pill-text-dual">
                 <span className="jd-pill-line jd-pill-primary">{pillText}</span>
-                <span className="jd-pill-line jd-pill-sub">{centerStone}</span>
+                <span className={`jd-pill-line jd-pill-sub ${diamondTypeClass}`}>{centerStone}</span>
               </span>
             ) : (
               <span className="jd-pill-text">{pillText}</span>
@@ -328,8 +345,8 @@ const JewelryDetails = () => {
           deriveSelection(normalizedFilters, data.product, resetSelection ? {} : nextSelection, resetSelection)
         );
         const nextDesignId = data.product?.design_id || data.product?.designId || designIdRef.current || "";
-        setDesignId(nextDesignId);
-        designIdRef.current = nextDesignId;
+        setDesignId(nextDesignId || "");
+        designIdRef.current = nextDesignId || "";
         setActiveMedia(0);
       })
       .catch((err) => {
@@ -345,7 +362,9 @@ const JewelryDetails = () => {
     if (selection[key] === value) return;
     const nextSelection = { ...selection, [key]: value };
     setSelection(nextSelection);
-    fetchProductDetails(nextSelection);
+    fetchProductDetails(nextSelection, {
+      designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+    });
   };
 
   const handleRingSizeChange = (e) => {
@@ -355,7 +374,21 @@ const JewelryDetails = () => {
       null;
     const nextSelection = { ...selection, ringSize: option ? option.value : targetValue };
     setSelection(nextSelection);
-    fetchProductDetails(nextSelection);
+    fetchProductDetails(nextSelection, {
+      designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+    });
+  };
+
+  const handleDesignIdChange = (e) => {
+    const nextId = e.target.value;
+    setDesignId(nextId);
+    designIdRef.current = nextId;
+  };
+
+  const handleDesignIdApply = () => {
+    fetchProductDetails(selection, {
+      designOverride: designIdRef.current || designId,
+    });
   };
 
   const handleQuantityChange = (e) => {
@@ -661,6 +694,19 @@ const JewelryDetails = () => {
               <div className="jd-reset-row">
                 <span className="jd-sku">#{displaySku}</span>
                 <button type="button" className="jd-link-button" onClick={handleResetFilters}>Reset Filter</button>
+              </div>
+
+              <div className="jd-design-row">                
+                <div className="jd-design-inputs">
+                  <input
+                    id="jd-design-id"
+                    type="text"
+                    className="form-control jd-design-input"
+                    value={designId}
+                    onChange={handleDesignIdChange}
+                    placeholder="Enter design id"
+                  />                  
+                </div>
               </div>
 
               <h1 className="jd-title">{displayTitle}</h1>
