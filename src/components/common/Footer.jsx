@@ -1,6 +1,6 @@
 import React from "react";
 
-const Footer = () => {
+export default React.memo(function Footer() {
   return (
     <footer className="bg-dark-blue mt-35 pt-20">
       <div className="width-1440">
@@ -578,7 +578,7 @@ const Footer = () => {
         <div className="copyright">
           <div className="col-sm-4 col-xs-12">
             <div>
-              <p className="text-white mt-0">Copyright 2025 © AMIPI.</p>
+              <p className="text-white mt-0">Copyright 2025 Ac AMIPI.</p>
             </div>
           </div>
           <div className="col-sm-8 col-xs-12">
@@ -600,6 +600,4 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
-
-export default Footer;
+});

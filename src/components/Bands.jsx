@@ -1,5 +1,6 @@
 // src/components/Bands.jsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import Header from "./common/Header";
 import Footer from "./common/Footer";
@@ -134,7 +135,7 @@ function getPricingParams() {
   };
 }
 
-function SafeImage({ src, alt, className, style }) {
+function SafeImage({ src, alt, className, style, loading = "lazy", fetchpriority }) {
   const [ok, setOk] = useState(true);
   if (!ok || !src) return null;
   return (
@@ -143,7 +144,8 @@ function SafeImage({ src, alt, className, style }) {
       alt={alt}
       className={className}
       style={style}
-      loading="lazy"
+      loading={loading}
+      fetchpriority={fetchpriority}
       onError={() => setOk(false)}
     />
   );
@@ -221,6 +223,24 @@ const money0 = (v) =>
 // stub for ConverRelatedCurrencyPrice(...)
 const convertCurrency = (v) => Number(v || 0);
 
+const shallowEqual = (a, b) => {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const k of keysA) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
+};
+
+const mergeReducer = (state, action) => {
+  const next = typeof action === "function" ? action(state) : { ...state, ...action };
+  if (next === state) return state;
+  return shallowEqual(state, next) ? state : next;
+};
+
 function useAuthState() {
   const { user, status, refresh } = useAuth();
   const goToLogin = useCallback((replace = false) => {
@@ -289,15 +309,15 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
 
       <div className="lb-dialog" onClick={(e) => e.stopPropagation()}>
         <button className="lb-close" aria-label="Close" onClick={onClose}>
-          ×
+          A-
         </button>
         {items.length > 1 && (
           <>
             <button className="lb-arrow lb-prev" aria-label="Previous" onClick={onPrev}>
-              ‹
+              ƒ?1
             </button>
             <button className="lb-arrow lb-next" aria-label="Next" onClick={onNext}>
-              ›
+              ƒ?§
             </button>
           </>
         )}
@@ -343,10 +363,12 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
 
     const nPer = Math.max(1, Math.min(perSlide, items.length));
     const targetLen = Math.max(items.length, nPer * minSlides);
+    const lcpIndex = items.findIndex((it) => it.type === "image");
 
     const padded = Array.from({ length: targetLen }, (_, i) => ({
       ...items[i % items.length],
       __origIndex: i % items.length,
+      __isLcpInstance: lcpIndex >= 0 && i === lcpIndex,
     }));
 
     const arr = [];
@@ -400,6 +422,7 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
                   justifyContent: "center",
                   cursor: "pointer",
                 };
+                const isLcpImage = item.type === "image" && item.__isLcpInstance;
 
                 return item.type === "video" ? (
                   <button
@@ -442,6 +465,8 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
                         objectFit: "contain",
                         background: "#fff",
                       }}
+                      loading={isLcpImage ? "eager" : "lazy"}
+                      fetchpriority={isLcpImage ? "high" : undefined}
                     />
                   </button>
                 );
@@ -543,14 +568,14 @@ function AccordionShell({ id, title, isMobile, openId, setOpenId, selectedLabel,
 /*                               MAIN PAGE                               */
 /* ===================================================================== */
 
-const Bands = () => {
+const Bands = React.memo(function Bands() {
   const [pageTitle, setPageTitle] = useState("Bands");
   const [pageHeaderText, setPageHeaderText] = useState("");
   const [navPopup, setNavPopup] = useState({ key: "", title: "", text: "" });
   const [showNavPopup, setShowNavPopup] = useState(false);
 
   // Allowed ID lists (from catnav)
-  const [allowed, setAllowed] = useState({
+  const [allowed, setAllowed] = useReducer(mergeReducer, {
     stoneTypes: [],
     designs: [],
     shapes: [],
@@ -565,7 +590,7 @@ const Bands = () => {
   const [vendorParam, setVendorParam] = useState(""); // e.g. "16,23"
 
   // Display data
-  const [data, setData] = useState({
+  const [data, setData] = useReducer(mergeReducer, {
     stoneTypes: [],
     designs: [],
     shapes: [],
@@ -576,7 +601,7 @@ const Bands = () => {
   });
 
   // Selections
-  const [selected, setSelected] = useState({
+  const [selected, setSelected] = useReducer(mergeReducer, {
     stoneType: null,
     design: null,
     shape: null,
@@ -663,7 +688,7 @@ const Bands = () => {
         try {
           await apiSession.post("/api/sso/exchange", {}, { headers: { Accept: "application/json" } });
         } catch {
-          // ignore – /api/me below will tell us if the session exists
+          // ignore ƒ?" /api/me below will tell us if the session exists
         }
 
         // 3) Ask /api/me for the canonical user payload
@@ -738,126 +763,138 @@ const Bands = () => {
 
   /* 1) Initial: fetch catnav + display lists + defaults */
   useEffect(() => {
-    api.get(`/catnav/${SEO_URL}`).then(async (res) => {
-      const nav = res.data?.[0] || {};
+    let isActive = true;
+    api
+      .get(`/catnav/${SEO_URL}`)
+      .then(async (res) => {
+        if (!isActive) return;
+        const nav = res.data?.[0] || {};
 
-      setPageTitle(nav.category_navigation_title || "Bands");
-      setPageHeaderText(String(nav.category_navigation_header_text || "").trim());
+        setPageTitle(nav.category_navigation_title || "Bands");
+        setPageHeaderText(String(nav.category_navigation_header_text || "").trim());
 
-      const popupText = String(nav.category_navigation_popup_text || "").trim();
-      const popupKey = `catnav_popup_seen_${nav.category_navigation_id || nav.category_navigation_seo_url || SEO_URL}`;
-      const popupTitle = nav.category_navigation_title || nav.category_navigation_pagename || "Notice";
+        const popupText = String(nav.category_navigation_popup_text || "").trim();
+        const popupKey = `catnav_popup_seen_${nav.category_navigation_id || nav.category_navigation_seo_url || SEO_URL}`;
+        const popupTitle = nav.category_navigation_title || nav.category_navigation_pagename || "Notice";
 
-      setNavPopup({ key: popupKey, title: popupTitle, text: popupText });
+        setNavPopup({ key: popupKey, title: popupTitle, text: popupText });
 
-      if (popupText && typeof window !== "undefined") {
-        const seen = localStorage.getItem(popupKey);
-        if (!seen) {
-          setShowNavPopup(true);
-          localStorage.setItem(popupKey, "1");
+        if (popupText && typeof window !== "undefined") {
+          const seen = localStorage.getItem(popupKey);
+          if (!seen) {
+            setShowNavPopup(true);
+            localStorage.setItem(popupKey, "1");
+          }
         }
-      }
 
-      const stoneTypeIds = String(nav.category_navigation_sub_stone_type ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s !== "")
-        .map(Number)
-        .filter((n) => !Number.isNaN(n));
+        const stoneTypeIds = String(nav.category_navigation_sub_stone_type ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "")
+          .map(Number)
+          .filter((n) => !Number.isNaN(n));
 
-      const designIds = String(nav.category_navigation_sub_category_group ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s !== "")
-        .map(Number)
-        .filter((n) => !Number.isNaN(n));
+        const designIds = String(nav.category_navigation_sub_category_group ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "")
+          .map(Number)
+          .filter((n) => !Number.isNaN(n));
 
-      const settingStyleIds = String(nav.category_navigation_sub_category ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s !== "")
-        .map(Number)
-        .filter((n) => !Number.isNaN(n));
+        const settingStyleIds = String(nav.category_navigation_sub_category ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "")
+          .map(Number)
+          .filter((n) => !Number.isNaN(n));
 
-      const shapeIds = String(nav.shap_display ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s !== "")
-        .map(Number)
-        .filter((n) => !Number.isNaN(n));
+        const shapeIds = String(nav.shap_display ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "")
+          .map(Number)
+          .filter((n) => !Number.isNaN(n));
 
-      const metalIds = String(nav.metal_type_display ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s !== "")
-        .map(Number)
-        .filter((n) => !Number.isNaN(n));
+        const metalIds = String(nav.metal_type_display ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "")
+          .map(Number)
+          .filter((n) => !Number.isNaN(n));
 
-      const qualityIds = String(nav.qualities_display ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s !== "")
-        .map(Number)
-        .filter((n) => !Number.isNaN(n));
+        const qualityIds = String(nav.qualities_display ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "")
+          .map(Number)
+          .filter((n) => !Number.isNaN(n));
 
-      const vendorIds = String(nav.vendor_display ?? nav.vendors_display ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s !== "")
-        .map(Number)
-        .filter((n) => !Number.isNaN(n));
+        const vendorIds = String(nav.vendor_display ?? nav.vendors_display ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "")
+          .map(Number)
+          .filter((n) => !Number.isNaN(n));
 
-      setAllowed({
-        stoneTypes: stoneTypeIds,
-        designs: designIds,
-        shapes: shapeIds,
-        settingStyles: settingStyleIds,
-        metals: metalIds,
-        qualities: qualityIds,
-        vendors: vendorIds,
-        diamondSizes: [],
+        if (!isActive) return;
+        setAllowed({
+          stoneTypes: stoneTypeIds,
+          designs: designIds,
+          shapes: shapeIds,
+          settingStyles: settingStyleIds,
+          metals: metalIds,
+          qualities: qualityIds,
+          vendors: vendorIds,
+          diamondSizes: [],
+        });
+
+        setVendorParam(vendorIds.join(","));
+
+        const [stoneTypesRes, designsRes, shapesRes, settingStylesRes, metalsRes, qualitiesRes] =
+          await Promise.all([
+            api.get(`/productstonetype/byids/${stoneTypeIds.join(",")}`),
+            api.get(`/stylegroup/byids/${designIds.join(",")}`),
+            api.get(`/shapes/byids/${shapeIds.join(",")}`),
+            api.get(`/stylecategory/byids/${settingStyleIds.join(",")}`),
+            api.get(`/metaltype/byids/${metalIds.join(",")}`),
+            api.get(`/quality/byids/${qualityIds.join(",")}`),
+          ]);
+
+        if (!isActive) return;
+        setData({
+          stoneTypes: stoneTypesRes.data || [],
+          designs: designsRes.data || [],
+          shapes: shapesRes.data || [],
+          settingStyles: settingStylesRes.data || [],
+          metals: metalsRes.data || [],
+          qualities: qualitiesRes.data || [],
+          diamondSizes: [],
+        });
+
+        setSelected((prev) => ({
+          ...prev,
+          stoneType: pickFirstAvailable(Number(nav.category_navigation_default_sub_stone_type), stoneTypeIds),
+          design: pickFirstAvailable(Number(nav.category_navigation_default_sub_category_group), designIds),
+          shape: pickFirstAvailable(Number(nav.shap_default), shapeIds),
+          settingStyle: pickFirstAvailable(Number(nav.category_navigation_default_sub_category), settingStyleIds),
+          metal: pickFirstAvailable(Number(nav.metal_type_default), metalIds),
+          quality: pickFirstAvailable(Number(nav.qualities_default), qualityIds),
+          diamondSize: null,
+          ringSize: null,
+        }));
       });
 
-      setVendorParam(vendorIds.join(","));
-
-      const [stoneTypesRes, designsRes, shapesRes, settingStylesRes, metalsRes, qualitiesRes] =
-        await Promise.all([
-          api.get(`/productstonetype/byids/${stoneTypeIds.join(",")}`),
-          api.get(`/stylegroup/byids/${designIds.join(",")}`),
-          api.get(`/shapes/byids/${shapeIds.join(",")}`),
-          api.get(`/stylecategory/byids/${settingStyleIds.join(",")}`),
-          api.get(`/metaltype/byids/${metalIds.join(",")}`),
-          api.get(`/quality/byids/${qualityIds.join(",")}`),
-        ]);
-
-      setData({
-        stoneTypes: stoneTypesRes.data || [],
-        designs: designsRes.data || [],
-        shapes: shapesRes.data || [],
-        settingStyles: settingStylesRes.data || [],
-        metals: metalsRes.data || [],
-        qualities: qualitiesRes.data || [],
-        diamondSizes: [],
-      });
-
-      setSelected((prev) => ({
-        ...prev,
-        stoneType: pickFirstAvailable(Number(nav.category_navigation_default_sub_stone_type), stoneTypeIds),
-        design: pickFirstAvailable(Number(nav.category_navigation_default_sub_category_group), designIds),
-        shape: pickFirstAvailable(Number(nav.shap_default), shapeIds),
-        settingStyle: pickFirstAvailable(Number(nav.category_navigation_default_sub_category), settingStyleIds),
-        metal: pickFirstAvailable(Number(nav.metal_type_default), metalIds),
-        quality: pickFirstAvailable(Number(nav.qualities_default), qualityIds),
-        diamondSize: null,
-        ringSize: null,
-      }));
-    });
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   /* 2) StoneType => Design */
   useEffect(() => {
-    if (!selected.stoneType) return;
+    let isActive = true;
+    if (!selected.stoneType) return undefined;
     api.get(`/designs`, { params: { stoneType: selected.stoneType } }).then((res) => {
+      if (!isActive) return;
       const allowedIds = allowed.designs;
       const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
       setData((d) => ({ ...d, designs: filtered }));
@@ -866,14 +903,19 @@ const Bands = () => {
         design: pickFirstAvailable(sel.design, filtered.map((x) => x.id)),
       }));
     });
+    return () => {
+      isActive = false;
+    };
   }, [selected.stoneType, allowed.designs]);
 
   /* 3) Design => Shape */
   useEffect(() => {
-    if (!selected.stoneType || !selected.design) return;
+    let isActive = true;
+    if (!selected.stoneType || !selected.design) return undefined;
     api
       .get(`/shapesnew`, { params: { stoneType: selected.stoneType, design: selected.design } })
       .then((res) => {
+        if (!isActive) return;
         const allowedIds = allowed.shapes;
         const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, shapes: filtered }));
@@ -882,16 +924,21 @@ const Bands = () => {
           shape: pickFirstAvailable(sel.shape, filtered.map((x) => x.id)),
         }));
       });
+    return () => {
+      isActive = false;
+    };
   }, [selected.stoneType, selected.design, allowed.shapes]);
 
   /* 4) Shape => Setting Styles */
   useEffect(() => {
-    if (!selected.stoneType || !selected.design || !selected.shape) return;
+    let isActive = true;
+    if (!selected.stoneType || !selected.design || !selected.shape) return undefined;
     api
       .get(`/setting-styles`, {
         params: { stoneType: selected.stoneType, design: selected.design, shape: selected.shape },
       })
       .then((res) => {
+        if (!isActive) return;
         const allowedIds = allowed.settingStyles;
         const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, settingStyles: filtered }));
@@ -900,11 +947,15 @@ const Bands = () => {
           settingStyle: pickFirstAvailable(sel.settingStyle, filtered.map((x) => x.id)),
         }));
       });
+    return () => {
+      isActive = false;
+    };
   }, [selected.stoneType, selected.design, selected.shape, allowed.settingStyles]);
 
   /* 5) Setting Style => Metal */
   useEffect(() => {
-    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle) return;
+    let isActive = true;
+    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle) return undefined;
     api
       .get(`/metals`, {
         params: {
@@ -915,6 +966,7 @@ const Bands = () => {
         },
       })
       .then((res) => {
+        if (!isActive) return;
         const allowedIds = allowed.metals;
         const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, metals: filtered }));
@@ -923,12 +975,16 @@ const Bands = () => {
           metal: pickFirstAvailable(sel.metal, filtered.map((x) => x.id)),
         }));
       });
+    return () => {
+      isActive = false;
+    };
   }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, allowed.metals]);
 
   /* 6) Metal => Quality */
   useEffect(() => {
+    let isActive = true;
     if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal)
-      return;
+      return undefined;
     api
       .get(`/qualities`, {
         params: {
@@ -940,6 +996,7 @@ const Bands = () => {
         },
       })
       .then((res) => {
+        if (!isActive) return;
         const allowedIds = allowed.qualities;
         const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, qualities: filtered }));
@@ -948,6 +1005,9 @@ const Bands = () => {
           quality: pickFirstAvailable(sel.quality, filtered.map((x) => x.id)),
         }));
       });
+    return () => {
+      isActive = false;
+    };
   }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, allowed.qualities]);
 
   /* Decide size unit (ct/mm) */
@@ -969,10 +1029,41 @@ const Bands = () => {
       ? "mm"
       : "ct";
 
+  const selectedDesign = useMemo(
+    () => data.designs.find((d) => (d.psg_id || d.id) === selected.design) || null,
+    [data.designs, selected.design]
+  );
+
+  const selectedShape = useMemo(
+    () => data.shapes.find((sh) => sh.id === selected.shape) || null,
+    [data.shapes, selected.shape]
+  );
+
+  const selectedSettingStyle = useMemo(
+    () => data.settingStyles.find((sc) => (sc.psc_id || sc.id) === selected.settingStyle) || null,
+    [data.settingStyles, selected.settingStyle]
+  );
+
+  const selectedMetal = useMemo(
+    () => data.metals.find((m) => (m.dmt_id || m.id) === selected.metal) || null,
+    [data.metals, selected.metal]
+  );
+
+  const selectedQuality = useMemo(
+    () => data.qualities.find((q) => (q.dqg_id || q.id) === selected.quality) || null,
+    [data.qualities, selected.quality]
+  );
+
+  const ringOptionSelected = useMemo(
+    () => ringOptions.find((o) => o.value_id === selected.ringSize) || null,
+    [ringOptions, selected.ringSize]
+  );
+
   /* 7) Quality => Stone Size */
   useEffect(() => {
+    let isActive = true;
     if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal || !selected.quality)
-      return;
+      return undefined;
 
     api
       .get(`/diamond-sizesnew`, {
@@ -987,6 +1078,7 @@ const Bands = () => {
         },
       })
       .then((res) => {
+        if (!isActive) return;
         const rows = Array.isArray(res.data) ? res.data : [];
 
         let sizes = rows.map((r) => {
@@ -1011,15 +1103,23 @@ const Bands = () => {
           diamondSize: pickFirstAvailable(sel.diamondSize, sizes),
         }));
       });
+
+    return () => {
+      isActive = false;
+    };
   }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, selected.quality, sizeUnit]);
 
-  /* 8) After diamond size → fetch ring size options from filters */
+  /* 8) After diamond size – fetch ring size options from filters */
   useEffect(() => {
-    if (!bootstrapDone) return;
+    let isActive = true;
+    if (!bootstrapDone) return undefined;
     if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal || !selected.quality || !selected.diamondSize) {
-      setRingOptions([]);
-      setSelected((sel) => ({ ...sel, ringSize: null }));
-      return;
+      setRingOptions((prev) => (prev.length ? [] : prev));
+      setSelected((sel) => {
+        if (sel.ringSize === null) return sel;
+        return { ...sel, ringSize: null };
+      });
+      return undefined;
     }
 
     const params = {
@@ -1035,16 +1135,36 @@ const Bands = () => {
     };
 
     api.get("/ring-size-options", { params }).then((res) => {
+      if (!isActive) return;
       const opts = Array.isArray(res.data) ? res.data : [];
-      setRingOptions(opts);
+      setRingOptions((prev) => {
+        const same =
+          prev.length === opts.length &&
+          prev.every(
+            (opt, idx) =>
+              opt.value_id === opts[idx]?.value_id &&
+              opt.value_name === opts[idx]?.value_name &&
+              opt.options_symbol === opts[idx]?.options_symbol &&
+              opt.options_price === opts[idx]?.options_price &&
+              opt.estimated_weight === opts[idx]?.estimated_weight &&
+              opt.estimated_symbol === opts[idx]?.estimated_symbol
+          );
+        return same ? prev : opts;
+      });
       setSelected((sel) => {
         const found = opts.find((x) => x.value_id === sel.ringSize);
-        return { ...sel, ringSize: found ? found.value_id : opts?.[0]?.value_id || null };
+        const nextRingSize = found ? found.value_id : opts?.[0]?.value_id || null;
+        if (sel.ringSize === nextRingSize) return sel;
+        return { ...sel, ringSize: nextRingSize };
       });
     });
-  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, selected.quality, selected.diamondSize, sizeUnit, vendorParam]);
 
-  /* 9) All filters + ring size → Product */
+    return () => {
+      isActive = false;
+    };
+  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, selected.quality, selected.diamondSize, sizeUnit, vendorParam, bootstrapDone]);
+
+  /* 9) All filters + ring size – Product */
   useEffect(() => {
     if (!bootstrapDone) return;
     if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal || !selected.quality || !selected.diamondSize || !selected.ringSize) {
@@ -1060,7 +1180,7 @@ const Bands = () => {
       metal: selected.metal,
       quality: selected.quality,
       diamondSize: selected.diamondSize,
-      ringSize: selected.ringSize, // <-- NEW: send ring size
+      ringSize: selected.ringSize,
       unit: sizeUnit,
       vendors: vendorParam || "",
       ...pricing,
@@ -1085,11 +1205,10 @@ const Bands = () => {
 
     let price = Number(product.products_price ?? product.base_price ?? product.products_price1 ?? 0);
 
-    const selectedRingOption = ringOptions.find((o) => o.value_id === selected.ringSize);
-    if (selectedRingOption) {
-      if (selectedRingOption.options_symbol && selectedRingOption.estimated_weight !== null) {
-        const estW = Number(selectedRingOption.estimated_weight);
-        switch (selectedRingOption.options_symbol) {
+    if (ringOptionSelected) {
+      if (ringOptionSelected.options_symbol && ringOptionSelected.estimated_weight !== null) {
+        const estW = Number(ringOptionSelected.estimated_weight);
+        switch (ringOptionSelected.options_symbol) {
           case "+":
             diamondPcs += estW;
             break;
@@ -1106,9 +1225,9 @@ const Bands = () => {
             break;
         }
       }
-      if (selectedRingOption.estimated_symbol && selectedRingOption.estimated_weight !== null) {
-        const estW = Number(selectedRingOption.estimated_weight);
-        switch (selectedRingOption.estimated_symbol) {
+      if (ringOptionSelected.estimated_symbol && ringOptionSelected.estimated_weight !== null) {
+        const estW = Number(ringOptionSelected.estimated_weight);
+        switch (ringOptionSelected.estimated_symbol) {
           case "+":
             caratWeight += estW;
             break;
@@ -1125,9 +1244,9 @@ const Bands = () => {
             break;
         }
       }
-      if (selectedRingOption.options_symbol && selectedRingOption.options_price !== null) {
-        const optPrice = Number(selectedRingOption.options_price);
-        switch (selectedRingOption.options_symbol) {
+      if (ringOptionSelected.options_symbol && ringOptionSelected.options_price !== null) {
+        const optPrice = Number(ringOptionSelected.options_price);
+        switch (ringOptionSelected.options_symbol) {
           case "+":
             price += optPrice;
             break;
@@ -1145,13 +1264,13 @@ const Bands = () => {
         }
       }
     }
-    setEstDiamondPcs(diamondPcs);
-    setEstCaratWt(caratWeight);
-    setEstPrice(price);
-  }, [product, ringOptions, selected.ringSize]);
+    setEstDiamondPcs((prev) => (prev === diamondPcs ? prev : diamondPcs));
+    setEstCaratWt((prev) => (prev === caratWeight ? prev : caratWeight));
+    setEstPrice((prev) => (prev === price ? prev : price));
+  }, [product, ringOptionSelected]);
 
   /* Build media items for gallery/lightbox */
-  const galleryItems = useMemo(() => {
+  const galleryImages = useMemo(() => {
     const arr = [];
     if (product?.videos?.length) {
       product.videos.forEach((v) => arr.push({ type: "video", src: toAbsoluteMediaUrl("video", v) }));
@@ -1163,10 +1282,29 @@ const Bands = () => {
   }, [product]);
 
   // Lightbox handlers
-  const openLightbox = (i) => setLbIndex(i);
-  const closeLightbox = () => setLbIndex(-1);
-  const prevLightbox = () => setLbIndex((i) => (i <= 0 ? galleryItems.length - 1 : i - 1));
-  const nextLightbox = () => setLbIndex((i) => (i + 1) % Math.max(galleryItems.length, 1));
+  const openLightbox = useCallback((i) => {
+    setLbIndex((prev) => (prev === i ? prev : i));
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setLbIndex((prev) => (prev === -1 ? prev : -1));
+  }, []);
+
+  const prevLightbox = useCallback(() => {
+    setLbIndex((i) => {
+      if (!galleryImages.length) return i;
+      const nextIdx = i <= 0 ? galleryImages.length - 1 : i - 1;
+      return nextIdx === i ? i : nextIdx;
+    });
+  }, [galleryImages.length]);
+
+  const nextLightbox = useCallback(() => {
+    setLbIndex((i) => {
+      if (!galleryImages.length) return i;
+      const nextIdx = (i + 1) % Math.max(galleryImages.length, 1);
+      return nextIdx === i ? i : nextIdx;
+    });
+  }, [galleryImages.length]);
 
   const formatDiamondSize = useCallback(
     (val) => {
@@ -1181,56 +1319,69 @@ const Bands = () => {
 
   /* Selected labels for mobile accordion headers */
   const selectedLabels = useMemo(() => {
-    const stoneType = data.stoneTypes.find((st) => (st.pst_id || st.id) === selected.stoneType);
-    const design = data.designs.find((d) => (d.psg_id || d.id) === selected.design);
-    const shape = data.shapes.find((sh) => sh.id === selected.shape);
-    const settingStyle = data.settingStyles.find((sc) => (sc.psc_id || sc.id) === selected.settingStyle);
-    const metal = data.metals.find((m) => (m.dmt_id || m.id) === selected.metal);
-    const quality = data.qualities.find((q) => (q.dqg_id || q.id) === selected.quality);
-    const ring = ringOptions.find((opt) => opt.value_id === selected.ringSize);
+    const ring = ringOptionSelected;
 
-    const metalLabel = metal?.dmt_name || metal?.name || metal?.dmt_tooltip || "";
-    const qualityAlias = quality?.dqg_alias || quality?.dqg_name || quality?.name || "";
-    const qualityOrigin = quality?.dqg_origin || quality?.origin || "";
+    const metalLabel = selectedMetal?.dmt_name || selectedMetal?.name || selectedMetal?.dmt_tooltip || "";
+    const qualityAlias = selectedQuality?.dqg_alias || selectedQuality?.dqg_name || selectedQuality?.name || "";
+    const qualityOrigin = selectedQuality?.dqg_origin || selectedQuality?.origin || "";
     const qualityLabel = qualityAlias ? (qualityOrigin ? `${qualityAlias} - ${qualityOrigin}` : qualityAlias) : qualityOrigin || "";
 
     return {
-      stoneType: stoneType?.pst_description || stoneType?.pst_name || stoneType?.name || "",
-      design: design?.psg_name || design?.name || "",
-      shape: shape?.name || "",
-      settingStyle: settingStyle?.psc_name || settingStyle?.name || "",
+      stoneType: selectedStoneType?.pst_description || selectedStoneType?.pst_name || selectedStoneType?.name || "",
+      design: selectedDesign?.psg_name || selectedDesign?.name || "",
+      shape: selectedShape?.name || "",
+      settingStyle: selectedSettingStyle?.psc_name || selectedSettingStyle?.name || "",
       metal: metalLabel,
       quality: qualityLabel,
       diamondSize: selected.diamondSize != null ? `${formatDiamondSize(selected.diamondSize)} ${sizeUnit.toUpperCase()}` : "",
       ringSize: ring?.value_name || "",
     };
-  }, [data.stoneTypes, data.designs, data.shapes, data.settingStyles, data.metals, data.qualities, ringOptions, selected, sizeUnit, formatDiamondSize]);
+  }, [
+    ringOptionSelected,
+    selectedStoneType,
+    selectedDesign,
+    selectedShape,
+    selectedSettingStyle,
+    selectedMetal,
+    selectedQuality,
+    selected.diamondSize,
+    sizeUnit,
+    formatDiamondSize,
+  ]);
 
   // Filter click handler
-  function handleFilterChange(key, value) {
-    setSelected((prev) => {
-      const updated = { ...prev, [key]: value };
+  const handleFilterChange = useCallback(
+    (key, value) => {
+      setSelected((prev) => {
+        const dataMap = {
+          stoneType: data.stoneTypes.map((x) => x.pst_id || x.id),
+          design: data.designs.map((x) => x.psg_id || x.id),
+          shape: data.shapes.map((x) => x.id),
+          settingStyle: data.settingStyles.map((x) => x.psc_id || x.id),
+          metal: data.metals.map((x) => x.dmt_id || x.id),
+          quality: data.qualities.map((x) => x.dqg_id || x.id),
+          diamondSize: data.diamondSizes,
+          ringSize: ringOptions.map((x) => x.value_id),
+        };
 
-      const dataMap = {
-        stoneType: data.stoneTypes.map((x) => x.pst_id || x.id),
-        design: data.designs.map((x) => x.psg_id || x.id),
-        shape: data.shapes.map((x) => x.id),
-        settingStyle: data.settingStyles.map((x) => x.psc_id || x.id),
-        metal: data.metals.map((x) => x.dmt_id || x.id),
-        quality: data.qualities.map((x) => x.dqg_id || x.id),
-        diamondSize: data.diamondSizes,
-        ringSize: ringOptions.map((x) => x.value_id),
-      };
-
-      const idx = FILTER_ORDER.indexOf(key);
-      for (const k of FILTER_ORDER.slice(idx + 1)) {
-        if (updated[k] !== null && !dataMap[k]?.includes(updated[k])) {
-          updated[k] = null;
+        const updated = { ...prev, [key]: value };
+        const idx = FILTER_ORDER.indexOf(key);
+        for (const k of FILTER_ORDER.slice(idx + 1)) {
+          if (updated[k] !== null && !dataMap[k]?.includes(updated[k])) {
+            updated[k] = null;
+          }
         }
-      }
-      return updated;
-    });
-  }
+
+        const changed = FILTER_ORDER.some((k) => prev[k] !== updated[k]);
+        return changed ? updated : prev;
+      });
+    },
+    [data, ringOptions]
+  );
+
+  const handleMetalChange = useCallback((value) => handleFilterChange("metal", value), [handleFilterChange]);
+  const handleQualityChange = useCallback((value) => handleFilterChange("quality", value), [handleFilterChange]);
+  const handleRingSizeChange = useCallback((value) => handleFilterChange("ringSize", value), [handleFilterChange]);
 
   // CSRF preflight
   useEffect(() => {
@@ -1274,7 +1425,7 @@ const Bands = () => {
       .catch(() => setIsWishlisted(false));
   }, [product?.products_id, isAuthenticated]);
 
-  async function handleWishlistToggle() {
+  const handleWishlistToggle = useCallback(async () => {
     if (!product?.products_id || wishLoading) return;
     if (!isAuthenticated) {
       redirectToLogin();
@@ -1300,10 +1451,10 @@ const Bands = () => {
     } finally {
       setWishLoading(false);
     }
-  }
+  }, [product?.products_id, wishLoading, isAuthenticated, redirectToLogin]);
 
   /* -------------------- Compare -------------------- */
-  async function handleCompareToggle() {
+  const handleCompareToggle = useCallback(async () => {
     if (!isAuthenticated) {
       redirectToLogin();
       return;
@@ -1320,7 +1471,7 @@ const Bands = () => {
     } finally {
       setComparLoading(false);
     }
-  }
+  }, [isAuthenticated, redirectToLogin, product?.products_id, comparLoading]);
 
   /* -------------------- Cart -------------------- */
   useEffect(() => {
@@ -1339,7 +1490,7 @@ const Bands = () => {
       .catch(() => setIsInCart(false));
   }, [product?.products_id, isAuthenticated]);
 
-  async function handleCartToggle() {
+  const handleCartToggle = useCallback(async () => {
     if (!product?.products_id || cartLoading) return;
     if (!isAuthenticated) {
       redirectToLogin();
@@ -1380,7 +1531,7 @@ const Bands = () => {
     } finally {
       setCartLoading(false);
     }
-  }
+  }, [product?.products_id, cartLoading, isAuthenticated, redirectToLogin, selected, sizeUnit, vendorParam]);
 
   /* ------------------------------------------------------------------ */
   /*                               Render                                */
@@ -1396,12 +1547,42 @@ const Bands = () => {
     String(product.stn2_pcs).trim() !== "";
   const showStoneDetails = hasStoneOneType && hasStoneTwoPcs;
 
-  // ✅ ONLY CHANGE: Primary/Secondary section converted from accordion to tabs
-  const [stoneTab, setStoneTab] = useState("primary");
+  const computedPrice = useMemo(() => {
+    const base =
+      estPrice !== null
+        ? Number(estPrice)
+        : Number(product?.products_price ?? product?.base_price ?? product?.products_price1 ?? NaN);
+    if (Number.isNaN(base)) return null;
+    return base;
+  }, [estPrice, product]);
+
+  const displayPrice = useMemo(() => {
+    if (computedPrice === null) return null;
+    const tariffPer = Number(product?.tariff_per ?? 0);
+    const regularConverted = convertCurrency(computedPrice);
+    if (tariffPer > 0) {
+      const withTariff = Math.round(computedPrice * ((100 + tariffPer) / 100));
+      return {
+        hasTariff: true,
+        tariffPer,
+        regularConverted,
+        withTariffConverted: convertCurrency(withTariff),
+      };
+    }
+    return {
+      hasTariff: false,
+      tariffPer,
+      regularConverted,
+      withTariffConverted: null,
+    };
+  }, [computedPrice, product]);
+
+  // ONLY CHANGE: Primary/Secondary section converted from accordion to tabs
+ 
+ const [stoneTab, setStoneTab] = useState("primary");
 
   return (
     <div>
-
       <Topbar />
       <Header />
       <div className="custom-container">
@@ -1418,8 +1599,8 @@ const Bands = () => {
           <div className="main-content flex-wrap d-flex align-items-start p-0 justify-content-center">
             {/* GALLERY */}
             <div className="left-gallery-band row col-12 p-3">
-              <GalleryCarousel items={galleryItems} onOpen={openLightbox} />
-              <Lightbox items={galleryItems} index={lbIndex} onClose={closeLightbox} onPrev={prevLightbox} onNext={nextLightbox} />
+              <GalleryCarousel items={galleryImages} onOpen={openLightbox} />
+              <Lightbox items={galleryImages} index={lbIndex} onClose={closeLightbox} onPrev={prevLightbox} onNext={nextLightbox} />
             </div>
 
             {/* FILTERS + DETAILS */}
@@ -1549,7 +1730,7 @@ const Bands = () => {
                         key={m.dmt_id || m.id}
                         type="button"
                         className={"filter-card" + (selected.metal === (m.dmt_id || m.id) ? " selected" : "")}
-                        onClick={() => handleFilterChange("metal", m.dmt_id || m.id)}
+                        onClick={() => handleMetalChange(m.dmt_id || m.id)}
                         title={m.dmt_name}
                       >
                         <div
@@ -1586,7 +1767,7 @@ const Bands = () => {
                         key={q.dqg_id || q.id}
                         type="button"
                         className={"filter-card" + (selected.quality === (q.dqg_id || q.id) ? " selected" : "")}
-                        onClick={() => handleFilterChange("quality", q.dqg_id || q.id)}
+                        onClick={() => handleQualityChange(q.dqg_id || q.id)}
                       >
                         <div className="quality-alias">{q.dqg_alias || q.name}</div>
                         <div className={"quality-origin " + ((q.dqg_origin || q.origin) === "Lab Grown" ? "lab-grown" : "earth-mined")}>
@@ -1624,7 +1805,7 @@ const Bands = () => {
                 </AccordionShell>
               </div>
 
-              {/* Ring Size — keep visible once options exist */}
+              {/* Ring Size – keep visible once options exist */}
               <div className="filter-block col-12 col-lg-3 col-md-12 col-sm-12 ring-size-block">
                 {!isMobile && <div className="filter-title">CHOOSE RING SIZE</div>}
                 <AccordionShell
@@ -1646,7 +1827,7 @@ const Bands = () => {
                       value={selected.ringSize}
                       loading={optionsLoading}
                       disabled={!ringOptions.length}
-                      onChange={(val) => handleFilterChange("ringSize", val)}
+                      onChange={handleRingSizeChange}
                     />
                   </div>
                 </AccordionShell>
@@ -1690,7 +1871,7 @@ const Bands = () => {
                               {/* Ring Size */}
                               <div className="pill small" aria-label="Ring size">
                                 <span>Ring Size:</span>
-                                <strong>{ringOptions.find((o) => o.value_id === selected.ringSize)?.value_name || "--"}</strong>
+                                <strong>{ringOptionSelected?.value_name || "--"}</strong>
                               </div>
 
                               {/* Est Carat */}
@@ -1698,7 +1879,7 @@ const Bands = () => {
                                 <strong>Est. Carat Wt*</strong>
                                 <strong className="sub l-pill">
                                   {estCaratWt !== null ? Number(estCaratWt).toFixed(2) : product.total_carat_weight || "--"}{" "}
-                                  <span className="font-normal">CT [+/− 5%]</span>
+                                  <span className="font-normal">CT [+/ƒ^' 5%]</span>
                                 </strong>
                               </div>
 
@@ -1726,38 +1907,28 @@ const Bands = () => {
                                     );
                                   }
 
-                                  const base =
-                                    estPrice !== null
-                                      ? Number(estPrice)
-                                      : Number(product?.products_price ?? product?.base_price ?? product?.products_price1 ?? NaN);
+                                  if (computedPrice === null || !displayPrice) return <>$ --</>;
 
-                                  if (Number.isNaN(base)) return <>$ --</>;
-
-                                  const tariffPer = Number(product?.tariff_per ?? 0);
-                                  const regularConverted = convertCurrency(base);
-
-                                  if (tariffPer > 0) {
-                                    const withTariff = Math.round(base * ((100 + tariffPer) / 100));
-                                    const withTariffConverted = convertCurrency(withTariff);
+                                  if (displayPrice.hasTariff && displayPrice.tariffPer > 0) {
                                     return (
                                       <div className="price-grid">
                                         <div className="price-item">
                                           <div className="price-row">
                                             <span className="label">Regular Price</span>
-                                            <span className="value">${money0(regularConverted)}</span>
+                                            <span className="value">${money0(displayPrice.regularConverted)}</span>
                                           </div>
                                         </div>
                                         <div className="price-item right">
                                           <div className="price-row">
-                                            <span className="label">With {money0(tariffPer)}% Tariff</span>
-                                            <span className="value">${money0(withTariffConverted)}</span>
+                                            <span className="label">With {money0(displayPrice.tariffPer)}% Tariff</span>
+                                            <span className="value">${money0(displayPrice.withTariffConverted ?? 0)}</span>
                                           </div>
                                         </div>
                                       </div>
                                     );
                                   }
 
-                                  return <>$ {money0(regularConverted)}</>;
+                                  return <>$ {money0(displayPrice.regularConverted)}</>;
                                 })()}
                               </div>
                             </div>
@@ -1794,7 +1965,7 @@ const Bands = () => {
                               </div>
                             </div>
 
-                            {/* ✅ ONLY CHANGE: Primary/Secondary -> TABS */}
+                            {/* ONLY CHANGE: Primary/Secondary -> TABS */}
                             {showStoneDetails && (
                               <div className="stone-tabs">
                                 <div className="stone-tab-bar" role="tablist" aria-label="Stone info tabs">
@@ -1986,7 +2157,7 @@ const Bands = () => {
                             >
                               {(() => {
                                 if (!isAuthenticated) {
-                                  // 🔒 Guest user — show redirect button
+                                  // Guest user – show redirect button
                                   return (
                                     <button
                                       type="button"
@@ -1999,7 +2170,7 @@ const Bands = () => {
                                     </button>
                                   );
                                 } else {
-                                  // ✅ Logged-in user — show normal wishlist toggle
+                                  // Logged-in user – show normal wishlist toggle
                                   return (
                                     <button
                                       type="button"
@@ -2029,14 +2200,14 @@ const Bands = () => {
                               <div className="band-cart-btn">
                                 {(() => {
                                   if (!isAuthenticated) {
-                                    // 🔒 Guest user — show login redirect button
+                                    // Guest user – show login redirect button
                                     return (
                                       <button type="button" onClick={() => redirectToLogin()} className="common-btn band-cart">
                                         <i className="fa fa-shopping-cart" aria-hidden="true" /> Add to Cart
                                       </button>
                                     );
                                   } else {
-                                    // ✅ Logged-in user — show normal Add/Remove button
+                                    // Logged-in user – show normal Add/Remove button
                                     return (
                                       <button
                                         type="button"
@@ -2157,7 +2328,7 @@ const Bands = () => {
       )}
     </div>
   );
-};
+});
 
 function LoginModal({ open, onClose, onSuccess }) {
   const [email, setEmail] = useState("");
@@ -2176,41 +2347,44 @@ function LoginModal({ open, onClose, onSuccess }) {
 
   if (!open) return null;
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  const handleLogin = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setLoading(true);
+      setError("");
 
-    try {
-      const payload = {
-        login_uname: email.trim(),
-        login_pass: password,
-        jump_to: jump || undefined,
-      };
+      try {
+        const payload = {
+          login_uname: email.trim(),
+          login_pass: password,
+          jump_to: jump || undefined,
+        };
 
-      const { data } = await apiSession.post("api/login", payload, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        withCredentials: true, // Required for cookie session
-      });
+        const { data } = await apiSession.post("api/login", payload, {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          withCredentials: true, // Required for cookie session
+        });
 
-      if (data?.status === "success" && data?.user) {
-        // ✅ No need to manually check for amipi_sso cookie
-        localStorage.setItem("amipiUser", JSON.stringify(data.user));
-        onSuccess?.(data.user);
-      } else {
-        setError(data?.message || "Login failed");
+        if (data?.status === "success" && data?.user) {
+          // No need to manually check for amipi_sso cookie
+          localStorage.setItem("amipiUser", JSON.stringify(data.user));
+          onSuccess?.(data.user);
+        } else {
+          setError(data?.message || "Login failed");
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        const msg = err?.response?.data?.message || err?.response?.data?.error || "Login failed. Please check credentials.";
+        setError(msg);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Login error:", err);
-      const msg = err?.response?.data?.message || err?.response?.data?.error || "Login failed. Please check credentials.";
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [email, password, jump, onSuccess]
+  );
 
   return createPortal(
     <div
@@ -2365,7 +2539,7 @@ function LoginModal({ open, onClose, onSuccess }) {
             cursor: "pointer",
           }}
         >
-          ×
+          A-
         </button>
       </div>
     </div>,
