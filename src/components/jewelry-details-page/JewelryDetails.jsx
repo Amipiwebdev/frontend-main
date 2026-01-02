@@ -131,7 +131,7 @@ const selectionFromProduct = (product = {}) => {
   };
 };
 
-const buildSelectionParams = (selection = {}, options = {}, designId) => {
+const buildSelectionParams = (selection = {}, options = {}, designId, relatedDesignId) => {
   const resolve = (sourceKey, selectionKey) => {
     const list = options[sourceKey] || [];
     const selVal = selection[selectionKey];
@@ -160,6 +160,7 @@ const buildSelectionParams = (selection = {}, options = {}, designId) => {
     diamond_quality_id: resolve("diamond_qualities", "diamondQuality"),
     ring_size_id: resolve("ring_sizes", "ringSize"),
     design_id: designId || undefined,
+    related_design_id: relatedDesignId || undefined,
   };
 };
 
@@ -294,6 +295,8 @@ const JewelryDetails = () => {
   const [selection, setSelection] = useState(DEFAULT_SELECTIONS);
   const [designId, setDesignId] = useState("");
   const designIdRef = useRef("");
+  const [relatedDesignId, setRelatedDesignId] = useState("");
+  const relatedDesignIdRef = useRef("");
   const [quantity, setQuantity] = useState(1);
   const requestIdRef = useRef(0);
 
@@ -317,13 +320,22 @@ const JewelryDetails = () => {
 
   const fetchProductDetails = (
     nextSelection = selection,
-    { resetSelection = false, designOverride } = {}
+    { resetSelection = false, designOverride, relatedDesignOverride } = {}
   ) => {
     if (!sku) return;
+    const resolvedDesignId =
+      designOverride || designIdRef.current || designId || product?.design_id || product?.designId;
+    const resolvedRelatedDesignId =
+      relatedDesignOverride ||
+      relatedDesignIdRef.current ||
+      relatedDesignId ||
+      product?.related_design_id ||
+      product?.relatedDesignId;
     const params = buildSelectionParams(
       nextSelection,
       filterOptions,
-      designOverride || designIdRef.current || designId || product?.design_id || product?.designId
+      resolvedDesignId,
+      resolvedRelatedDesignId
     );
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
@@ -345,8 +357,15 @@ const JewelryDetails = () => {
           deriveSelection(normalizedFilters, data.product, resetSelection ? {} : nextSelection, resetSelection)
         );
         const nextDesignId = data.product?.design_id || data.product?.designId || designIdRef.current || "";
+        const nextRelatedDesignId =
+          data.product?.related_design_id ||
+          data.product?.relatedDesignId ||
+          relatedDesignIdRef.current ||
+          "";
         setDesignId(nextDesignId || "");
         designIdRef.current = nextDesignId || "";
+        setRelatedDesignId(nextRelatedDesignId || "");
+        relatedDesignIdRef.current = nextRelatedDesignId || "";
         setActiveMedia(0);
       })
       .catch((err) => {
@@ -364,6 +383,11 @@ const JewelryDetails = () => {
     setSelection(nextSelection);
     fetchProductDetails(nextSelection, {
       designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+      relatedDesignOverride:
+        relatedDesignIdRef.current ||
+        relatedDesignId ||
+        product?.related_design_id ||
+        product?.relatedDesignId,
     });
   };
 
@@ -376,6 +400,11 @@ const JewelryDetails = () => {
     setSelection(nextSelection);
     fetchProductDetails(nextSelection, {
       designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+      relatedDesignOverride:
+        relatedDesignIdRef.current ||
+        relatedDesignId ||
+        product?.related_design_id ||
+        product?.relatedDesignId,
     });
   };
 
@@ -385,9 +414,16 @@ const JewelryDetails = () => {
     designIdRef.current = nextId;
   };
 
+  const handleRelatedDesignIdChange = (e) => {
+    const nextId = e.target.value;
+    setRelatedDesignId(nextId);
+    relatedDesignIdRef.current = nextId;
+  };
+
   const handleDesignIdApply = () => {
     fetchProductDetails(selection, {
       designOverride: designIdRef.current || designId,
+      relatedDesignOverride: relatedDesignIdRef.current || relatedDesignId,
     });
   };
 
@@ -403,6 +439,11 @@ const JewelryDetails = () => {
     fetchProductDetails(resetSelection, {
       resetSelection: true,
       designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+      relatedDesignOverride:
+        relatedDesignIdRef.current ||
+        relatedDesignId ||
+        product?.related_design_id ||
+        product?.relatedDesignId,
     });
   };
 
@@ -411,6 +452,11 @@ const JewelryDetails = () => {
     fetchProductDetails(buildInitialSelections(filterOptions), {
       resetSelection: true,
       designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+      relatedDesignOverride:
+        relatedDesignIdRef.current ||
+        relatedDesignId ||
+        product?.related_design_id ||
+        product?.relatedDesignId,
     });
   }, [sku]);
 
@@ -696,7 +742,7 @@ const JewelryDetails = () => {
                 <button type="button" className="jd-link-button" onClick={handleResetFilters}>Reset Filter</button>
               </div>
 
-              <div className="jd-design-row">                
+              <div className="jd-design-row">
                 <div className="jd-design-inputs">
                   <input
                     id="jd-design-id"
@@ -705,8 +751,19 @@ const JewelryDetails = () => {
                     value={designId}
                     onChange={handleDesignIdChange}
                     placeholder="Enter design id"
-                  />                  
+                  />
+                  <input
+                    id="jd-related-design-id"
+                    type="text"
+                    className="form-control jd-design-input"
+                    value={relatedDesignId}
+                    onChange={handleRelatedDesignIdChange}
+                    placeholder="Enter related design id"
+                  />
                 </div>
+                <button type="button" className="btn btn-outline-primary" onClick={handleDesignIdApply}>
+                  Apply
+                </button>
               </div>
 
               <h1 className="jd-title">{displayTitle}</h1>
