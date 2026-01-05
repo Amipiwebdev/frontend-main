@@ -1,6 +1,6 @@
 // src/components/Bands.jsx
 
-import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Header from "./common/Header";
 import Footer from "./common/Footer";
@@ -135,7 +135,7 @@ function getPricingParams() {
   };
 }
 
-function SafeImage({ src, alt, className, style, loading = "lazy", fetchpriority }) {
+function SafeImage({ src, alt, className, style, loading = "lazy", fetchpriority, decoding = "async" }) {
   const [ok, setOk] = useState(true);
   if (!ok || !src) return null;
   return (
@@ -145,6 +145,7 @@ function SafeImage({ src, alt, className, style, loading = "lazy", fetchpriority
       className={className}
       style={style}
       loading={loading}
+      decoding={decoding}
       fetchpriority={fetchpriority}
       onError={() => setOk(false)}
     />
@@ -174,6 +175,75 @@ function SafeVideo({
       playsInline
       onError={() => setOk(false)}
     />
+  );
+}
+
+function LazyVideo({
+  src,
+  className,
+  style,
+  autoPlay = true,
+  muted = true,
+  loop = true,
+  controls = true,
+}) {
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (shouldLoad || !containerRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setShouldLoad(true);
+            observer.disconnect();
+          }
+        });
+      },
+      { rootMargin: "200px 0px" }
+    );
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  const handleActivate = useCallback(() => {
+    setShouldLoad(true);
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      onClick={handleActivate}
+      role="presentation"
+      style={{ width: "100%", height: "100%" }}
+    >
+      {shouldLoad ? (
+        <video
+          src={src}
+          className={className}
+          style={style}
+          autoPlay={autoPlay}
+          muted={muted}
+          loop={loop}
+          controls={controls}
+          playsInline
+        />
+      ) : (
+        <div
+          className={className}
+          style={{
+            ...style,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#000",
+          }}
+        >
+          <span style={{ color: "#fff", fontSize: 14, pointerEvents: "none" }}>Loading video…</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -333,7 +403,7 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
               style={{ background: "#000" }}
             />
           ) : (
-            <img src={item.src} alt="Product media" />
+            <img src={item.src} alt="Product media" loading="lazy" decoding="async" />
           )}
         </div>
       </div>
@@ -433,7 +503,7 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
                     onClick={open}
                     style={commonBtnStyle}
                   >
-                    <SafeVideo
+                    <LazyVideo
                       src={item.src}
                       controls={false}
                       className="gallery-image"
