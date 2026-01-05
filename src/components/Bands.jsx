@@ -14,6 +14,23 @@ const SEO_URL = "bands-test";
 const APP_BANDS_URL = "https://jewelry.amipi.com/bands";
 const LOGIN_HOST_URL = "https://www.amipi.com/bands";
 const LOGIN_URL = `${LOGIN_HOST_URL}?redirect=${encodeURIComponent(APP_BANDS_URL)}`;
+const DEFAULT_IMAGE_WIDTH = 880;
+const DEFAULT_IMAGE_HEIGHT = 880;
+const GALLERY_IMAGE_SIZES = "(max-width: 767px) 100vw, 33vw";
+const LIGHTBOX_IMAGE_SIZES = "92vw";
+const DM_SANS_STYLESHEET =
+  "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap";
+const LATO_STYLESHEET = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+const CRITICAL_FONT_PRELOADS = [
+  {
+    href: "https://fonts.gstatic.com/s/dmsans/v15/rP2Hp2ywxg089UriCZOIHTWEBlw.woff2",
+    type: "font/woff2",
+  },
+  {
+    href: "https://fonts.gstatic.com/s/lato/v24/S6uyw4BMUTPHjxAwXjeu.woff2",
+    type: "font/woff2",
+  },
+];
 
 /* ------------------------------------------------------------------ */
 /*                              Helpers                                */
@@ -135,7 +152,20 @@ function getPricingParams() {
   };
 }
 
-function SafeImage({ src, alt, className, style, loading = "lazy", fetchpriority, decoding = "async" }) {
+function SafeImage({
+  src,
+  alt,
+  className,
+  style,
+  loading = "lazy",
+  fetchpriority,
+  decoding = "async",
+  width,
+  height,
+  sizes,
+  srcSet,
+  ariaHidden,
+}) {
   const [ok, setOk] = useState(true);
   if (!ok || !src) return null;
   return (
@@ -147,6 +177,11 @@ function SafeImage({ src, alt, className, style, loading = "lazy", fetchpriority
       loading={loading}
       decoding={decoding}
       fetchpriority={fetchpriority}
+      width={width}
+      height={height}
+      sizes={sizes}
+      srcSet={srcSet}
+      aria-hidden={ariaHidden}
       onError={() => setOk(false)}
     />
   );
@@ -180,6 +215,7 @@ function SafeVideo({
 
 function LazyVideo({
   src,
+  poster,
   className,
   style,
   autoPlay = true,
@@ -187,47 +223,77 @@ function LazyVideo({
   loop = true,
   controls = true,
 }) {
-  const [shouldLoad, setShouldLoad] = useState(false);
+  const [activated, setActivated] = useState(false);
+  const [hasPlayed, setHasPlayed] = useState(false);
   const containerRef = useRef(null);
+  const observerRef = useRef(null);
 
   useEffect(() => {
-    if (shouldLoad || !containerRef.current) return;
+    if (activated || !containerRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setShouldLoad(true);
+            setActivated(true);
             observer.disconnect();
           }
         });
       },
       { rootMargin: "200px 0px" }
     );
+    observerRef.current = observer;
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [shouldLoad]);
+  }, [activated]);
+
+  useEffect(() => {
+    return () => observerRef.current?.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setHasPlayed(false);
+    setActivated(false);
+  }, [src]);
 
   const handleActivate = useCallback(() => {
-    setShouldLoad(true);
+    setActivated(true);
   }, []);
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        setActivated(true);
+      }
+    },
+    []
+  );
+
+  const preloadMode = activated ? (hasPlayed ? "auto" : "metadata") : "none";
+  const mountedSrc = activated ? src : "";
 
   return (
     <div
       ref={containerRef}
       onClick={handleActivate}
-      role="presentation"
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
       style={{ width: "100%", height: "100%" }}
     >
-      {shouldLoad ? (
+      {activated ? (
         <video
-          src={src}
+          src={mountedSrc}
           className={className}
           style={style}
           autoPlay={autoPlay}
           muted={muted}
           loop={loop}
           controls={controls}
+          preload={preloadMode}
+          poster={poster || undefined}
           playsInline
+          onPlay={() => setHasPlayed(true)}
         />
       ) : (
         <div
@@ -237,10 +303,13 @@ function LazyVideo({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "#000",
+            background: poster ? undefined : "#000",
+            backgroundImage: poster ? `url(${poster})` : undefined,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
           }}
         >
-          <span style={{ color: "#fff", fontSize: 14, pointerEvents: "none" }}>Loading video…</span>
+          <span style={{ color: "#fff", fontSize: 14, pointerEvents: "none" }}>Loading video...</span>
         </div>
       )}
     </div>
@@ -265,6 +334,8 @@ function toAbsoluteMediaUrl(type, input) {
   const base = `https://www.amipi.com/ampvd/${folder}`;
   return `${base}/${raw}`.replace(/([^:]\/)\/+/g, "$1");
 }
+
+const toSingleSrcSet = (url) => (url ? `${url} 1x` : "");
 
 const FILTER_ORDER = [
   "stoneType",
@@ -384,10 +455,10 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
         {items.length > 1 && (
           <>
             <button className="lb-arrow lb-prev" aria-label="Previous" onClick={onPrev}>
-              ƒ?1
+              ’'?1
             </button>
             <button className="lb-arrow lb-next" aria-label="Next" onClick={onNext}>
-              ƒ?§
+              ’'?A
             </button>
           </>
         )}
@@ -399,11 +470,21 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
               autoPlay
               muted
               loop
+              poster={item.poster || undefined}
               playsInline
               style={{ background: "#000" }}
             />
           ) : (
-            <img src={item.src} alt="Product media" loading="lazy" decoding="async" />
+            <img
+              src={item.src}
+              alt="Product media"
+              loading="lazy"
+              decoding="async"
+              width={item.width || DEFAULT_IMAGE_WIDTH}
+              height={item.height || DEFAULT_IMAGE_HEIGHT}
+              sizes={item.sizes || LIGHTBOX_IMAGE_SIZES}
+              srcSet={item.srcSet || undefined}
+            />
           )}
         </div>
       </div>
@@ -505,6 +586,7 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
                   >
                     <LazyVideo
                       src={item.src}
+                      poster={item.poster}
                       controls={false}
                       className="gallery-image"
                       style={{
@@ -537,6 +619,10 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
                       }}
                       loading={isLcpImage ? "eager" : "lazy"}
                       fetchpriority={isLcpImage ? "high" : undefined}
+                      width={item.width || DEFAULT_IMAGE_WIDTH}
+                      height={item.height || DEFAULT_IMAGE_HEIGHT}
+                      sizes={item.sizes || GALLERY_IMAGE_SIZES}
+                      srcSet={item.srcSet || undefined}
                     />
                   </button>
                 );
@@ -799,6 +885,7 @@ const Bands = React.memo(function Bands() {
   // Wishlist state
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [wishLoading, setWishLoading] = useState(false);
+  const fontStylesheets = useMemo(() => [DM_SANS_STYLESHEET, LATO_STYLESHEET], []);
 
   // Compare state
   const [isCompared, setIsCompared] = useState(false);
@@ -807,6 +894,20 @@ const Bands = React.memo(function Bands() {
   // Cart state
   const [isInCart, setIsInCart] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
+
+  const scheduleAfterPaint = useCallback((task) => {
+    if (typeof window === "undefined") return () => {};
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(task);
+      return () => {
+        if (typeof window.cancelIdleCallback === "function") {
+          window.cancelIdleCallback(id);
+        }
+      };
+    }
+    const id = setTimeout(task, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   // --------- Mobile detection & one-at-a-time accordion ----------
   const [isMobile, setIsMobile] = useState(false);
@@ -826,6 +927,49 @@ const Bands = React.memo(function Bands() {
   useEffect(() => {
     document.title = pageTitle;
   }, [pageTitle]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const head = document.head;
+    const created = [];
+    fontStylesheets.forEach((href) => {
+      if (head.querySelector(`link[data-font-stylesheet="${href}"]`)) return;
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      link.setAttribute("data-font-stylesheet", href);
+      head.appendChild(link);
+      created.push(link);
+    });
+    return () => {
+      created.forEach((link) => {
+        if (link.parentNode) link.parentNode.removeChild(link);
+      });
+    };
+  }, [fontStylesheets]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const head = document.head;
+    const created = [];
+    CRITICAL_FONT_PRELOADS.slice(0, 2).forEach((font) => {
+      if (head.querySelector(`link[data-font-preload="${font.href}"]`)) return;
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "font";
+      link.type = font.type;
+      link.crossOrigin = "anonymous";
+      link.href = font.href;
+      link.setAttribute("data-font-preload", font.href);
+      head.appendChild(link);
+      created.push(link);
+    });
+    return () => {
+      created.forEach((link) => {
+        if (link.parentNode) link.parentNode.removeChild(link);
+      });
+    };
+  }, []);
 
   // Helpers for filter card images
   const getImageUrl = (file, folder) =>
@@ -1342,14 +1486,52 @@ const Bands = React.memo(function Bands() {
   /* Build media items for gallery/lightbox */
   const galleryImages = useMemo(() => {
     const arr = [];
+    const fallbackPoster =
+      Array.isArray(product?.images) && product.images[0] ? toAbsoluteMediaUrl("image", product.images[0]) : "";
     if (product?.videos?.length) {
-      product.videos.forEach((v) => arr.push({ type: "video", src: toAbsoluteMediaUrl("video", v) }));
+      product.videos.forEach((v) => {
+        const posterCandidate =
+          (typeof v === "object" &&
+            (v.poster || v.thumbnail || v.thumb || v.image || v.preview || v.poster_image)) ||
+          fallbackPoster;
+        const poster = posterCandidate ? toAbsoluteMediaUrl("image", posterCandidate) : "";
+        arr.push({ type: "video", src: toAbsoluteMediaUrl("video", v), poster });
+      });
     }
     if (product?.images?.length) {
-      product.images.forEach((im) => arr.push({ type: "image", src: toAbsoluteMediaUrl("image", im) }));
+      product.images.forEach((im) => {
+        const imageSrc = toAbsoluteMediaUrl("image", im);
+        arr.push({
+          type: "image",
+          src: imageSrc,
+          srcSet: toSingleSrcSet(imageSrc),
+          sizes: GALLERY_IMAGE_SIZES,
+          width: DEFAULT_IMAGE_WIDTH,
+          height: DEFAULT_IMAGE_HEIGHT,
+        });
+      });
     }
     return arr;
   }, [product]);
+
+  const primaryVideoPoster = useMemo(() => {
+    const firstVideoWithPoster = galleryImages.find((it) => it.type === "video" && it.poster);
+    return firstVideoWithPoster?.poster || "";
+  }, [galleryImages]);
+
+  useEffect(() => {
+    if (!primaryVideoPoster) return undefined;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = primaryVideoPoster;
+    document.head.appendChild(link);
+    return () => {
+      if (link.parentNode) {
+        link.parentNode.removeChild(link);
+      }
+    };
+  }, [primaryVideoPoster]);
 
   // Lightbox handlers
   const openLightbox = useCallback((i) => {
@@ -1455,8 +1637,11 @@ const Bands = React.memo(function Bands() {
 
   // CSRF preflight
   useEffect(() => {
-    apiSession.get("/api/csrf").catch(() => {});
-  }, []);
+    const cancel = scheduleAfterPaint(() => {
+      apiSession.get("/api/csrf").catch(() => {});
+    });
+    return cancel;
+  }, [scheduleAfterPaint]);
 
   // ids fallback using session user
   function resolveIdsWithAuthFallback(baseIds = {}) {
@@ -1482,18 +1667,22 @@ const Bands = React.memo(function Bands() {
 
     const ids = resolveIdsWithAuthFallback(getClientIds());
 
-    apiSession
-      .get("/api/wishlist/check", {
-        params: {
-          products_id: product.products_id,
-          customers_id: ids.customers_id,
-          parent_retailer_id: ids.parent_retailer_id,
-        },
-        headers: { Accept: "application/json" },
-      })
-      .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
-      .catch(() => setIsWishlisted(false));
-  }, [product?.products_id, isAuthenticated]);
+    const cancel = scheduleAfterPaint(() => {
+      apiSession
+        .get("/api/wishlist/check", {
+          params: {
+            products_id: product.products_id,
+            customers_id: ids.customers_id,
+            parent_retailer_id: ids.parent_retailer_id,
+          },
+          headers: { Accept: "application/json" },
+        })
+        .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
+        .catch(() => setIsWishlisted(false));
+    });
+
+    return cancel;
+  }, [product?.products_id, isAuthenticated, scheduleAfterPaint]);
 
   const handleWishlistToggle = useCallback(async () => {
     if (!product?.products_id || wishLoading) return;
@@ -1551,14 +1740,18 @@ const Bands = React.memo(function Bands() {
     }
     const { customers_id, parent_retailer_id } = getClientIds();
 
-    apiSession
-      .get("/api/cartcheck", {
-        params: { products_id: product.products_id, customers_id, parent_retailer_id },
-        headers: { Accept: "application/json" },
-      })
-      .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
-      .catch(() => setIsInCart(false));
-  }, [product?.products_id, isAuthenticated]);
+    const cancel = scheduleAfterPaint(() => {
+      apiSession
+        .get("/api/cartcheck", {
+          params: { products_id: product.products_id, customers_id, parent_retailer_id },
+          headers: { Accept: "application/json" },
+        })
+        .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+        .catch(() => setIsInCart(false));
+    });
+
+    return cancel;
+  }, [product?.products_id, isAuthenticated, scheduleAfterPaint]);
 
   const handleCartToggle = useCallback(async () => {
     if (!product?.products_id || cartLoading) return;

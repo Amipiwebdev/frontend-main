@@ -1,5 +1,11 @@
 /**** Google Font **********/
-@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap');
+@font-face {
+    font-family: "Lato";
+    src: url("https://fonts.gstatic.com/s/lato/v24/S6uyw4BMUTPHjxAwXjeu.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
 
 
 /**** Global Variables **********/
