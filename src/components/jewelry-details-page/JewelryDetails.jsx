@@ -13,19 +13,14 @@ const SHAPE_ICONS = {
 };
 
 
-const CUSTOM_OPTIONS = ["6", "6.5", "7", "7.5"];
+const CUSTOM_OPTIONS = [];
 
 const FALLBACK_FILTER_VALUES = {
-  diamond_weight_groups: ["1 1/2 ct", "2 ct", "3 ct", "4 ct"],
-  shapes: ["Round", "Oval", "Emerald", "Princess"],
-  metal_types: ["14W", "14Y", "14R"],
-  origins: ["Earth Mined", "Lab Grown"],
-  diamond_qualities: [
-    { value: "G/H - VS1/VS2", label: "G/H - VS1/VS2", center_stone_name: "Earth Mined" },
-    { value: "G/H - SI", label: "G/H - SI", center_stone_name: "Earth Mined" },
-    { value: "G/H - SI3/I1", label: "G/H - SI3/I1", center_stone_name: "Earth Mined" },
-    { value: "F+ VS+", label: "F+ VS+", center_stone_name: "Lab Grown" },
-  ],
+  diamond_weight_groups: [],
+  shapes: [],
+  metal_types: [],
+  origins: [],
+  diamond_qualities: [],
   ring_sizes: CUSTOM_OPTIONS.map((value) => ({ value_id: value, value_name: value })),
 };
 
@@ -44,19 +39,33 @@ const toOptionList = (list, fallback = []) => {
       const value =
         item.value_id ??
         item.id ??
+        item.diamond_quality_id ??
+        item.quality_id ??
         item.value ??
         item.value_name ??
         item.label ??
         item.name ??
         item;
-      const label = item.value_name ?? item.label ?? item.name ?? item.title ?? String(value);
+      const label =
+        item.value_name ??
+        item.label ??
+        item.name ??
+        item.title ??
+        item.diamond_quality ??
+        item.quality ??
+        String(value);
       // Preserve extra fields (image for shapes, color_code/dmt_tooltip for metals, etc.)
       const meta = {
         image: item.image,
         color_code: item.color_code,
         dmt_tooltip: item.dmt_tooltip,
         tooltip: item.tooltip,
-        id: item.id ?? item.value_id ?? item.value,
+        id:
+          item.id ??
+          item.value_id ??
+          item.diamond_quality_id ??
+          item.quality_id ??
+          item.value,
         value_id: item.value_id,
         diamond_type: item.diamond_type ?? item.diamondType,
         center_stone_name:
@@ -460,13 +469,9 @@ const JewelryDetails = () => {
     });
   }, [sku]);
 
-  const displaySku = product?.products_style_no || sku || "B401200-14WE-R-H";
-  const displayTitle =
-    product?.products_name ||
-    "4 Prong Timeless Dreams Tennis Bracelet with Half Diamonds and Half Rubies";
-  const displayDescription =
-    product?.products_description ||
-    "14K White Gold 2 cttw 4 Prong Timeless Dreams Bracelet with G-H color and SI3-I1 clarity earthmined Half Diamonds and Half Rubies.";
+  const displaySku = product?.products_style_no || sku || "";
+  const displayTitle = product?.products_name || "";
+  const displayDescription = product?.products_description || "";
 
   const getSelectedOption = (selectionKey) => {
     const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
@@ -489,18 +494,19 @@ const JewelryDetails = () => {
     return getSelectedLabel(selectionKey) || selection[selectionKey];
   };
 
-  const selectedShape = getSelectedLabel("shape") || "Round";
-  const selectedWeight = getSelectedLabel("diamondWeight") || "2 ct";
-  const selectedMetal = getSelectedLabel("metalType") || "14K White Gold";
-  const selectedOrigin = getSelectedLabel("diamondOrigin") || "Earth Mined";
+  const selectedShape = getSelectedLabel("shape") || selection.shape || "";
+  const selectedWeight = getSelectedLabel("diamondWeight") || selection.diamondWeight || "";
+  const selectedMetal = getSelectedLabel("metalType") || selection.metalType || "";
+  const selectedOrigin = getSelectedLabel("diamondOrigin") || selection.diamondOrigin || "";
   const selectedQuality =
     getSelectedLabel("diamondQuality") ||
     filterOptions?.diamond_qualities?.[0]?.label ||
-    "G/H - VS1/VS2";
+    selection.diamondQuality ||
+    "";
   const ringSizeLabel =
     (filterOptions.ring_sizes || []).find((opt) => opt.value === selection.ringSize)?.label ||
     selection.ringSize ||
-    "7";
+    "";
 
   const productStoneType = getProductValue(
     "stone_type",
@@ -589,7 +595,7 @@ const JewelryDetails = () => {
         product?.products_price2 ??
         product?.products_price1 ??
         product?.products_msrp
-    ) || "$1,572.00";
+    ) || "";
 
   const buildMediaUrl = (filename, type = "image") => {
     if (!filename) return "";
