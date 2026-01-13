@@ -32,40 +32,114 @@ const FILTER_GROUPS = [
   { key: "diamondQuality", label: "Diamond Quality", sourceKey: "diamond_qualities" },
 ];
 
+const normalizeOptionText = (input) => {
+  if (input === undefined || input === null) return "";
+  if (typeof input === "string" || typeof input === "number" || typeof input === "boolean") {
+    return String(input);
+  }
+  if (Array.isArray(input)) {
+    for (const entry of input) {
+      const text = normalizeOptionText(entry);
+      if (text) return text;
+    }
+    return "";
+  }
+  if (typeof input === "object") {
+    const candidates = [
+      input.label,
+      input.name,
+      input.title,
+      input.value_name,
+      input.value,
+      input.diamond_quality,
+      input.quality,
+      input.display_name,
+      input.display,
+      input.text,
+    ];
+    for (const candidate of candidates) {
+      const text = normalizeOptionText(candidate);
+      if (text) return text;
+    }
+    if ("min" in input || "max" in input || "from" in input || "to" in input) {
+      const minText = normalizeOptionText(input.min ?? input.from);
+      const maxText = normalizeOptionText(input.max ?? input.to);
+      if (minText || maxText) return [minText, maxText].filter(Boolean).join(" - ");
+    }
+  }
+  return "";
+};
+
+const normalizeOptionValue = (input) => {
+  if (input === undefined || input === null) return undefined;
+  if (typeof input === "string" || typeof input === "number") return input;
+  if (Array.isArray(input)) {
+    for (const entry of input) {
+      const value = normalizeOptionValue(entry);
+      if (value !== undefined && value !== "") return value;
+    }
+    return undefined;
+  }
+  if (typeof input === "object") {
+    const candidate =
+      input.value_id ??
+      input.id ??
+      input.diamond_quality_id ??
+      input.quality_id ??
+      input.key ??
+      input.code ??
+      input.value;
+    const value = normalizeOptionValue(candidate);
+    if (value !== undefined && value !== "") return value;
+  }
+  const text = normalizeOptionText(input);
+  return text === "" ? undefined : text;
+};
+
 const toOptionList = (list, fallback = []) => {
   const src = Array.isArray(list) && list.length ? list : fallback;
   return src.map((item) => {
     if (item && typeof item === "object") {
-      const value =
+      const value = normalizeOptionValue(
         item.value_id ??
-        item.id ??
-        item.diamond_quality_id ??
-        item.quality_id ??
-        item.value ??
-        item.value_name ??
-        item.label ??
-        item.name ??
-        item;
+          item.id ??
+          item.diamond_quality_id ??
+          item.quality_id ??
+          item.value ??
+          item.value_name ??
+          item.label ??
+          item.name ??
+          item
+      );
       const label =
-        item.value_name ??
-        item.label ??
-        item.name ??
-        item.title ??
-        item.diamond_quality ??
-        item.quality ??
-        String(value);
+        normalizeOptionText(
+          item.value_name ??
+            item.label ??
+            item.name ??
+            item.title ??
+            item.diamond_quality ??
+            item.quality
+        ) ||
+        normalizeOptionText(value) ||
+        "";
       // Preserve extra fields (image for shapes, color_code/dmt_tooltip for metals, etc.)
       const meta = {
         image: item.image,
         color_code: item.color_code,
         dmt_tooltip: item.dmt_tooltip,
         tooltip: item.tooltip,
+        options_symbol: item.options_symbol,
+        estimated_weight: item.estimated_weight,
+        estimated_symbol: item.estimated_symbol,
+        options_price: item.options_price,
         id:
-          item.id ??
-          item.value_id ??
-          item.diamond_quality_id ??
-          item.quality_id ??
-          item.value,
+          normalizeOptionValue(
+            item.id ??
+              item.value_id ??
+              item.diamond_quality_id ??
+              item.quality_id ??
+              item.value
+          ) ?? value,
         value_id: item.value_id,
         diamond_type: item.diamond_type ?? item.diamondType,
         center_stone_name:
@@ -73,7 +147,9 @@ const toOptionList = (list, fallback = []) => {
       };
       return { value, label, ...meta };
     }
-    return { value: item, label: String(item) };
+    const value = normalizeOptionValue(item);
+    const label = normalizeOptionText(item) || (value !== undefined ? String(value) : "");
+    return { value: value ?? item, label };
   });
 };
 
@@ -92,7 +168,8 @@ const buildFilterOptions = (apiFilters) => ({
   ring_sizes: toOptionList(apiFilters?.ring_sizes, FALLBACK_FILTER_VALUES.ring_sizes),
 });
 
-const optionValue = (opt) => opt?.id ?? opt?.value_id ?? opt?.value;
+const optionValue = (opt) =>
+  normalizeOptionValue(opt?.id ?? opt?.value_id ?? opt?.value);
 
 const buildInitialSelections = (options) => ({
   diamondWeight: optionValue(options.diamond_weight_groups[0]) || "",
@@ -106,7 +183,7 @@ const buildInitialSelections = (options) => ({
 const syncSelectionWithOptions = (selection, options) => {
   const ensure = (key, list) => {
     const sel = selection[key];
-    if (list.some((opt) => opt.value === sel)) return sel;
+    if (list.some((opt) => String(opt.value) === String(sel))) return sel;
     const matchByLabel = list.find((opt) => String(opt.label) === String(sel));
     if (matchByLabel) return matchByLabel.value;
     return list[0]?.value || "";
@@ -131,11 +208,19 @@ const selectionFromProduct = (product = {}) => {
     product.default_size && product.default_size !== "0" ? product.default_size : "";
 
   return {
-    diamondWeight: product.diamond_weight_group_id ?? product.diamondWeight,
-    shape: product.shape_id ?? product.shape,
-    metalType: product.sptmt_metal_type_id ?? product.metal_type_id ?? product.metalType,
-    diamondOrigin: product.center_stone_type_id ?? product.diamondOrigin,
-    diamondQuality: product.diamond_quality_id ?? product.diamondQuality,
+    diamondWeight: normalizeOptionValue(
+      product.diamond_weight_group_id ?? product.diamondWeight
+    ),
+    shape: normalizeOptionValue(product.shape_id ?? product.shape),
+    metalType: normalizeOptionValue(
+      product.sptmt_metal_type_id ?? product.metal_type_id ?? product.metalType
+    ),
+    diamondOrigin: normalizeOptionValue(
+      product.center_stone_type_id ?? product.diamondOrigin
+    ),
+    diamondQuality: normalizeOptionValue(
+      product.diamond_quality_id ?? product.diamondQuality
+    ),
     ringSize: safeRingSize,
   };
 };
@@ -245,6 +330,7 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
           ? opt.center_stone_name || opt.centerStoneName || opt.diamond_type || opt.diamondType
           : "";
         const selectedValue = optionValue(opt);
+        const isActive = String(value) === String(selectedValue);
         const diamondType = isDiamondQuality ? (opt.diamond_type || centerStone || "").trim() : "";
         const diamondTypeClass = diamondType
           ? diamondType.toLowerCase().includes("lab")
@@ -259,7 +345,7 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
             key={`${group.key}-${selectedValue}`}
             type="button"
             className={`jd-pill ${isMetal ? "jd-metal-pill" : ""} ${isShape ? "jd-shape-pill" : ""} ${
-              value === selectedValue ? "is-active" : ""
+              isActive ? "is-active" : ""
             }`}
             style={metalStyle}
             onClick={() => onSelect(group.key, selectedValue)}
@@ -302,6 +388,10 @@ const JewelryDetails = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selection, setSelection] = useState(DEFAULT_SELECTIONS);
+  const [ringOptionSelected, setRingOptionSelected] = useState(null);
+  const [estDiamondPcs, setEstDiamondPcs] = useState(null);
+  const [estCaratWt, setEstCaratWt] = useState(null);
+  const [estPrice, setEstPrice] = useState(null);
   const [designId, setDesignId] = useState("");
   const designIdRef = useRef("");
   const [relatedDesignId, setRelatedDesignId] = useState("");
@@ -320,6 +410,57 @@ const JewelryDetails = () => {
     return null;
   };
 
+  const getFilterType = (key) => {
+    const group = FILTER_GROUPS.find((entry) => entry.key === key);
+    if (group?.label) return group.label.replace(/\s+/g, "");
+    if (!key) return "";
+    return `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+  };
+
+  const addParamIfPresent = (target, key, value) => {
+    if (value === 0 || value === "0") {
+      target[key] = value;
+      return;
+    }
+    if (value === undefined || value === null || value === "") return;
+    target[key] = value;
+  };
+
+  const buildTrackingParams = (filterMeta = {}) => {
+    const params = {};
+    addParamIfPresent(
+      params,
+      "AttributesString",
+      getProductValue("AttributesString", "attributesString", "attributes_string")
+    );
+    addParamIfPresent(
+      params,
+      "products_blurb",
+      getProductValue("products_blurb", "productsBlurb", "product_blurb")
+    );
+    addParamIfPresent(params, "pid", getProductValue("pid", "products_id", "product_id"));
+    addParamIfPresent(
+      params,
+      "cid",
+      getProductValue(
+        "cid",
+        "categories_id",
+        "category_id",
+        "master_categories_id",
+        "categories_id_path"
+      )
+    );
+
+    const filterType = filterMeta.filterType ?? filterMeta.filter_type;
+    if (filterType) {
+      params.filter_status = filterMeta.filter_status ?? "Yes";
+      params.filter_type = filterType;
+      addParamIfPresent(params, "filter_id", filterMeta.filterId ?? filterMeta.filter_id);
+    }
+
+    return params;
+  };
+
   const formatCt = (val) => {
     if (val === undefined || val === null || val === "") return "-";
     const num = Number(val);
@@ -327,9 +468,36 @@ const JewelryDetails = () => {
     return `${num.toFixed(2)} CT`;
   };
 
+  const toNumberIfPresent = (value) => {
+    if (value === undefined || value === null || value === "") return null;
+    const num = Number(value);
+    return Number.isNaN(num) ? null : num;
+  };
+
+  const applySymbol = (baseValue, symbol, deltaValue) => {
+    if (baseValue === undefined || baseValue === null || baseValue === "") return baseValue;
+    const baseNum = Number(baseValue);
+    if (Number.isNaN(baseNum)) return baseValue;
+    if (!symbol || deltaValue === null || deltaValue === undefined || deltaValue === "") return baseNum;
+    const deltaNum = Number(deltaValue);
+    if (Number.isNaN(deltaNum)) return baseNum;
+    switch (symbol) {
+      case "+":
+        return baseNum + deltaNum;
+      case "-":
+        return baseNum - deltaNum;
+      case "*":
+        return baseNum * deltaNum;
+      case "/":
+        return baseNum / deltaNum;
+      default:
+        return baseNum;
+    }
+  };
+
   const fetchProductDetails = (
     nextSelection = selection,
-    { resetSelection = false, designOverride, relatedDesignOverride } = {}
+    { resetSelection = false, designOverride, relatedDesignOverride, filterMeta } = {}
   ) => {
     if (!sku) return;
     const resolvedDesignId =
@@ -346,6 +514,7 @@ const JewelryDetails = () => {
       resolvedDesignId,
       resolvedRelatedDesignId
     );
+    const requestParams = { ...params, ...buildTrackingParams(filterMeta) };
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
 
@@ -353,7 +522,7 @@ const JewelryDetails = () => {
     setError("");
 
     api
-      .get(`/product-details/jewelry/${sku}`, { params })
+      .get(`/product-details/jewelry/${sku}`, { params: requestParams })
       .then((res) => {
         if (requestId !== requestIdRef.current) return;
         const data = res.data || {};
@@ -397,6 +566,10 @@ const JewelryDetails = () => {
         relatedDesignId ||
         product?.related_design_id ||
         product?.relatedDesignId,
+      filterMeta: {
+        filterType: getFilterType(key),
+        filterId: value,
+      },
     });
   };
 
@@ -407,14 +580,7 @@ const JewelryDetails = () => {
       null;
     const nextSelection = { ...selection, ringSize: option ? option.value : targetValue };
     setSelection(nextSelection);
-    fetchProductDetails(nextSelection, {
-      designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
-      relatedDesignOverride:
-        relatedDesignIdRef.current ||
-        relatedDesignId ||
-        product?.related_design_id ||
-        product?.relatedDesignId,
-    });
+    setRingOptionSelected(option);
   };
 
   const handleDesignIdChange = (e) => {
@@ -469,6 +635,28 @@ const JewelryDetails = () => {
     });
   }, [sku]);
 
+  useEffect(() => {
+    const nextOption =
+      (filterOptions.ring_sizes || []).find(
+        (opt) => String(opt.value) === String(selection.ringSize)
+      ) || null;
+    setRingOptionSelected((prev) => {
+      if (!nextOption && !prev) return prev;
+      if (
+        nextOption &&
+        prev &&
+        String(prev.value) === String(nextOption.value) &&
+        prev.options_symbol === nextOption.options_symbol &&
+        prev.options_price === nextOption.options_price &&
+        prev.estimated_symbol === nextOption.estimated_symbol &&
+        prev.estimated_weight === nextOption.estimated_weight
+      ) {
+        return prev;
+      }
+      return nextOption;
+    });
+  }, [filterOptions.ring_sizes, selection.ringSize]);
+
   const displaySku = product?.products_style_no || sku || "";
   const displayTitle = product?.products_name || "";
   const displayDescription = product?.products_description || "";
@@ -477,7 +665,11 @@ const JewelryDetails = () => {
     const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
     const sourceKey = group?.sourceKey;
     const options = sourceKey ? filterOptions[sourceKey] || [] : [];
-    return options.find((opt) => opt.value === selection[selectionKey]) || null;
+    return (
+      options.find(
+        (opt) => String(opt.value) === String(selection[selectionKey])
+      ) || null
+    );
   };
 
   const getSelectedLabel = (selectionKey) => getSelectedOption(selectionKey)?.label || "";
@@ -575,6 +767,56 @@ const JewelryDetails = () => {
     ),
   };
 
+  useEffect(() => {
+    if (!product) {
+      setEstDiamondPcs(null);
+      setEstCaratWt(null);
+      setEstPrice(null);
+      return;
+    }
+
+    const baseDiamondPcs = toNumberIfPresent(
+      getProductValue("estimated_pieces", "estimated_piece_count", "estimated_pcs", "diamond_pics")
+    );
+    const baseCaratWeight = toNumberIfPresent(
+      getProductValue(
+        "estimated_ct_w",
+        "estimated_total_ct_w",
+        "estimated_total_carat_weight",
+        "total_carat_weight",
+        "total_carat",
+        "total_ct_w"
+      )
+    );
+    const basePrice = toNumberIfPresent(
+      product?.products_price4 ??
+        product?.products_price3 ??
+        product?.products_price2 ??
+        product?.products_price1 ??
+        product?.products_price2
+    );
+
+    const diamondPcs = applySymbol(
+      baseDiamondPcs,
+      ringOptionSelected?.options_symbol,
+      ringOptionSelected?.estimated_weight
+    );
+    const caratWeight = applySymbol(
+      baseCaratWeight,
+      ringOptionSelected?.estimated_symbol,
+      ringOptionSelected?.estimated_weight
+    );
+    const price = applySymbol(
+      basePrice,
+      ringOptionSelected?.options_symbol,
+      ringOptionSelected?.options_price
+    );
+
+    setEstDiamondPcs((prev) => (prev === diamondPcs ? prev : diamondPcs));
+    setEstCaratWt((prev) => (prev === caratWeight ? prev : caratWeight));
+    setEstPrice((prev) => (prev === price ? prev : price));
+  }, [product, ringOptionSelected]);
+
   const productEstTotalCt = getProductValue("total_carat_weight", "total_carat", "total_ct_w");
   const productTotalPcs = getProductValue("diamond_pics", "stn1_pcs", "stn2_pcs");
 
@@ -588,14 +830,62 @@ const JewelryDetails = () => {
     });
   };
 
+  const canAdjustPieces =
+    ringOptionSelected?.options_symbol &&
+    ringOptionSelected?.estimated_weight !== null &&
+    ringOptionSelected?.estimated_weight !== undefined &&
+    ringOptionSelected?.estimated_weight !== "";
+  const canAdjustCarat =
+    ringOptionSelected?.estimated_symbol &&
+    ringOptionSelected?.estimated_weight !== null &&
+    ringOptionSelected?.estimated_weight !== undefined &&
+    ringOptionSelected?.estimated_weight !== "";
+  const canAdjustPrice =
+    ringOptionSelected?.options_symbol &&
+    ringOptionSelected?.options_price !== null &&
+    ringOptionSelected?.options_price !== undefined &&
+    ringOptionSelected?.options_price !== "";
+
   const displayPrice =
     formatPrice(
-      product?.products_price4 ??
-        product?.products_price3 ??
-        product?.products_price2 ??
-        product?.products_price1 ??
-        product?.products_msrp
+      canAdjustPrice
+        ? estPrice ??
+            product?.products_price4 ??
+            product?.products_price3 ??
+            product?.products_price2 ??
+            product?.products_price1 ??
+            product?.products_price2
+        : product?.products_price4 ??
+            product?.products_price3 ??
+            product?.products_price2 ??
+            product?.products_price1 ??
+            product?.products_price2
     ) || "";
+
+  const computedStandardPieces = canAdjustPieces
+    ? applySymbol(
+        selectionStats.standardPieces,
+        ringOptionSelected?.options_symbol,
+        ringOptionSelected?.estimated_weight
+      )
+    : selectionStats.standardPieces;
+  const computedStandardTotalCt = canAdjustCarat
+    ? applySymbol(
+        selectionStats.standardTotalCt,
+        ringOptionSelected?.estimated_symbol,
+        ringOptionSelected?.estimated_weight
+      )
+    : selectionStats.standardTotalCt;
+  const computedEstimatedPieces = canAdjustPieces
+    ? estDiamondPcs !== null && estDiamondPcs !== undefined
+      ? estDiamondPcs
+      : selectionStats.estimatedPieces
+    : selectionStats.estimatedPieces;
+  const computedEstimatedCt = canAdjustCarat
+    ? estCaratWt !== null && estCaratWt !== undefined
+      ? estCaratWt
+      : selectionStats.estimatedCt
+    : selectionStats.estimatedCt;
 
   const buildMediaUrl = (filename, type = "image") => {
     if (!filename) return "";
@@ -604,7 +894,7 @@ const JewelryDetails = () => {
       .replace(/(^\/+)/g, "")
       .replace(/(\/+$)/g, "");
     const folder = type === "video" ? "product_video" : "product_images";
-    return `https://www.amipi.com/${vendorPath}/${folder}/${filename}`.replace(
+    return `https://www.amipi.com/ampvd/${folder}/${filename}`.replace(
       /([^:]\/)\/+/g,
       "$1"
     );
@@ -667,11 +957,11 @@ const JewelryDetails = () => {
       title: "Your Selection",
       rows: [
         { key: "Standard Size", value: ringSizeLabel },
-        { key: "Standard Total Ct (W)", value: valueOrDash(selectionStats.standardTotalCt) },
-        { key: "Standard Pieces", value: valueOrDash(selectionStats.standardPieces) },
+        { key: "Standard Total Ct (W)", value: valueOrDash(computedStandardTotalCt) },
+        { key: "Standard Pieces", value: valueOrDash(computedStandardPieces) },
         { key: "Selected Size", value: ringSizeLabel },
-        { key: "Est. Pieces", value: valueOrDash(selectionStats.estimatedPieces) },
-        { key: "Est. Ct (W)", value: valueOrDash(selectionStats.estimatedCt) },
+        { key: "Est. Pieces", value: valueOrDash(computedEstimatedPieces) },
+        { key: "Est. Ct (W)", value: valueOrDash(computedEstimatedCt) },
       ],
     },
   ];
@@ -767,9 +1057,7 @@ const JewelryDetails = () => {
                     placeholder="Enter related design id"
                   />
                 </div>
-                <button type="button" className="btn btn-outline-primary" onClick={handleDesignIdApply}>
-                  Apply
-                </button>
+               
               </div>
 
               <h1 className="jd-title">{displayTitle}</h1>
