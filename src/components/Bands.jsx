@@ -152,6 +152,37 @@ function getPricingParams() {
   };
 }
 
+const hasPriceValue = (value) =>
+  value === 0 || value === "0" || (value !== undefined && value !== null && value !== "");
+
+const normalizePriceLevel = (rawLevel) => {
+  const level = Number(rawLevel);
+  if (!Number.isFinite(level)) return null;
+  if (level < 1 || level > 4) return null;
+  return level;
+};
+
+const getSelectedProductPrice = (product, priceLevel) => {
+  if (!product) return undefined;
+  const levelPriceMap = {
+    1: product.products_price1,
+    2: product.products_price2,
+    3: product.products_price3,
+    4: product.products_price4,
+  };
+  const levelPrice = levelPriceMap[priceLevel];
+  if (hasPriceValue(levelPrice)) return levelPrice;
+  if (hasPriceValue(product.products_price2)) return product.products_price2;
+  return (
+    product.products_price ??
+    product.base_price ??
+    product.products_price1 ??
+    product.products_price3 ??
+    product.products_price4 ??
+    undefined
+  );
+};
+
 function SafeImage({
   src,
   alt,
@@ -784,6 +815,10 @@ const Bands = React.memo(function Bands() {
   const [authVersion, setAuthVersion] = useState(0);
   const { user: authUser, loading: authLoading, redirectToLogin, refresh: refreshAuth } = useAuthState();
   const isAuthenticated = Boolean(authUser);
+  const jewelryPriceLevel = useMemo(() => {
+    const pricing = getPricingParams();
+    return normalizePriceLevel(pricing.AMIPI_FRONT_Retailer_Jewelry_Level);
+  }, [authVersion]);
   const [bootstrapDone, setBootstrapDone] = useState(() => typeof window === "undefined");
 
   // re-run dependent effects when auth state flips
@@ -1417,7 +1452,7 @@ const Bands = React.memo(function Bands() {
     let diamondPcs = Number(product.estimated_pcs || product.diamond_pics || 0);
     let caratWeight = Number(product.total_carat_weight || 0);
 
-    let price = Number(product.products_price ?? product.base_price ?? product.products_price1 ?? 0);
+    let price = Number(getSelectedProductPrice(product, jewelryPriceLevel) ?? 0);
 
     if (ringOptionSelected) {
       if (ringOptionSelected.options_symbol && ringOptionSelected.estimated_weight !== null) {
@@ -1481,7 +1516,7 @@ const Bands = React.memo(function Bands() {
     setEstDiamondPcs((prev) => (prev === diamondPcs ? prev : diamondPcs));
     setEstCaratWt((prev) => (prev === caratWeight ? prev : caratWeight));
     setEstPrice((prev) => (prev === price ? prev : price));
-  }, [product, ringOptionSelected]);
+  }, [product, ringOptionSelected, jewelryPriceLevel]);
 
   /* Build media items for gallery/lightbox */
   const galleryImages = useMemo(() => {
@@ -1814,10 +1849,10 @@ const Bands = React.memo(function Bands() {
     const base =
       estPrice !== null
         ? Number(estPrice)
-        : Number(product?.products_price ?? product?.base_price ?? product?.products_price1 ?? NaN);
+        : Number(getSelectedProductPrice(product, jewelryPriceLevel) ?? NaN);
     if (Number.isNaN(base)) return null;
     return base;
-  }, [estPrice, product]);
+  }, [estPrice, product, jewelryPriceLevel]);
 
   const displayPrice = useMemo(() => {
     if (computedPrice === null) return null;

@@ -171,6 +171,104 @@ const buildFilterOptions = (apiFilters) => ({
 const optionValue = (opt) =>
   normalizeOptionValue(opt?.id ?? opt?.value_id ?? opt?.value);
 
+const getOptionDescriptor = (opt) =>
+  normalizeOptionText(
+    opt?.center_stone_name ??
+      opt?.centerStoneName ??
+      opt?.diamond_type ??
+      opt?.diamondType ??
+      opt?.label ??
+      opt?.name ??
+      opt?.value_name ??
+      opt?.value ??
+      opt
+  );
+
+const isLabGrownText = (value) => {
+  const text = normalizeOptionText(value).toLowerCase();
+  if (!text) return false;
+  return (
+    text.includes("lab grown") ||
+    text.includes("lab-grown") ||
+    text.includes("labgrown") ||
+    text === "lab"
+  );
+};
+
+const getOptionBySelection = (options = [], selectionValue) => {
+  const selectionId =
+    selectionValue?.id ??
+    selectionValue?.value_id ??
+    selectionValue?.value ??
+    selectionValue;
+  if (selectionId === undefined || selectionId === null || selectionId === "") return null;
+  const selectionStr = String(selectionId);
+  return (
+    options.find((opt) => {
+      const optValue = optionValue(opt);
+      return (
+        String(optValue) === selectionStr ||
+        String(opt.id) === selectionStr ||
+        String(opt.value_id) === selectionStr ||
+        String(opt.label) === selectionStr
+      );
+    }) || null
+  );
+};
+
+const isLabOriginSelected = (originSelection, origins = []) => {
+  const originOpt = getOptionBySelection(origins, originSelection);
+  const originText = getOptionDescriptor(originOpt || originSelection);
+  return isLabGrownText(originText);
+};
+
+const filterDiamondQualities = (qualities = [], originSelection, origins = []) => {
+  if (isLabOriginSelected(originSelection, origins)) return qualities;
+  return qualities.filter((opt) => !isLabGrownText(getOptionDescriptor(opt)));
+};
+
+const hasPriceValue = (value) =>
+  value === 0 || value === "0" || (value !== undefined && value !== null && value !== "");
+
+const normalizePriceLevel = (rawLevel) => {
+  const level = Number(rawLevel);
+  if (!Number.isFinite(level)) return null;
+  if (level < 1 || level > 4) return null;
+  return level;
+};
+
+const getJewelryPriceLevel = () => {
+  if (typeof window === "undefined") return null;
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem("amipiUser") || "null");
+  } catch {}
+  const level = user?.pricing_ctx?.jewelry_level ?? user?.levels?.jewelry ?? null;
+  return normalizePriceLevel(level);
+};
+
+const getSelectedProductPrice = (product, priceLevel) => {
+  if (!product) return undefined;
+  const levelPriceMap = {
+    1: product.products_price1,
+    2: product.products_price2,
+    3: product.products_price3,
+    4: product.products_price4,
+  };
+  if (priceLevel && hasPriceValue(levelPriceMap[priceLevel])) {
+    return levelPriceMap[priceLevel];
+  }
+  if (hasPriceValue(product.products_price2)) return product.products_price2;
+  return (
+    product.products_price ??
+    product.base_price ??
+    product.products_price1 ??
+    product.products_price3 ??
+    product.products_price4 ??
+    undefined
+  );
+};
+
 const buildInitialSelections = (options) => ({
   diamondWeight: optionValue(options.diamond_weight_groups[0]) || "",
   shape: optionValue(options.shapes[0]) || "",
@@ -245,12 +343,24 @@ const buildSelectionParams = (selection = {}, options = {}, designId, relatedDes
     return paramVal || undefined;
   };
 
+  const selectedOriginId =
+    selection?.diamondOrigin?.id ??
+    selection?.diamondOrigin?.value_id ??
+    selection?.diamondOrigin?.value ??
+    selection?.diamondOrigin;
+  const resolvedOriginId =
+    selectedOriginId !== undefined && selectedOriginId !== null && selectedOriginId !== ""
+      ? selectedOriginId
+      : resolve("origins", "diamondOrigin");
+  const centerStoneTypeId =
+    resolvedOriginId === 0 ? 0 : resolvedOriginId || "";
+
   return {
     diamond_weight_group_id: resolve("diamond_weight_groups", "diamondWeight"),
     shape_id: resolve("shapes", "shape"),
     metal_type_id: resolve("metal_types", "metalType"),
     sptmt_metal_type_id: resolve("metal_types", "metalType"),
-    center_stone_type_id: resolve("origins", "diamondOrigin"),
+    center_stone_type_id: centerStoneTypeId,
     diamond_quality_id: resolve("diamond_qualities", "diamondQuality"),
     ring_size_id: resolve("ring_sizes", "ringSize"),
     design_id: designId || undefined,
@@ -398,6 +508,7 @@ const JewelryDetails = () => {
   const relatedDesignIdRef = useRef("");
   const [quantity, setQuantity] = useState(1);
   const requestIdRef = useRef(0);
+  const jewelryPriceLevel = getJewelryPriceLevel();
 
   const valueOrDash = (val) =>
     val === undefined || val === null || val === "" ? "-" : val;
@@ -527,13 +638,36 @@ const JewelryDetails = () => {
         if (requestId !== requestIdRef.current) return;
         const data = res.data || {};
         const normalizedFilters = buildFilterOptions(data.filters);
+        const originOptions = normalizedFilters.origins || [];
+        const selectionSeed = resetSelection ? {} : nextSelection;
+        const baseSelection = deriveSelection(
+          normalizedFilters,
+          data.product,
+          selectionSeed,
+          resetSelection
+        );
+        const keepOriginOption =
+          (resetSelection ? null : getOptionBySelection(originOptions, selectionSeed.diamondOrigin)) ||
+          getOptionBySelection(originOptions, baseSelection.diamondOrigin) ||
+          originOptions[0] ||
+          null;
+        const keepOriginValue =
+          keepOriginOption ? optionValue(keepOriginOption) : baseSelection.diamondOrigin || "";
+        const filteredQualities = filterDiamondQualities(
+          normalizedFilters.diamond_qualities,
+          keepOriginValue,
+          originOptions
+        );
+        const selectionOptions = { ...normalizedFilters, diamond_qualities: filteredQualities };
+        const nextSelectionState = syncSelectionWithOptions(
+          { ...baseSelection, diamondOrigin: keepOriginValue },
+          selectionOptions
+        );
 
         setProduct(data.product || null);
         setMedia(data.media || { images: [], videos: [] });
         setFilterOptions(normalizedFilters);
-        setSelection(
-          deriveSelection(normalizedFilters, data.product, resetSelection ? {} : nextSelection, resetSelection)
-        );
+        setSelection(nextSelectionState);
         const nextDesignId = data.product?.design_id || data.product?.designId || designIdRef.current || "";
         const nextRelatedDesignId =
           data.product?.related_design_id ||
@@ -557,7 +691,10 @@ const JewelryDetails = () => {
 
   const handleFilterSelect = (key, value) => {
     if (selection[key] === value) return;
-    const nextSelection = { ...selection, [key]: value };
+    let nextSelection = { ...selection, [key]: value };
+    if (key === "diamondOrigin") {
+      nextSelection = { ...selection, diamondOrigin: value, diamondQuality: null };
+    }
     setSelection(nextSelection);
     fetchProductDetails(nextSelection, {
       designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
@@ -660,6 +797,11 @@ const JewelryDetails = () => {
   const displaySku = product?.products_style_no || sku || "";
   const displayTitle = product?.products_name || "";
   const displayDescription = product?.products_description || "";
+  const diamondQualityOptions = filterDiamondQualities(
+    filterOptions.diamond_qualities || [],
+    selection.diamondOrigin,
+    filterOptions.origins || []
+  );
 
   const getSelectedOption = (selectionKey) => {
     const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
@@ -692,7 +834,7 @@ const JewelryDetails = () => {
   const selectedOrigin = getSelectedLabel("diamondOrigin") || selection.diamondOrigin || "";
   const selectedQuality =
     getSelectedLabel("diamondQuality") ||
-    filterOptions?.diamond_qualities?.[0]?.label ||
+    diamondQualityOptions[0]?.label ||
     selection.diamondQuality ||
     "";
   const ringSizeLabel =
@@ -789,21 +931,17 @@ const JewelryDetails = () => {
       )
     );
     const basePrice = toNumberIfPresent(
-      product?.products_price4 ??
-        product?.products_price3 ??
-        product?.products_price2 ??
-        product?.products_price1 ??
-        product?.products_price2
+      getSelectedProductPrice(product, jewelryPriceLevel)
     );
 
     const diamondPcs = applySymbol(
       baseDiamondPcs,
-      ringOptionSelected?.options_symbol,
+      ringOptionSelected?.estimated_symbol,
       ringOptionSelected?.estimated_weight
     );
     const caratWeight = applySymbol(
       baseCaratWeight,
-      ringOptionSelected?.estimated_symbol,
+      ringOptionSelected?.options_symbol,
       ringOptionSelected?.estimated_weight
     );
     const price = applySymbol(
@@ -815,7 +953,7 @@ const JewelryDetails = () => {
     setEstDiamondPcs((prev) => (prev === diamondPcs ? prev : diamondPcs));
     setEstCaratWt((prev) => (prev === caratWeight ? prev : caratWeight));
     setEstPrice((prev) => (prev === price ? prev : price));
-  }, [product, ringOptionSelected]);
+  }, [product, ringOptionSelected, jewelryPriceLevel]);
 
   const productEstTotalCt = getProductValue("total_carat_weight", "total_carat", "total_ct_w");
   const productTotalPcs = getProductValue("diamond_pics", "stn1_pcs", "stn2_pcs");
@@ -831,12 +969,12 @@ const JewelryDetails = () => {
   };
 
   const canAdjustPieces =
-    ringOptionSelected?.options_symbol &&
+    ringOptionSelected?.estimated_symbol &&
     ringOptionSelected?.estimated_weight !== null &&
     ringOptionSelected?.estimated_weight !== undefined &&
     ringOptionSelected?.estimated_weight !== "";
   const canAdjustCarat =
-    ringOptionSelected?.estimated_symbol &&
+    ringOptionSelected?.options_symbol &&
     ringOptionSelected?.estimated_weight !== null &&
     ringOptionSelected?.estimated_weight !== undefined &&
     ringOptionSelected?.estimated_weight !== "";
@@ -849,30 +987,21 @@ const JewelryDetails = () => {
   const displayPrice =
     formatPrice(
       canAdjustPrice
-        ? estPrice ??
-            product?.products_price4 ??
-            product?.products_price3 ??
-            product?.products_price2 ??
-            product?.products_price1 ??
-            product?.products_price2
-        : product?.products_price4 ??
-            product?.products_price3 ??
-            product?.products_price2 ??
-            product?.products_price1 ??
-            product?.products_price2
+        ? estPrice ?? getSelectedProductPrice(product, jewelryPriceLevel)
+        : getSelectedProductPrice(product, jewelryPriceLevel)
     ) || "";
 
   const computedStandardPieces = canAdjustPieces
     ? applySymbol(
         selectionStats.standardPieces,
-        ringOptionSelected?.options_symbol,
+        ringOptionSelected?.estimated_symbol,
         ringOptionSelected?.estimated_weight
       )
     : selectionStats.standardPieces;
   const computedStandardTotalCt = canAdjustCarat
     ? applySymbol(
         selectionStats.standardTotalCt,
-        ringOptionSelected?.estimated_symbol,
+        ringOptionSelected?.options_symbol,
         ringOptionSelected?.estimated_weight
       )
     : selectionStats.standardTotalCt;
@@ -957,8 +1086,8 @@ const JewelryDetails = () => {
       title: "Your Selection",
       rows: [
         { key: "Standard Size", value: ringSizeLabel },
-        { key: "Standard Total Ct (W)", value: valueOrDash(computedStandardTotalCt) },
-        { key: "Standard Pieces", value: valueOrDash(computedStandardPieces) },
+        { key: "Standard Total Ct (W)", value: formatCt(productEstTotalCt) },
+        { key: "Standard Pieces", value: valueOrDash(productTotalPcs) },
         { key: "Selected Size", value: ringSizeLabel },
         { key: "Est. Pieces", value: valueOrDash(computedEstimatedPieces) },
         { key: "Est. Ct (W)", value: valueOrDash(computedEstimatedCt) },
@@ -1072,7 +1201,11 @@ const JewelryDetails = () => {
                 >
                   <FilterGroup
                     group={group}
-                    options={filterOptions[group.sourceKey] || []}
+                    options={
+                      group.key === "diamondQuality"
+                        ? diamondQualityOptions
+                        : filterOptions[group.sourceKey] || []
+                    }
                     value={selection[group.key]}
                     onSelect={handleFilterSelect}
                   />
