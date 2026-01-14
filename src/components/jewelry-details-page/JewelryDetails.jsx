@@ -876,8 +876,8 @@ const JewelryDetails = () => {
   };
 
   const secondaryStone = {
-    type: getProductValue("secondary_stone_type", "secondaryStoneType","pst_alias"),
-    origin: getProductValue("secondary_origin", "secondary_stone_origin","center_stone_type"),
+    type: getProductValue("secondary_stone_type", "secondaryStoneType","pst_alias","stn2_dcst_type"),
+    origin: getProductValue("secondary_origin", "secondary_stone_origin","center_stone_type","stn2_origin_name"),
     shape: getProductValue("secondary_shape", "secondary_stone_shape","shapename2"),
     quality: getProductValue("secondary_quality", "secondary_stone_quality","stn_diamond_quality"),
     totalCt: getProductValue(
