@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import Header from "../common/Header";
 import Footer from "../common/Footer";
-import { api } from "../../apiClient";
+import { api, apiSession } from "../../apiClient";
+import { useAuth } from "../../auth.jsx";
+import ShareProductModal from "../share/ShareProductModal.jsx";
 import "./jewelryDetails.scss";
 
 const SHAPE_ICONS = {
@@ -31,6 +33,10 @@ const FILTER_GROUPS = [
   { key: "diamondOrigin", label: "Diamond Origin", sourceKey: "origins" },
   { key: "diamondQuality", label: "Diamond Quality", sourceKey: "diamond_qualities" },
 ];
+
+const LOGIN_HOST_URL = "https://www.amipi.com/bands";
+const buildLoginUrl = (returnUrl) =>
+  `${LOGIN_HOST_URL}?redirect=${encodeURIComponent(returnUrl)}`;
 
 const normalizeOptionText = (input) => {
   if (input === undefined || input === null) return "";
@@ -267,6 +273,72 @@ const getSelectedProductPrice = (product, priceLevel) => {
     product.products_price4 ??
     undefined
   );
+};
+
+const getClientIds = () => {
+  let customers_id = 0;
+  let parent_retailer_id = 0;
+
+  try {
+    const user = JSON.parse(localStorage.getItem("amipiUser") || "null");
+    if (user && typeof user === "object") {
+      customers_id =
+        Number(
+          user.customers_id ??
+            user.customer_id ??
+            user.retailerrid ??
+            user.retailer_id ??
+            user.id ??
+            0
+        ) || 0;
+
+      parent_retailer_id = Number(user.parent_retailer_id ?? user.ParentRetailerID ?? 0) || 0;
+    }
+  } catch {}
+
+  if (!customers_id || !parent_retailer_id) {
+    try {
+      const ls = JSON.parse(localStorage.getItem("amipi_auth") || "{}");
+      customers_id = customers_id || (Number(ls.customers_id ?? ls.customer_id ?? 0) || 0);
+      parent_retailer_id = parent_retailer_id || (Number(ls.parent_retailer_id ?? 0) || 0);
+    } catch {}
+  }
+
+  if (!customers_id || !parent_retailer_id) {
+    const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
+    customers_id = customers_id || (Number(g.CUST_ID ?? g.customers_id ?? g.customer_id ?? 0) || 0);
+    parent_retailer_id =
+      parent_retailer_id || (Number(g.ParentRetailerID ?? g.parent_retailer_id ?? 0) || 0);
+  }
+
+  return { customers_id, parent_retailer_id };
+};
+
+const getPricingParams = () => {
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem("amipiUser") || "null");
+  } catch {}
+
+  const g = window.AMIPI_FRONT || window.AMIPI || window.__AMIPI__ || {};
+  const { customers_id } = getClientIds();
+
+  const AMIPI_FRONT_Retailer_Jewelry_Level =
+    Number(g.AMIPI_FRONT_Retailer_Jewelry_Level ?? user?.retailer_level_id ?? 3) || 3;
+  const AMIPI_FRONT_RetailerProductFlat = Number(g.AMIPI_FRONT_RetailerProductFlat ?? 0) || 0;
+  const AMIPI_FRONT_RetailerProductPer = Number(g.AMIPI_FRONT_RetailerProductPer ?? 0) || 0;
+  const AMIPI_FRONT_IS_REATILER =
+    (g.AMIPI_FRONT_IS_REATILER ?? (user?.retailer_level_id > 0 ? "Yes" : "No")) === "Yes"
+      ? "Yes"
+      : "No";
+
+  return {
+    customers_id,
+    AMIPI_FRONT_Retailer_Jewelry_Level,
+    AMIPI_FRONT_RetailerProductFlat,
+    AMIPI_FRONT_RetailerProductPer,
+    AMIPI_FRONT_IS_REATILER,
+  };
 };
 
 const buildInitialSelections = (options) => ({
@@ -507,8 +579,24 @@ const JewelryDetails = () => {
   const [relatedDesignId, setRelatedDesignId] = useState("");
   const relatedDesignIdRef = useRef("");
   const [quantity, setQuantity] = useState(1);
+  const [quantityError, setQuantityError] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [wishLoading, setWishLoading] = useState(false);
+  const [isCompared, setIsCompared] = useState(false);
+  const [comparLoading, setComparLoading] = useState(false);
+  const [isInCart, setIsInCart] = useState(false);
+  const [cartLoading, setCartLoading] = useState(false);
   const requestIdRef = useRef(0);
   const jewelryPriceLevel = getJewelryPriceLevel();
+  const { user: authUser } = useAuth();
+  const isAuthenticated = Boolean(authUser);
+  const redirectToLogin = useCallback((replace = false) => {
+    if (typeof window === "undefined") return;
+    const loginUrl = buildLoginUrl(window.location.href);
+    if (replace) window.location.replace(loginUrl);
+    else window.location.href = loginUrl;
+  }, []);
 
   const valueOrDash = (val) =>
     val === undefined || val === null || val === "" ? "-" : val;
@@ -519,6 +607,23 @@ const JewelryDetails = () => {
       if (value !== undefined && value !== null && value !== "") return value;
     }
     return null;
+  };
+
+  const resolveIdsWithAuthFallback = (baseIds = {}) => {
+    let u = null;
+    try {
+      u = JSON.parse(localStorage.getItem("amipiUser") || "null");
+    } catch {}
+    const cid =
+      Number(baseIds.customers_id || 0) ||
+      Number(u?.customers_id ?? u?.customer_id ?? u?.retailerrid ?? u?.id ?? 0) ||
+      0;
+    const prid =
+      Number(baseIds.parent_retailer_id || 0) ||
+      Number(u?.parent_retailer_id ?? 0) ||
+      0;
+
+    return { customers_id: cid, parent_retailer_id: prid };
   };
 
   const getFilterType = (key) => {
@@ -584,6 +689,15 @@ const JewelryDetails = () => {
     const num = Number(value);
     return Number.isNaN(num) ? null : num;
   };
+
+  const maxQuantityValue = toNumberIfPresent(
+    getProductValue("products_quantity", "product_quantity", "quantity", "qty")
+  );
+  const maxQuantity = Number.isFinite(maxQuantityValue)
+    ? Math.max(0, Math.floor(maxQuantityValue))
+    : null;
+  const hasMaxQuantity = maxQuantity !== null && maxQuantity >= 1;
+  const isOutOfStock = maxQuantity === 0;
 
   const applySymbol = (baseValue, symbol, deltaValue) => {
     if (baseValue === undefined || baseValue === null || baseValue === "") return baseValue;
@@ -740,14 +854,28 @@ const JewelryDetails = () => {
   };
 
   const handleQuantityChange = (e) => {
-    const next = Math.max(1, Number(e.target.value) || 1);
-    setQuantity(next);
+    const rawValue = e.target.value;
+    const numericValue = Number(rawValue);
+    if (!Number.isFinite(numericValue)) {
+      setQuantity(1);
+      if (quantityError) setQuantityError("");
+      return;
+    }
+    const nextValue = Math.max(1, Math.floor(numericValue));
+    if (hasMaxQuantity && nextValue > maxQuantity) {
+      setQuantity(maxQuantity);
+      setQuantityError(`Maximum available quantity is ${maxQuantity}.`);
+      return;
+    }
+    setQuantity(nextValue);
+    if (quantityError) setQuantityError("");
   };
 
   const handleResetFilters = () => {
     const resetSelection = buildInitialSelections(filterOptions);
     setSelection(resetSelection);
     setQuantity(1);
+    setQuantityError("");
     fetchProductDetails(resetSelection, {
       resetSelection: true,
       designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
@@ -758,6 +886,105 @@ const JewelryDetails = () => {
         product?.relatedDesignId,
     });
   };
+
+  const handleWishlistToggle = async () => {
+    if (!product?.products_id || wishLoading) return;
+    if (!isAuthenticated) {
+      redirectToLogin();
+      return;
+    }
+
+    const pricing = getPricingParams();
+    const ids = resolveIdsWithAuthFallback(getClientIds());
+
+    const payload = {
+      products_id: product.products_id,
+      customers_id: ids.customers_id,
+      parent_retailer_id: ids.parent_retailer_id,
+      ...pricing,
+    };
+
+    try {
+      setWishLoading(true);
+      const { data } = await apiSession.post("/api/wishlist/toggle", payload, {
+        headers: { Accept: "application/json" },
+      });
+      setIsWishlisted(data?.status === "added");
+    } catch (e) {
+      console.error("Wishlist toggle failed", e?.response?.data || e.message);
+    } finally {
+      setWishLoading(false);
+    }
+  };
+
+  const handleCompareToggle = async () => {
+    if (!product?.products_id || comparLoading) return;
+    const pricing = getPricingParams();
+    const { customers_id, parent_retailer_id } = getClientIds();
+    try {
+      setComparLoading(true);
+      const { data } = await api.post("/compare/toggle_product", {
+        products_id: product.products_id,
+        customers_id,
+        parent_retailer_id,
+        ...pricing,
+      });
+      setIsCompared(data?.status === "added");
+    } catch (e) {
+      console.error("Compare toggle failed", e);
+    } finally {
+      setComparLoading(false);
+    }
+  };
+
+  const handleCartToggle = async () => {
+    if (!product?.products_id || cartLoading || isAddToCartDisabled) return;
+    if (!isAuthenticated) {
+      redirectToLogin();
+      return;
+    }
+
+    const { customers_id, parent_retailer_id } = getClientIds();
+    const pricing = getPricingParams();
+    const selectionParams = buildSelectionParams(
+      selection,
+      filterOptions,
+      designIdRef.current || designId,
+      relatedDesignIdRef.current || relatedDesignId
+    );
+
+    const payload = {
+      products_id: product.products_id,
+      customers_id,
+      parent_retailer_id,
+      product_quantity: quantity,
+      ...selectionParams,
+      ...pricing,
+    };
+
+    try {
+      setCartLoading(true);
+      const { data } = await apiSession.post("/api/carttoggle", payload, {
+        headers: { Accept: "application/json" },
+      });
+      setIsInCart(data?.status === "added");
+    } catch (e) {
+      console.error("Cart toggle failed", e?.response?.data || e.message);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    apiSession.get("/api/csrf").catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (hasMaxQuantity && quantity > maxQuantity) {
+      setQuantity(maxQuantity);
+    }
+    if (quantityError) setQuantityError("");
+  }, [maxQuantity]);
 
   useEffect(() => {
     if (!sku) return;
@@ -793,6 +1020,61 @@ const JewelryDetails = () => {
       return nextOption;
     });
   }, [filterOptions.ring_sizes, selection.ringSize]);
+
+  useEffect(() => {
+    if (!product?.products_id || !isAuthenticated) {
+      setIsWishlisted(false);
+      return;
+    }
+
+    const ids = resolveIdsWithAuthFallback(getClientIds());
+
+    apiSession
+      .get("/api/wishlist/check", {
+        params: {
+          products_id: product.products_id,
+          customers_id: ids.customers_id,
+          parent_retailer_id: ids.parent_retailer_id,
+        },
+        headers: { Accept: "application/json" },
+      })
+      .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
+      .catch(() => setIsWishlisted(false));
+  }, [product?.products_id, isAuthenticated]);
+
+  useEffect(() => {
+    if (!product?.products_id) {
+      setIsCompared(false);
+      return;
+    }
+    const { customers_id, parent_retailer_id } = getClientIds();
+    api
+      .get("/compare/check_product", {
+        params: {
+          products_id: product.products_id,
+          customers_id,
+          parent_retailer_id,
+        },
+      })
+      .then((res) => setIsCompared(Boolean(res.data?.compared)))
+      .catch(() => setIsCompared(false));
+  }, [product?.products_id]);
+
+  useEffect(() => {
+    if (!product?.products_id || !isAuthenticated) {
+      setIsInCart(false);
+      return;
+    }
+    const { customers_id, parent_retailer_id } = getClientIds();
+
+    apiSession
+      .get("/api/cartcheck", {
+        params: { products_id: product.products_id, customers_id, parent_retailer_id },
+        headers: { Accept: "application/json" },
+      })
+      .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+      .catch(() => setIsInCart(false));
+  }, [product?.products_id, isAuthenticated]);
 
   const displaySku = product?.products_style_no || sku || "";
   const displayTitle = product?.products_name || "";
@@ -984,12 +1266,16 @@ const JewelryDetails = () => {
     ringOptionSelected?.options_price !== undefined &&
     ringOptionSelected?.options_price !== "";
 
-  const displayPrice =
-    formatPrice(
-      canAdjustPrice
-        ? estPrice ?? getSelectedProductPrice(product, jewelryPriceLevel)
-        : getSelectedProductPrice(product, jewelryPriceLevel)
-    ) || "";
+  const unitPrice = canAdjustPrice
+    ? estPrice ?? getSelectedProductPrice(product, jewelryPriceLevel)
+    : getSelectedProductPrice(product, jewelryPriceLevel);
+  const unitPriceValue = toNumberIfPresent(unitPrice);
+  const totalPriceValue = unitPriceValue !== null ? unitPriceValue * quantity : null;
+  const displayPrice = totalPriceValue !== null ? formatPrice(totalPriceValue) : "";
+
+  const quantityMessage = isOutOfStock ? "Out of stock." : quantityError;
+  const isAddToCartDisabled = isOutOfStock || Boolean(quantityError);
+  const cartButtonDisabled = isAddToCartDisabled || cartLoading;
 
   const computedStandardPieces = canAdjustPieces
     ? applySymbol(
@@ -1039,6 +1325,12 @@ const JewelryDetails = () => {
   }, [sku, mediaItems.length]);
 
   const activeMediaItem = mediaItems[activeMedia] || null;
+  const shareUrl = product?.products_seo_url
+    ? `https://www.amipi.com/${product.products_seo_url}`
+    : typeof window !== "undefined"
+    ? window.location.href
+    : "";
+  const shareImage = mediaItems.find((item) => item.type === "image")?.src || "";
 
   const productDetails = [
     {
@@ -1152,6 +1444,57 @@ const JewelryDetails = () => {
                       </button>
                     ))}
               </div>
+              <ul className="jd-actions">
+                <li>
+                  <button
+                    type="button"
+                    className="jd-action-btn"
+                    title="Share With A Friend"
+                    onClick={() => setShareOpen(true)}
+                  >
+                    <i className="fa fa-share-alt" aria-hidden="true" />
+                  </button>
+                </li>
+                <li>
+                  {isAuthenticated ? (
+                    <button
+                      type="button"
+                      onClick={handleWishlistToggle}
+                      disabled={wishLoading}
+                      className={`jd-action-btn ${isWishlisted ? "is-active" : ""}`}
+                      aria-pressed={isWishlisted}
+                      aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                      title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
+                    >
+                      <i className="fa fa-heart" aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => redirectToLogin()}
+                      disabled={wishLoading}
+                      className="jd-action-btn"
+                      aria-label="Add to wishlist"
+                      title="Add to Wishlist"
+                    >
+                      <i className="fa fa-heart" aria-hidden="true" />
+                    </button>
+                  )}
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleCompareToggle}
+                    disabled={comparLoading}
+                    className={`jd-action-btn ${isCompared ? "is-active" : ""}`}
+                    aria-pressed={isCompared}
+                    aria-label={isCompared ? "Remove from compare" : "Add to compare"}
+                    title={isCompared ? "Remove From Compare" : "Add to Compare"}
+                  >
+                    <i className="fa fa-compress" aria-hidden="true" />
+                  </button>
+                </li>
+              </ul>
               <p className="jd-note">
                 Note: Standard image displayed. Actual product image may vary based on selected options.
               </p>
@@ -1241,17 +1584,47 @@ const JewelryDetails = () => {
                     id="jd-qty"
                     type="number"
                     min="1"
+                    max={hasMaxQuantity ? maxQuantity : undefined}
+                    step="1"
                     className="form-control jd-qty-input"
                     value={quantity}
                     onChange={handleQuantityChange}
                   />
+                  {quantityMessage ? (
+                    <span className="jd-qty-error">{quantityMessage}</span>
+                  ) : null}
                 </div>
 
                 <div className="jd-price-add">
                   <div className="jd-price">{displayPrice}</div>
-                  <button type="button" className="btn btn-primary jd-add">
-                    Add to Cart
-                  </button>
+                  {isAuthenticated ? (
+                    <button
+                      type="button"
+                      className=" btn-primary jd-add common-btn band-cart"
+                      onClick={handleCartToggle}
+                      disabled={cartButtonDisabled}
+                      aria-disabled={cartButtonDisabled}
+                      aria-pressed={isInCart}
+                      aria-label={isInCart ? "Remove from cart" : "Add to cart"}
+                    >
+                      <i
+                        className="fa fa-shopping-cart"
+                        aria-hidden="true"
+                        style={{ color: isInCart ? "#e74c3c" : "#Fed700" }}
+                      />{" "}
+                      {isInCart ? "Remove From Cart" : "Add To Cart"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className=" btn-primary jd-add common-btn band-cart"
+                      onClick={() => redirectToLogin()}
+                      disabled={cartButtonDisabled}
+                      aria-disabled={cartButtonDisabled}
+                    >
+                      <i className="fa fa-shopping-cart" aria-hidden="true" /> Add To Cart
+                    </button>
+                  )}
                   <div className="jd-availability">Availability: Made to Order</div>
                 </div>
               </div>
@@ -1291,6 +1664,19 @@ const JewelryDetails = () => {
       </main>
 
       <Footer />
+
+      {shareOpen && (
+        <ShareProductModal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          productId={product?.products_id}
+          optionId={selection.ringSize}
+          productTitle={displayTitle}
+          productUrl={shareUrl}
+          productImage={shareImage}
+          authUser={authUser}
+        />
+      )}
     </>
   );
 };
