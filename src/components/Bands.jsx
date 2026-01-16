@@ -79,6 +79,21 @@ function getClientIds() {
   return { customers_id, parent_retailer_id };
 }
 
+function getCartCheckState(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  if (payload.in_cart !== undefined && payload.in_cart !== null) {
+    return Boolean(payload.in_cart);
+  }
+  const added =
+    payload.addedtocart ??
+    payload.added_to_cart ??
+    payload.addedToCart;
+  if (added !== undefined && added !== null) {
+    return Boolean(added);
+  }
+  return false;
+}
+
 /* ================= Ring Size Select2 ================= */
 function RingSizeSelect2({ options, value, onChange, loading, disabled }) {
   const selectOptions = useMemo(
@@ -89,23 +104,25 @@ function RingSizeSelect2({ options, value, onChange, loading, disabled }) {
       })),
     [options]
   );
-
+ 
   const selectedOption = selectOptions.find((o) => o.value === value) || null;
-
+ 
+  const BRAND = "#2c3b5c"; // ✅ NEW COLOR
+ 
   return (
-    <>
-      <style>{`
+<>
+<style>{`
         .ring-select2 .react-select__control{
           min-height:40px;
           border:1px solid #d7dbe6;
           border-radius:6px;
           font-weight:600;
         }
-        .ring-select2 .react-select__menu{
-          z-index:9999;
+        .react-select__menu-portal{
+          z-index: 100000 !important;
         }
       `}</style>
-
+ 
       <Select
         className="ring-select2"
         classNamePrefix="react-select"
@@ -116,8 +133,58 @@ function RingSizeSelect2({ options, value, onChange, loading, disabled }) {
         value={selectedOption}
         placeholder="Choose ring size"
         onChange={(opt) => onChange(opt ? opt.value : null)}
+        menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+        menuPosition="fixed"
+        styles={{
+          menuPortal: (base) => ({ ...base, zIndex: 100000 }),
+ 
+          /* ✅ selected value border/focus color */
+          control: (base, state) => ({
+            ...base,
+            borderColor: state.isFocused ? BRAND : base.borderColor,
+            boxShadow: state.isFocused ? `0 0 0 1px ${BRAND}` : base.boxShadow,
+            "&:hover": { borderColor: BRAND },
+          }),
+ 
+          /* ✅ dropdown selected option + hover option background */
+          option: (base, state) => ({
+            ...base,
+            backgroundColor: state.isSelected
+              ? BRAND
+              : state.isFocused
+              ? BRAND
+              : "white",
+            color: state.isSelected || state.isFocused ? "white" : "#223052",
+            cursor: "pointer",
+          }),
+ 
+          /* ✅ dropdown scroll bar / background safe */
+          menu: (base) => ({
+            ...base,
+            zIndex: 100000,
+          }),
+ 
+          /* ✅ selected text color (inside input box) */
+          singleValue: (base) => ({
+            ...base,
+            color: "#223052",
+            fontWeight: 700,
+          }),
+ 
+          /* ✅ dropdown arrow color */
+          dropdownIndicator: (base, state) => ({
+            ...base,
+            color: BRAND,
+            "&:hover": { color: BRAND },
+          }),
+ 
+          indicatorSeparator: (base) => ({
+            ...base,
+            backgroundColor: "#d7dbe6",
+          }),
+        }}
       />
-    </>
+</>
   );
 }
 
@@ -1781,7 +1848,7 @@ const Bands = React.memo(function Bands() {
           params: { products_id: product.products_id, customers_id, parent_retailer_id },
           headers: { Accept: "application/json" },
         })
-        .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+        .then((res) => setIsInCart(getCartCheckState(res.data)))
         .catch(() => setIsInCart(false));
     });
 

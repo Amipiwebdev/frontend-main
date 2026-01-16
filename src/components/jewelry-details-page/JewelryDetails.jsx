@@ -314,6 +314,21 @@ const getClientIds = () => {
   return { customers_id, parent_retailer_id };
 };
 
+const getCartCheckState = (payload) => {
+  if (!payload || typeof payload !== "object") return false;
+  if (payload.in_cart !== undefined && payload.in_cart !== null) {
+    return Boolean(payload.in_cart);
+  }
+  const added =
+    payload.addedtocart ??
+    payload.added_to_cart ??
+    payload.addedToCart;
+  if (added !== undefined && added !== null) {
+    return Boolean(added);
+  }
+  return false;
+};
+
 const getPricingParams = () => {
   let user = null;
   try {
@@ -429,12 +444,12 @@ const buildSelectionParams = (selection = {}, options = {}, designId, relatedDes
 
   return {
     diamond_weight_group_id: resolve("diamond_weight_groups", "diamondWeight"),
-    shape_id: resolve("shapes", "shape"),
-    metal_type_id: resolve("metal_types", "metalType"),
+    shape: resolve("shapes", "shape"),
+    metal: resolve("metal_types", "metalType"),
     sptmt_metal_type_id: resolve("metal_types", "metalType"),
     center_stone_type_id: centerStoneTypeId,
-    diamond_quality_id: resolve("diamond_qualities", "diamondQuality"),
-    ring_size_id: resolve("ring_sizes", "ringSize"),
+    product_quantity: resolve("diamond_qualities", "diamondQuality"),
+    ringSize: resolve("ring_sizes", "ringSize"),
     design_id: designId || undefined,
     related_design_id: relatedDesignId || undefined,
   };
@@ -957,8 +972,8 @@ const JewelryDetails = () => {
       products_id: product.products_id,
       customers_id,
       parent_retailer_id,
-      product_quantity: quantity,
       ...selectionParams,
+      product_quantity: quantity,
       ...pricing,
     };
 
@@ -1072,7 +1087,7 @@ const JewelryDetails = () => {
         params: { products_id: product.products_id, customers_id, parent_retailer_id },
         headers: { Accept: "application/json" },
       })
-      .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+      .then((res) => setIsInCart(getCartCheckState(res.data)))
       .catch(() => setIsInCart(false));
   }, [product?.products_id, isAuthenticated]);
 

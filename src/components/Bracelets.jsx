@@ -61,6 +61,21 @@ function getClientIds() {
   return { customers_id, parent_retailer_id };
 }
 
+function getCartCheckState(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  if (payload.in_cart !== undefined && payload.in_cart !== null) {
+    return Boolean(payload.in_cart);
+  }
+  const added =
+    payload.addedtocart ??
+    payload.added_to_cart ??
+    payload.addedToCart;
+  if (added !== undefined && added !== null) {
+    return Boolean(added);
+  }
+  return false;
+}
+
 /** Pricing/user flags used by product/cart/wishlist/compare. */
 function getPricingParams() {
   let user = null;
@@ -1247,7 +1262,7 @@ useEffect(() => {
         params: { products_id: product.products_id, customers_id, parent_retailer_id },
         headers: { Accept: "application/json" },
       })
-      .then((res) => setIsInCart(Boolean(res.data?.in_cart)))
+      .then((res) => setIsInCart(getCartCheckState(res.data)))
       .catch(() => setIsInCart(false));
   }, [product?.products_id]);
 
