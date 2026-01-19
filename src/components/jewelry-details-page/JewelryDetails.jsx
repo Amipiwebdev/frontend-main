@@ -584,6 +584,7 @@ const JewelryDetails = () => {
   const [activeMedia, setActiveMedia] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [availability, setAvailability] = useState(null);
   const [selection, setSelection] = useState(DEFAULT_SELECTIONS);
   const [ringOptionSelected, setRingOptionSelected] = useState(null);
   const [estDiamondPcs, setEstDiamondPcs] = useState(null);
@@ -622,6 +623,61 @@ const JewelryDetails = () => {
       if (value !== undefined && value !== null && value !== "") return value;
     }
     return null;
+  };
+
+  const formatShipDateLong = (dateStr) => {
+    if (!dateStr) return "";
+    const trimmed = String(dateStr).trim();
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+    const parsed = match
+      ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+      : new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return trimmed;
+    return parsed.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "2-digit",
+    });
+  };
+
+  const buildAvailabilityView = (availabilityObj) => {
+    if (!availabilityObj || availabilityObj.is_display_delivery_days !== 1) {
+      return { type: "fallback" };
+    }
+
+    const rows = [];
+    const bySize = Array.isArray(availabilityObj.by_size) ? availabilityObj.by_size : [];
+    for (const row of bySize) {
+      const size = row?.size;
+      const sizeLabel =
+        size === undefined || size === null || size === "" || size === 0 || size === "0"
+          ? "All Sizes"
+          : String(size);
+      const onHand = Number(row?.on_hand ?? 0) || 0;
+      const memoOut = Number(row?.memo_out ?? 0) || 0;
+      if (onHand > 0) rows.push({ status: "on_hand", sizeLabel, count: onHand });
+      if (memoOut > 0) rows.push({ status: "memo_out", sizeLabel, count: memoOut });
+    }
+
+    if (rows.length) return { type: "by_size", rows };
+
+    const totals = availabilityObj.totals || {};
+    const totalOnHand = Number(totals.on_hand ?? 0) || 0;
+    const totalMemoOut = Number(totals.memo_out ?? 0) || 0;
+    if (totalOnHand > 0 || totalMemoOut > 0) {
+      if (totalOnHand > 0) {
+        rows.push({ status: "on_hand", sizeLabel: "All Sizes", count: totalOnHand });
+      }
+      if (totalMemoOut > 0) {
+        rows.push({ status: "memo_out", sizeLabel: "All Sizes", count: totalMemoOut });
+      }
+      return { type: "by_size", rows };
+    }
+
+    return {
+      type: "made_to_order",
+      madeToOrderShipDate: availabilityObj.made_to_order_ship_date || "",
+    };
   };
 
   const resolveIdsWithAuthFallback = (baseIds = {}) => {
@@ -795,6 +851,7 @@ const JewelryDetails = () => {
 
         setProduct(data.product || null);
         setMedia(data.media || { images: [], videos: [] });
+        setAvailability(data.availability || null);
         setFilterOptions(normalizedFilters);
         setSelection(nextSelectionState);
         const nextDesignId = data.product?.design_id || data.product?.designId || designIdRef.current || "";
@@ -1194,6 +1251,21 @@ const JewelryDetails = () => {
     pieces: getProductValue("secondary_pieces", "secondary_piece_count","stn2_pcs"),
     breakdown: getProductValue("secondary_breakdown", "secondary_stone_breakdown","col_stn_breakdown"),
   };
+  const secondaryTypeRaw = getProductValue(
+    "stn2_type",
+    "secondary_stone_type",
+    "secondaryStoneType",
+    "pst_alias",
+    "stn2_dcst_type"
+  );
+  const secondaryPcsRaw = getProductValue("stn2_pcs", "secondary_pieces", "secondary_piece_count");
+  const hasSecondaryStone =
+    secondaryTypeRaw !== undefined &&
+    secondaryTypeRaw !== null &&
+    String(secondaryTypeRaw).trim() !== "" &&
+    secondaryPcsRaw !== undefined &&
+    secondaryPcsRaw !== null &&
+    String(secondaryPcsRaw).trim() !== "";
 
   const selectionStats = {
     standardTotalCt: getProductValue("standard_total_ct_w", "standard_total_ct", "total_ct_w"),
@@ -1287,6 +1359,7 @@ const JewelryDetails = () => {
   const unitPriceValue = toNumberIfPresent(unitPrice);
   const totalPriceValue = unitPriceValue !== null ? unitPriceValue * quantity : null;
   const displayPrice = totalPriceValue !== null ? formatPrice(totalPriceValue) : "";
+  const availabilityView = buildAvailabilityView(availability);
 
   const quantityMessage = isOutOfStock ? "Out of stock." : quantityError;
   const isAddToCartDisabled = isOutOfStock || Boolean(quantityError);
@@ -1375,20 +1448,24 @@ const JewelryDetails = () => {
         { key: "Breakdown", value: valueOrDash(primaryStone.breakdown) },
       ],
     },
-    {
-      title: "Secondary Stone Info",
-      rows: [
-        { key: "Type", value: valueOrDash(secondaryStone.type) },
-        { key: "Origin", value: valueOrDash(secondaryStone.origin) },
-        { key: "Shape", value: valueOrDash(secondaryStone.shape || selectedShape) },
-        { key: "Quality", value: valueOrDash(secondaryStone.quality) },
-        { key: "Total Ct (W)", value: valueOrDash(secondaryStone.totalCt) },
-        { key: "Stone Size", value: valueOrDash(secondaryStone.stoneSize) },
-        { key: "MM", value: valueOrDash(secondaryStone.mm) },
-        { key: "Pieces", value: valueOrDash(secondaryStone.pieces) },
-        { key: "Breakdown", value: valueOrDash(secondaryStone.breakdown) },
-      ],
-    },
+    ...(hasSecondaryStone
+      ? [
+          {
+            title: "Secondary Stone Info",
+            rows: [
+              { key: "Type", value: valueOrDash(secondaryStone.type) },
+              { key: "Origin", value: valueOrDash(secondaryStone.origin) },
+              { key: "Shape", value: valueOrDash(secondaryStone.shape || selectedShape) },
+              { key: "Quality", value: valueOrDash(secondaryStone.quality) },
+              { key: "Total Ct (W)", value: valueOrDash(secondaryStone.totalCt) },
+              { key: "Stone Size", value: valueOrDash(secondaryStone.stoneSize) },
+              { key: "MM", value: valueOrDash(secondaryStone.mm) },
+              { key: "Pieces", value: valueOrDash(secondaryStone.pieces) },
+              { key: "Breakdown", value: valueOrDash(secondaryStone.breakdown) },
+            ],
+          },
+        ]
+      : []),
     {
       title: "Your Selection",
       rows: [
@@ -1517,9 +1594,6 @@ const JewelryDetails = () => {
 
             {/* Right Column */}
             <div className="jd-config">
-              {loading && <div className="jd-status">Loading product...</div>}
-              {error && <div className="jd-status jd-error">{error}</div>}
-
               <div className="jd-reset-row">
                 <span className="jd-sku">#{displaySku}</span>
                 <button type="button" className="jd-link-button" onClick={handleResetFilters}>Reset Filter</button>
@@ -1529,7 +1603,7 @@ const JewelryDetails = () => {
                 <div className="jd-design-inputs">
                   <input
                     id="jd-design-id"
-                    type="text"
+                    type="hidden"
                     className="form-control jd-design-input"
                     value={designId}
                     onChange={handleDesignIdChange}
@@ -1537,7 +1611,7 @@ const JewelryDetails = () => {
                   />
                   <input
                     id="jd-related-design-id"
-                    type="text"
+                    type="hidden"
                     className="form-control jd-design-input"
                     value={relatedDesignId}
                     onChange={handleRelatedDesignIdChange}
@@ -1551,24 +1625,27 @@ const JewelryDetails = () => {
               <p className="jd-subtitle">{displayDescription}</p>
 
               {/* FILTER ACCORDIONS */}
-              {FILTER_GROUPS.map((group) => (
-                <Accordion
-                  key={group.key}
-                  title={group.label}
-                  value={getSelectedSummary(group.key) || selection[group.key]}
-                >
-                  <FilterGroup
-                    group={group}
-                    options={
-                      group.key === "diamondQuality"
-                        ? diamondQualityOptions
-                        : filterOptions[group.sourceKey] || []
-                    }
-                    value={selection[group.key]}
-                    onSelect={handleFilterSelect}
-                  />
-                </Accordion>
-              ))}
+              {FILTER_GROUPS.map((group) => {
+                const groupOptions =
+                  group.key === "diamondQuality"
+                    ? diamondQualityOptions
+                    : filterOptions[group.sourceKey] || [];
+                if (groupOptions.length <= 1) return null;
+                return (
+                  <Accordion
+                    key={group.key}
+                    title={group.label}
+                    value={getSelectedSummary(group.key) || selection[group.key]}
+                  >
+                    <FilterGroup
+                      group={group}
+                      options={groupOptions}
+                      value={selection[group.key]}
+                      onSelect={handleFilterSelect}
+                    />
+                  </Accordion>
+                );
+              })}
 
               {/* Custom Options Accordion */}
               <div className="jd-accordion jd-static-accordion">
@@ -1640,7 +1717,42 @@ const JewelryDetails = () => {
                       <i className="fa fa-shopping-cart" aria-hidden="true" /> Add To Cart
                     </button>
                   )}
-                  <div className="jd-availability">Availability: Made to Order</div>
+                  {availabilityView.type === "fallback" ? (
+                    <div className="jd-availability">Availability: Made to Order</div>
+                  ) : availabilityView.type === "by_size" ? (
+                    <div className="jd-availability">
+                      <div className="ship m-0">
+                        <i className="fa fa-truck" aria-hidden="true" />
+                        <span>AVAILABILITY</span>
+                      </div>
+                      {availabilityView.rows.map((row, index) => (
+                        <div
+                          key={`${row.status}-${row.sizeLabel}-${index}`}
+                          className={
+                            row.status === "on_hand"
+                              ? "product-detail-green-do tool-dot-gt"
+                              : "product-detail-red-dot tool-dot-r"
+                          }
+                        >
+                          {`Size ${row.sizeLabel} - ${row.count} pc(s) - ${
+                            row.status === "on_hand" ? "Available" : "Call for Status"
+                          }`}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="jd-availability">
+                      <div className="product-detail-gray-do tool-dot-gt">Made to Order</div>
+                      <div className="product-detail-gray-do tool-dot-gt">
+                        Expected to Ship by {formatShipDateLong(availabilityView.madeToOrderShipDate)}
+                      </div>
+                      <div className="product-detail-gray-do tool-dot-gt">
+                        Please contact us for any rush order requirements.
+                      </div>
+                    </div>
+                  )}
+                  {loading && <div className="jd-status">Loading product...</div>}
+                  {error && <div className="jd-status jd-error">{error}</div>}
                 </div>
               </div>
             </div>
