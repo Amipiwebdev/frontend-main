@@ -1174,7 +1174,7 @@ const JewelryDetails = () => {
 
   const secondaryStone = {
     type: getProductValue("secondary_stone_type", "secondaryStoneType","pst_alias","stn2_dcst_type"),
-    origin: getProductValue("secondary_origin", "secondary_stone_origin","center_stone_type","stn2_origin_name"),
+    origin: getProductValue("secondary_origin", "secondary_stone_origin","center_stone_type","stn2_origin_name","primary_stone_origin","primary_origin"),
     shape: getProductValue("secondary_shape", "secondary_stone_shape","shapename2"),
     quality: getProductValue("secondary_quality", "secondary_stone_quality","stn_diamond_quality"),
     totalCt: getProductValue(
@@ -1393,11 +1393,11 @@ const JewelryDetails = () => {
       title: "Your Selection",
       rows: [
         { key: "Standard Size", value: ringSizeLabel },
-        { key: "Standard Total Ct (W)", value: formatCt(productEstTotalCt) },
-        { key: "Standard Pieces", value: valueOrDash(productTotalPcs) },
         { key: "Selected Size", value: ringSizeLabel },
-        { key: "Est. Pieces", value: valueOrDash(computedEstimatedPieces) },
+        { key: "Standard Total Ct (W)", value: formatCt(productEstTotalCt) },
         { key: "Est. Ct (W)", value: valueOrDash(computedEstimatedCt) },
+        { key: "Standard Pieces", value: valueOrDash(productTotalPcs) },        
+        { key: "Est. Pieces", value: valueOrDash(computedEstimatedPieces) },        
       ],
     },
   ];

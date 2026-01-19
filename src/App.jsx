@@ -15,8 +15,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/bands" element={<Bands />} />
           <Route path="/bracelets" element={<Bracelets />} />
-          <Route path="/jewelry-details/jewelry/:sku" element={<JewelryDetails />} />
-          <Route path="/jewelry-details" element={<JewelryDetails />} />
+          <Route path="/details/jewelry/:sku" element={<JewelryDetails />} />
+          <Route path="/details" element={<JewelryDetails />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -596,8 +596,8 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
 /* ------------------------------------------------------------------ */
 
 function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
-  const [perSlide, setPerSlide] = useState(2); // desktop: 2-up, mobile: 1-up
-
+  const [perSlide, setPerSlide] = useState(2); // desktop: 3-up, mobile: 1-up
+ 
   // Responsive columns: <768 => 1, else 3
   useEffect(() => {
     const handle = () => setPerSlide(window.innerWidth < 768 ? 1 : 3);
@@ -605,40 +605,43 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
     window.addEventListener("resize", handle);
     return () => window.removeEventListener("resize", handle);
   }, []);
-
+ 
   // Build padded slides
   const slides = useMemo(() => {
     if (!Array.isArray(items) || items.length === 0) return [];
-
+ 
     const nPer = Math.max(1, Math.min(perSlide, items.length));
     const targetLen = Math.max(items.length, nPer * minSlides);
-    const lcpIndex = items.findIndex((it) => it.type === "image");
-
+ 
     const padded = Array.from({ length: targetLen }, (_, i) => ({
       ...items[i % items.length],
       __origIndex: i % items.length,
-      __isLcpInstance: lcpIndex >= 0 && i === lcpIndex,
     }));
-
+ 
     const arr = [];
     for (let i = 0; i < padded.length; i += nPer) {
       arr.push(padded.slice(i, i + nPer));
     }
     return arr;
   }, [items, perSlide, minSlides]);
-
+ 
   const [idx, setIdx] = useState(0);
   const total = slides.length;
-
+ 
   useEffect(() => {
     if (total === 0) setIdx(0);
     else if (idx > total - 1) setIdx(0);
   }, [total, idx]);
-
+ 
   if (!items?.length) {
-    return <div className="gallery-image-link" style={{ background: "#f5f5f8", minHeight: height }} />;
+    return (
+      <div
+        className="gallery-image-link"
+        style={{ background: "#f5f5f8", height }}
+      />
+    );
   }
-
+ 
   return (
     <div style={{ position: "relative", overflow: "hidden" }}>
       <div
@@ -654,25 +657,37 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(${Math.min(perSlide, slide.length)}, 1fr)`,
+                gridTemplateColumns: `repeat(${perSlide}, 1fr)`, // ✅ always 3 on desktop
                 gap: 0,
-                minHeight: height,
+                height, // ✅ FIX: no extra bottom space
+                alignItems: "stretch",
               }}
             >
               {slide.map((item, i) => {
                 const open = () => onOpen(item.__origIndex ?? 0);
+ 
                 const commonBtnStyle = {
                   background: "transparent",
                   border: 0,
                   padding: 0,
-                  height,
+                  height: "100%",
+                  width: "100%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
                 };
-                const isLcpImage = item.type === "image" && item.__isLcpInstance;
-
+ 
+                // ✅ Explicit column placement (desktop only)
+                const gridPos =
+                  perSlide === 3
+                    ? slide.length === 1
+                      ? { gridColumn: "2 / span 1" } // single -> center
+                      : slide.length === 2
+                      ? { gridColumn: `${i + 1} / span 1` } // two -> col1, col2 (col3 blank below)
+                      : { gridColumn: `${i + 1} / span 1` } // three -> col1,col2,col3
+                    : {};
+ 
                 return item.type === "video" ? (
                   <button
                     key={`v-${s}-${i}`}
@@ -680,11 +695,10 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
                     className="gallery-image-link"
                     title="View video"
                     onClick={open}
-                    style={commonBtnStyle}
+                    style={{ ...commonBtnStyle, ...gridPos }}
                   >
-                    <LazyVideo
+                    <SafeVideo
                       src={item.src}
-                      poster={item.poster}
                       controls={false}
                       className="gallery-image"
                       style={{
@@ -703,7 +717,7 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
                     className="gallery-image-link"
                     title="View image"
                     onClick={open}
-                    style={commonBtnStyle}
+                    style={{ ...commonBtnStyle, ...gridPos }}
                   >
                     <SafeImage
                       src={item.src}
@@ -715,21 +729,58 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
                         objectFit: "contain",
                         background: "#fff",
                       }}
-                      loading={isLcpImage ? "eager" : "lazy"}
-                      fetchpriority={isLcpImage ? "high" : undefined}
-                      width={item.width || DEFAULT_IMAGE_WIDTH}
-                      height={item.height || DEFAULT_IMAGE_HEIGHT}
-                      sizes={item.sizes || GALLERY_IMAGE_SIZES}
-                      srcSet={item.srcSet || undefined}
                     />
                   </button>
                 );
               })}
+ 
+              {/* ✅ Desktop: 2 items => make 3rd blank in SAME ROW (no className to avoid padding/margins) */}
+              {perSlide === 3 && slide.length === 2 && (
+                <div
+                  key={`blank-3rd-${s}`}
+                  aria-hidden="true"
+                  style={{
+                    gridColumn: "3 / span 1",
+                    height: "100%",
+                    width: "100%",
+                    background: "transparent",
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
+ 
+              {/* ✅ Desktop: 1 item => keep left & right blank (same row) */}
+              {perSlide === 3 && slide.length === 1 && (
+                <>
+                  <div
+                    key={`blank-left-${s}`}
+                    aria-hidden="true"
+                    style={{
+                      gridColumn: "1 / span 1",
+                      height: "100%",
+                      width: "100%",
+                      background: "transparent",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <div
+                    key={`blank-right-${s}`}
+                    aria-hidden="true"
+                    style={{
+                      gridColumn: "3 / span 1",
+                      height: "100%",
+                      width: "100%",
+                      background: "transparent",
+                      pointerEvents: "none",
+                    }}
+                  />
+                </>
+              )}
             </div>
           </div>
         ))}
       </div>
-
+ 
       {total > 1 && (
         <>
           <button
@@ -742,6 +793,7 @@ function GalleryCarousel({ items, onOpen, height = 400, minSlides = 3 }) {
               <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM199 303L279 223C288.4 213.6 303.6 213.6 312.9 223C322.2 232.4 322.3 247.6 312.9 256.9L273.9 295.9L424 295.9C437.3 295.9 448 306.6 448 319.9C448 333.2 437.3 343.9 424 343.9L273.9 343.9L312.9 382.9C322.3 392.3 322.3 407.5 312.9 416.8C303.5 426.1 288.3 426.2 279 416.8L199 336.8C189.6 327.4 189.6 312.2 199 302.9z" />
             </svg>
           </button>
+ 
           <button
             type="button"
             aria-label="Next images"
