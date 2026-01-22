@@ -174,6 +174,154 @@ const buildFilterOptions = (apiFilters) => ({
   ring_sizes: toOptionList(apiFilters?.ring_sizes, FALLBACK_FILTER_VALUES.ring_sizes),
 });
 
+const normalizeValueId = (value) => {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value === "object") {
+    const candidate = value.value_id ?? value.id ?? value.value;
+    if (candidate !== undefined && candidate !== null) return String(candidate);
+  }
+  return "";
+};
+
+const findOptionById = (productOptions = [], id) => {
+  const target = normalizeValueId(id);
+  return (
+    (Array.isArray(productOptions) ? productOptions : []).find(
+      (option) => normalizeValueId(option?.options_id) === target
+    ) || null
+  );
+};
+
+const getOptionValueMap = (option) => {
+  const map = new Map();
+  const values = Array.isArray(option?.values) ? option.values : [];
+  for (const value of values) {
+    const key = normalizeValueId(value?.value_id ?? value?.id ?? value?.value);
+    if (key) map.set(key, value);
+  }
+  return map;
+};
+
+const autoHealOptionSelection = (prev = {}, productOptions = []) => {
+  const next = {};
+  const options = Array.isArray(productOptions) ? productOptions : [];
+
+  for (const option of options) {
+    const optionId = normalizeValueId(option?.options_id);
+    if (!optionId || optionId === "2") continue;
+    const optionType = Number(option?.options_type);
+    const values = Array.isArray(option?.values) ? option.values : [];
+    const hasSingleValue = values.length === 1;
+    const isCompulsory = Number(option?.is_compulsory) === 1;
+
+    if (optionType === 0 || optionType === 3) {
+      const valueMap = getOptionValueMap(option);
+      const selected = normalizeValueId(prev?.[optionId]);
+      if (selected && valueMap.has(selected)) {
+        next[optionId] = selected;
+      } else if ((isCompulsory || hasSingleValue) && values.length) {
+        next[optionId] = normalizeValueId(
+          values[0]?.value_id ?? values[0]?.id ?? values[0]?.value
+        );
+      } else {
+        next[optionId] = "";
+      }
+      continue;
+    }
+
+    if (optionType === 4) {
+      const valueMap = getOptionValueMap(option);
+      const selected = Array.isArray(prev?.[optionId]) ? prev[optionId] : [];
+      next[optionId] = selected
+        .map((value) => normalizeValueId(value))
+        .filter((value) => value && valueMap.has(value));
+      continue;
+    }
+
+    if (optionType === 1 || optionType === 2) {
+      const current = prev?.[optionId];
+      if (current === undefined || current === null) {
+        next[optionId] = "";
+      } else if (typeof current === "string") {
+        next[optionId] = current;
+      } else {
+        next[optionId] = String(current);
+      }
+      continue;
+    }
+
+    if (prev?.[optionId] !== undefined) {
+      next[optionId] = prev[optionId];
+    }
+  }
+
+  return next;
+};
+
+const getRingSizeRow = (productOptions = [], filterOptions = {}, selection = {}) => {
+  const selectionId = normalizeValueId(selection?.ringSize);
+  const ringOption = findOptionById(productOptions, 2);
+  const ringValues =
+    ringOption &&
+    Number(ringOption.options_type) === 0 &&
+    Array.isArray(ringOption.values)
+      ? ringOption.values
+      : null;
+
+  if (ringValues && ringValues.length) {
+    const match =
+      ringValues.find(
+        (value) =>
+          normalizeValueId(value?.value_id ?? value?.id ?? value?.value) === selectionId
+      ) || null;
+    if (!match) return null;
+    const id = match?.value_id ?? match?.id ?? match?.value;
+    const label = normalizeOptionText(
+      match?.value_name ?? match?.label ?? match?.name ?? match?.value
+    );
+    return { ...match, value: id, label, id };
+  }
+
+  return (
+    (filterOptions?.ring_sizes || []).find(
+      (value) => normalizeValueId(value?.value) === selectionId
+    ) || null
+  );
+};
+
+const getSelectedRows = (productOptions = [], optionSelection = {}) => {
+  const rows = [];
+  const options = Array.isArray(productOptions) ? productOptions : [];
+
+  for (const option of options) {
+    const optionId = normalizeValueId(option?.options_id);
+    if (!optionId || optionId === "2") continue;
+    const optionType = Number(option?.options_type);
+    const valueMap = getOptionValueMap(option);
+
+    if (optionType === 0 || optionType === 3) {
+      const selected = normalizeValueId(optionSelection?.[optionId]);
+      if (selected && valueMap.has(selected)) rows.push(valueMap.get(selected));
+      continue;
+    }
+
+    if (optionType === 4) {
+      const selectedValues = Array.isArray(optionSelection?.[optionId])
+        ? optionSelection[optionId]
+        : [];
+      for (const value of selectedValues) {
+        const key = normalizeValueId(value);
+        if (key && valueMap.has(key)) rows.push(valueMap.get(key));
+      }
+    }
+  }
+
+  return rows;
+};
+
 const optionValue = (opt) =>
   normalizeOptionValue(opt?.id ?? opt?.value_id ?? opt?.value);
 
@@ -580,12 +728,14 @@ const JewelryDetails = () => {
   const { sku } = useParams();
   const [product, setProduct] = useState(null);
   const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS);
+  const [productOptions, setProductOptions] = useState([]);
   const [media, setMedia] = useState({ images: [], videos: [] });
   const [activeMedia, setActiveMedia] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [availability, setAvailability] = useState(null);
   const [selection, setSelection] = useState(DEFAULT_SELECTIONS);
+  const [optionSelection, setOptionSelection] = useState({});
   const [ringOptionSelected, setRingOptionSelected] = useState(null);
   const [estDiamondPcs, setEstDiamondPcs] = useState(null);
   const [estCaratWt, setEstCaratWt] = useState(null);
@@ -791,6 +941,14 @@ const JewelryDetails = () => {
     }
   };
 
+  const applyAdjustments = (baseValue, rows, symbolKey, deltaKey) => {
+    let adjusted = baseValue;
+    for (const row of rows) {
+      adjusted = applySymbol(adjusted, row?.[symbolKey], row?.[deltaKey]);
+    }
+    return adjusted;
+  };
+
   const fetchProductDetails = (
     nextSelection = selection,
     { resetSelection = false, designOverride, relatedDesignOverride, filterMeta } = {}
@@ -823,6 +981,9 @@ const JewelryDetails = () => {
         if (requestId !== requestIdRef.current) return;
         const data = res.data || {};
         const normalizedFilters = buildFilterOptions(data.filters);
+        const nextProductOptions = Array.isArray(data.filters?.product_options)
+          ? data.filters.product_options
+          : [];
         const originOptions = normalizedFilters.origins || [];
         const selectionSeed = resetSelection ? {} : nextSelection;
         const baseSelection = deriveSelection(
@@ -853,6 +1014,8 @@ const JewelryDetails = () => {
         setMedia(data.media || { images: [], videos: [] });
         setAvailability(data.availability || null);
         setFilterOptions(normalizedFilters);
+        setProductOptions(nextProductOptions);
+        setOptionSelection((prev) => autoHealOptionSelection(prev, nextProductOptions));
         setSelection(nextSelectionState);
         const nextDesignId = data.product?.design_id || data.product?.designId || designIdRef.current || "";
         const nextRelatedDesignId =
@@ -899,11 +1062,35 @@ const JewelryDetails = () => {
   const handleRingSizeChange = (e) => {
     const targetValue = e.target.value;
     const option =
-      (filterOptions.ring_sizes || []).find((opt) => String(opt.value) === String(targetValue)) ||
-      null;
-    const nextSelection = { ...selection, ringSize: option ? option.value : targetValue };
+      (ringSizeOptions || []).find(
+        (opt) => normalizeValueId(opt.value ?? opt.id) === normalizeValueId(targetValue)
+      ) || null;
+    const nextSelection = {
+      ...selection,
+      ringSize: option ? option.value ?? option.id : targetValue,
+    };
     setSelection(nextSelection);
     setRingOptionSelected(option);
+  };
+
+  const handleOptionSelectionChange = (optionId, value) => {
+    setOptionSelection((prev) => ({
+      ...prev,
+      [optionId]: value,
+    }));
+  };
+
+  const handleOptionToggle = (optionId, valueId) => {
+    setOptionSelection((prev) => {
+      const current = Array.isArray(prev?.[optionId]) ? prev[optionId] : [];
+      const nextValues = current.includes(valueId)
+        ? current.filter((id) => id !== valueId)
+        : [...current, valueId];
+      return {
+        ...prev,
+        [optionId]: nextValues,
+      };
+    });
   };
 
   const handleDesignIdChange = (e) => {
@@ -1072,16 +1259,16 @@ const JewelryDetails = () => {
   }, [sku]);
 
   useEffect(() => {
-    const nextOption =
-      (filterOptions.ring_sizes || []).find(
-        (opt) => String(opt.value) === String(selection.ringSize)
-      ) || null;
+    const nextOption = getRingSizeRow(productOptions, filterOptions, {
+      ringSize: selection.ringSize,
+    });
     setRingOptionSelected((prev) => {
       if (!nextOption && !prev) return prev;
       if (
         nextOption &&
         prev &&
-        String(prev.value) === String(nextOption.value) &&
+        normalizeValueId(prev.value ?? prev.value_id ?? prev.id) ===
+          normalizeValueId(nextOption.value ?? nextOption.value_id ?? nextOption.id) &&
         prev.options_symbol === nextOption.options_symbol &&
         prev.options_price === nextOption.options_price &&
         prev.estimated_symbol === nextOption.estimated_symbol &&
@@ -1091,7 +1278,7 @@ const JewelryDetails = () => {
       }
       return nextOption;
     });
-  }, [filterOptions.ring_sizes, selection.ringSize]);
+  }, [productOptions, filterOptions.ring_sizes, selection.ringSize]);
 
   useEffect(() => {
     if (!product?.products_id || !isAuthenticated) {
@@ -1156,6 +1343,33 @@ const JewelryDetails = () => {
     selection.diamondOrigin,
     filterOptions.origins || []
   );
+  const ringOption = findOptionById(productOptions, 2);
+  const ringOptionValues =
+    ringOption &&
+    Number(ringOption.options_type) === 0 &&
+    Array.isArray(ringOption.values)
+      ? ringOption.values
+      : null;
+  const ringSizeOptions =
+    ringOptionValues && ringOptionValues.length
+      ? ringOptionValues.map((value) => {
+          const id = value?.value_id ?? value?.id ?? value?.value;
+          const name = normalizeOptionText(
+            value?.value_name ?? value?.label ?? value?.name ?? value?.value
+          );
+          return {
+            id,
+            name,
+            value: id,
+            label: name,
+            options_symbol: value?.options_symbol,
+            estimated_weight: value?.estimated_weight,
+            estimated_symbol: value?.estimated_symbol,
+            options_price: value?.options_price,
+          };
+        })
+      : filterOptions.ring_sizes || [];
+  const hasRingSizeOptions = ringSizeOptions.length > 0;
 
   const getSelectedOption = (selectionKey) => {
     const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
@@ -1191,10 +1405,216 @@ const JewelryDetails = () => {
     diamondQualityOptions[0]?.label ||
     selection.diamondQuality ||
     "";
-  const ringSizeLabel =
-    (filterOptions.ring_sizes || []).find((opt) => opt.value === selection.ringSize)?.label ||
-    selection.ringSize ||
-    "";
+  const ringSizeLabel = hasRingSizeOptions
+    ? ringSizeOptions.find(
+        (opt) => normalizeValueId(opt.value ?? opt.id) === normalizeValueId(selection.ringSize)
+      )?.label ||
+      selection.ringSize ||
+      ""
+    : "";
+  const customOptions = (Array.isArray(productOptions) ? productOptions : []).filter((option) => {
+    const optionId = normalizeValueId(option?.options_id);
+    return optionId && optionId !== "2";
+  });
+  const inlineCustomOption =
+    customOptions.find((option) => {
+      const optionId = normalizeValueId(option?.options_id);
+      return optionId === "1" && Number(option?.options_type) === 0;
+    }) || null;
+  const customOptionsRest = inlineCustomOption
+    ? customOptions.filter((option) => {
+        const optionId = normalizeValueId(option?.options_id);
+        return !(optionId === "1" && Number(option?.options_type) === 0);
+      })
+    : customOptions;
+
+  const getCustomOptionMeta = (option) => {
+    const optionId = normalizeValueId(option?.options_id);
+    if (!optionId) return null;
+    const optionLabel =
+      normalizeOptionText(
+        option?.options_name ??
+          option?.option_name ??
+          option?.name ??
+          option?.title ??
+          option?.label
+      ) || `Option ${optionId}`;
+    const optionType = Number(option?.options_type);
+    const optionValues = Array.isArray(option?.values) ? option.values : [];
+    const isCompulsory = Number(option?.is_compulsory) === 1;
+    const selectedValue =
+      typeof optionSelection?.[optionId] === "string" ? optionSelection[optionId] : "";
+    const selectedValues = Array.isArray(optionSelection?.[optionId])
+      ? optionSelection[optionId]
+      : [];
+
+    return {
+      optionId,
+      optionLabel,
+      optionType,
+      optionValues,
+      isCompulsory,
+      selectedValue,
+      selectedValues,
+    };
+  };
+
+  const inlineCustomOptionMeta = inlineCustomOption
+    ? getCustomOptionMeta(inlineCustomOption)
+    : null;
+
+  const renderCustomOption = (option) => {
+    const meta = getCustomOptionMeta(option);
+    if (!meta) return null;
+    const {
+      optionId,
+      optionLabel,
+      optionType,
+      optionValues,
+      isCompulsory,
+      selectedValue,
+      selectedValues,
+    } = meta;
+    const isBackOption = optionId === "7" && optionType === 3;
+    const showBlankOption = !isCompulsory && optionValues.length > 1;
+
+    return (
+      <div
+        key={`custom-option-${optionId}`}
+        className={`jd-custom-option ${isBackOption ? "jd-custom-option-back" : ""}`}
+      >
+        <div className="jd-custom-option-title">
+          {optionLabel}
+          {!isCompulsory ? null : <span className="jd-required"> *</span>}
+        </div>
+        <div className="jd-custom-option-control">
+          {optionType === 0 ? (
+            <select
+              className="jd-acc-select"
+              value={selectedValue}
+              onChange={(e) =>
+                handleOptionSelectionChange(optionId, normalizeValueId(e.target.value))
+              }
+            >
+              {showBlankOption ? <option value="">Select</option> : null}
+              {optionValues.map((value) => {
+                const valueId = normalizeValueId(value?.value_id ?? value?.id ?? value?.value);
+                const valueLabel = normalizeOptionText(
+                  value?.value_name ?? value?.label ?? value?.name ?? value?.value
+                );
+                return (
+                  <option key={`${optionId}-${valueId}`} value={valueId}>
+                    {valueLabel}
+                  </option>
+                );
+              })}
+            </select>
+          ) : optionType === 3 ? (
+            <div className={`jd-option-list ${isBackOption ? "jd-option-list-cards" : ""}`}>
+              {showBlankOption ? (
+                <label className="jd-option-item">
+                  <input
+                    type="radio"
+                    name={`option-${optionId}`}
+                    value=""
+                    checked={!selectedValue}
+                    onChange={() => handleOptionSelectionChange(optionId, "")}
+                  />
+                  <span>Select</span>
+                </label>
+              ) : null}
+              {optionValues.map((value) => {
+                const valueId = normalizeValueId(value?.value_id ?? value?.id ?? value?.value);
+                const valueLabel = normalizeOptionText(
+                  value?.value_name ?? value?.label ?? value?.name ?? value?.value
+                );
+                const optionImage = value?.option_image ?? value?.optionImage ?? value?.image;
+                if (isBackOption) {
+                  return (
+                    <label key={`${optionId}-${valueId}`} className="jd-option-item jd-option-card-item">
+                      <input
+                        type="radio"
+                        name={`option-${optionId}`}
+                        value={valueId}
+                        checked={selectedValue === valueId}
+                        onChange={() => handleOptionSelectionChange(optionId, valueId)}
+                      />
+                      <div className="jd-option-card">
+                        {optionImage ? (
+                          <img
+                            width={130}
+                            src={`https://www.amipi.com/ampvd/product_images/${optionImage}`}
+                            alt={valueLabel}
+                            className="jd-option-image"
+                          />
+                        ) : null}
+                        <span className="jd-option-card-label">{valueLabel}</span>
+                      </div>
+                    </label>
+                  );
+                }
+                return (
+                  <label key={`${optionId}-${valueId}`} className="jd-option-item">
+                    <input
+                      type="radio"
+                      name={`option-${optionId}`}
+                      value={valueId}
+                      checked={selectedValue === valueId}
+                      onChange={() => handleOptionSelectionChange(optionId, valueId)}
+                    />
+                    {optionImage ? (
+                      <img
+                        width={130}
+                        src={`https://www.amipi.com/ampvd/product_images/${optionImage}`}
+                        alt={valueLabel}
+                        className="jd-option-image"
+                      />
+                    ) : null}
+                    <span>{valueLabel}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : optionType === 4 ? (
+            <div className="jd-option-list">
+              {optionValues.map((value) => {
+                const valueId = normalizeValueId(value?.value_id ?? value?.id ?? value?.value);
+                const valueLabel = normalizeOptionText(
+                  value?.value_name ?? value?.label ?? value?.name ?? value?.value
+                );
+                const inputId = `option-${optionId}-${valueId}`;
+                return (
+                  <label key={inputId} className="jd-option-item">
+                    <input
+                      id={inputId}
+                      type="checkbox"
+                      checked={selectedValues.includes(valueId)}
+                      onChange={() => handleOptionToggle(optionId, valueId)}
+                    />
+                    <span>{valueLabel}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : optionType === 1 ? (
+            <input
+              type="text"
+              className="form-control"
+              value={selectedValue}
+              onChange={(e) => handleOptionSelectionChange(optionId, e.target.value)}
+            />
+          ) : optionType === 2 ? (
+            <textarea
+              className="form-control"
+              rows={3}
+              value={selectedValue}
+              onChange={(e) => handleOptionSelectionChange(optionId, e.target.value)}
+            />
+          ) : null}
+        </div>
+      </div>
+    );
+  };
 
   const productStoneType = getProductValue(
     "stone_type",
@@ -1278,6 +1698,11 @@ const JewelryDetails = () => {
     ),
   };
 
+  const selectedRows = getSelectedRows(productOptions, optionSelection);
+  const adjustmentRows = ringOptionSelected
+    ? [ringOptionSelected, ...selectedRows]
+    : selectedRows;
+
   useEffect(() => {
     if (!product) {
       setEstDiamondPcs(null);
@@ -1303,26 +1728,24 @@ const JewelryDetails = () => {
       getSelectedProductPrice(product, jewelryPriceLevel)
     );
 
-    const diamondPcs = applySymbol(
+    const diamondPcs = applyAdjustments(
       baseDiamondPcs,
-      ringOptionSelected?.estimated_symbol,
-      ringOptionSelected?.estimated_weight
+      adjustmentRows,
+      "estimated_symbol",
+      "estimated_weight"
     );
-    const caratWeight = applySymbol(
+    const caratWeight = applyAdjustments(
       baseCaratWeight,
-      ringOptionSelected?.options_symbol,
-      ringOptionSelected?.estimated_weight
+      adjustmentRows,
+      "options_symbol",
+      "estimated_weight"
     );
-    const price = applySymbol(
-      basePrice,
-      ringOptionSelected?.options_symbol,
-      ringOptionSelected?.options_price
-    );
+    const price = applyAdjustments(basePrice, adjustmentRows, "options_symbol", "options_price");
 
     setEstDiamondPcs((prev) => (prev === diamondPcs ? prev : diamondPcs));
     setEstCaratWt((prev) => (prev === caratWeight ? prev : caratWeight));
     setEstPrice((prev) => (prev === price ? prev : price));
-  }, [product, ringOptionSelected, jewelryPriceLevel]);
+  }, [product, ringOptionSelected, productOptions, optionSelection, jewelryPriceLevel]);
 
   const productEstTotalCt = getProductValue("total_carat_weight", "total_carat", "total_ct_w");
   const productTotalPcs = getProductValue("diamond_pics", "stn1_pcs", "stn2_pcs");
@@ -1337,21 +1760,17 @@ const JewelryDetails = () => {
     });
   };
 
-  const canAdjustPieces =
-    ringOptionSelected?.estimated_symbol &&
-    ringOptionSelected?.estimated_weight !== null &&
-    ringOptionSelected?.estimated_weight !== undefined &&
-    ringOptionSelected?.estimated_weight !== "";
-  const canAdjustCarat =
-    ringOptionSelected?.options_symbol &&
-    ringOptionSelected?.estimated_weight !== null &&
-    ringOptionSelected?.estimated_weight !== undefined &&
-    ringOptionSelected?.estimated_weight !== "";
-  const canAdjustPrice =
-    ringOptionSelected?.options_symbol &&
-    ringOptionSelected?.options_price !== null &&
-    ringOptionSelected?.options_price !== undefined &&
-    ringOptionSelected?.options_price !== "";
+  const hasAdjustmentValue = (value) =>
+    value !== null && value !== undefined && value !== "";
+  const canAdjustPieces = adjustmentRows.some(
+    (row) => row?.estimated_symbol && hasAdjustmentValue(row?.estimated_weight)
+  );
+  const canAdjustCarat = adjustmentRows.some(
+    (row) => row?.options_symbol && hasAdjustmentValue(row?.estimated_weight)
+  );
+  const canAdjustPrice = adjustmentRows.some(
+    (row) => row?.options_symbol && hasAdjustmentValue(row?.options_price)
+  );
 
   const unitPrice = canAdjustPrice
     ? estPrice ?? getSelectedProductPrice(product, jewelryPriceLevel)
@@ -1366,17 +1785,19 @@ const JewelryDetails = () => {
   const cartButtonDisabled = isAddToCartDisabled || cartLoading;
 
   const computedStandardPieces = canAdjustPieces
-    ? applySymbol(
+    ? applyAdjustments(
         selectionStats.standardPieces,
-        ringOptionSelected?.estimated_symbol,
-        ringOptionSelected?.estimated_weight
+        adjustmentRows,
+        "estimated_symbol",
+        "estimated_weight"
       )
     : selectionStats.standardPieces;
   const computedStandardTotalCt = canAdjustCarat
-    ? applySymbol(
+    ? applyAdjustments(
         selectionStats.standardTotalCt,
-        ringOptionSelected?.options_symbol,
-        ringOptionSelected?.estimated_weight
+        adjustmentRows,
+        "options_symbol",
+        "estimated_weight"
       )
     : selectionStats.standardTotalCt;
   const computedEstimatedPieces = canAdjustPieces
@@ -1425,7 +1846,9 @@ const JewelryDetails = () => {
       title: "Product Information",
       rows: [
         { key: "Style No.", value: displaySku },
-        { key: "Standard Size", value: ringSizeLabel },
+        ...(hasRingSizeOptions
+          ? [{ key: "Standard Size", value: ringSizeLabel }]
+          : []),
         { key: "Metal Type", value: selectedMetal },
         { key: "Stone Type", value: valueOrDash(productStoneType) },
         { key: "Shape", value: selectedShape },
@@ -1469,8 +1892,12 @@ const JewelryDetails = () => {
     {
       title: "Your Selection",
       rows: [
-        { key: "Standard Size", value: ringSizeLabel },
-        { key: "Selected Size", value: ringSizeLabel },
+        ...(hasRingSizeOptions
+          ? [
+              { key: "Standard Size", value: ringSizeLabel },
+              { key: "Selected Size", value: ringSizeLabel },
+            ]
+          : []),
         { key: "Standard Total Ct (W)", value: formatCt(productEstTotalCt) },
         { key: "Est. Ct (W)", value: valueOrDash(computedEstimatedCt) },
         { key: "Standard Pieces", value: valueOrDash(productTotalPcs) },        
@@ -1648,25 +2075,94 @@ const JewelryDetails = () => {
               })}
 
               {/* Custom Options Accordion */}
-              <div className="jd-accordion jd-static-accordion">
-                <div className="jd-acc-header open">
+              {hasRingSizeOptions ? (
+                <div className="jd-accordion jd-static-accordion">
+                  <div className="jd-acc-header open">
+                    {/* LEFT TITLE */}
+                    <span className="jd-acc-title">Ring Size</span>
 
-                  {/* LEFT TITLE */}
-                  <span className="jd-acc-title">Ring Size</span>
-
-                  {/* RIGHT DROPDOWN */}
-                  <select
-                    className="jd-acc-select"
-                    value={selection.ringSize}
-                    onChange={handleRingSizeChange}
-                  >
-                    {(filterOptions.ring_sizes || []).map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-
+                    {/* RIGHT DROPDOWN */}
+                    <select
+                      className="jd-acc-select"
+                      value={selection.ringSize}
+                      onChange={handleRingSizeChange}
+                    >
+                      {(ringSizeOptions || []).map((opt) => {
+                        const optValue = opt.value ?? opt.id;
+                        const optLabel = opt.label ?? opt.name ?? String(optValue ?? "");
+                        return (
+                          <option key={normalizeValueId(optValue)} value={optValue}>
+                            {optLabel}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              ) : null}
+
+              {customOptions.length ? (
+                inlineCustomOptionMeta ? (
+                  <div className="jd-accordion jd-static-accordion">
+                    <div className="jd-acc-header open">
+                      <div className="jd-acc-left">
+                        <span className="jd-acc-title">
+                          Custom Options
+                          {!inlineCustomOptionMeta.isCompulsory ? null : (
+                            <span className="jd-required"> *</span>
+                          )}
+                        </span>
+                        <span className="jd-acc-value jd-acc-value-select">
+                          <select
+                            className="jd-acc-select"
+                            value={inlineCustomOptionMeta.selectedValue}
+                            onChange={(e) =>
+                              handleOptionSelectionChange(
+                                inlineCustomOptionMeta.optionId,
+                                normalizeValueId(e.target.value)
+                              )
+                            }
+                          >
+                            {!inlineCustomOptionMeta.isCompulsory &&
+                            inlineCustomOptionMeta.optionValues.length > 1 ? (
+                              <option value="">Select</option>
+                            ) : null}
+                            {inlineCustomOptionMeta.optionValues.map((value) => {
+                              const valueId = normalizeValueId(
+                                value?.value_id ?? value?.id ?? value?.value
+                              );
+                              const valueLabel = normalizeOptionText(
+                                value?.value_name ?? value?.label ?? value?.name ?? value?.value
+                              );
+                              return (
+                                <option
+                                  key={`${inlineCustomOptionMeta.optionId}-${valueId}`}
+                                  value={valueId}
+                                >
+                                  {valueLabel}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </span>
+                      </div>
+                    </div>
+                    {customOptionsRest.length ? (
+                      <div className="jd-acc-body">
+                        <div className="jd-custom-options">
+                          {customOptionsRest.map((option) => renderCustomOption(option))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <Accordion title="Custom Options" value="">
+                    <div className="jd-custom-options">
+                      {customOptions.map((option) => renderCustomOption(option))}
+                    </div>
+                  </Accordion>
+                )
+              ) : null}
 
               {/* Quantity + Price */}
               <div className="jd-quantity-row">
