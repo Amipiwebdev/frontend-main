@@ -390,7 +390,7 @@ button.jd-pill.is-active {
   min-height: 420px;
   border-radius: 16px;
   border: 1px dashed #d4d9e5;
-  background: linear-gradient(140deg, #f9fafc, #eef1f7);
+  //background: linear-gradient(140deg, #f9fafc, #eef1f7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -648,10 +648,10 @@ button.jd-pill.is-active {
 }
 
 .jd-detail-card {
-  background: #f8f9fc;
+ // background: #f8f9fc;
   border: 1px solid #e6e8ef;
   border-radius: 12px;
-  padding: 14px 16px;
+  // padding: 14px 16px;
   box-shadow: 0 8px 22px rgba(47, 72, 88, 0.08);
 }
 
@@ -663,11 +663,15 @@ button.jd-pill.is-active {
   color: #1a2d47;
   margin: 0 0 10px;
   padding-bottom: 8px;
+  padding: 10px;
   border-bottom: 1px solid #e0e3ec;
+  background: #e0e3ec;
+  border-radius: 10px 10px 0 0;
 }
 
 .jd-detail-list {
   margin: 0;
+  padding: 0 16px;
 }
 
 .jd-detail-row {
