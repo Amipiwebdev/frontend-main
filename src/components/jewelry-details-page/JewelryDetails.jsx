@@ -660,8 +660,9 @@ const Accordion = ({ title, value, children }) => {
 
 
 // ---------------------- FILTER GROUP COMPONENT ----------------------
-const FilterGroup = ({ group, options, value, onSelect }) => (
+const FilterGroup = ({ group, options, value, onSelect, label, showDiamondType = false }) => (
   <div className={`jd-filter-block jd-acc-${group.key}`}>
+    {label ? <span className="jd-filter-label">{label}</span> : null}
     <div className="jd-pill-row">
       {options.map((opt) => {
         const label = opt.label;
@@ -671,19 +672,22 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
         const iconSrc = isShape ? opt.image || SHAPE_ICONS[label] : null;
         const metalStyle = isMetal && opt.color_code ? { background: opt.color_code } : undefined;
         const pillText = isMetal ? opt.dmt_tooltip || opt.tooltip || label : label;
-        const centerStone = isDiamondQuality
-          ? opt.center_stone_name || opt.centerStoneName || opt.diamond_type || opt.diamondType
-          : "";
+        const centerStone =
+          showDiamondType && isDiamondQuality
+            ? opt.center_stone_name || opt.centerStoneName || opt.diamond_type || opt.diamondType
+            : "";
         const selectedValue = optionValue(opt);
         const isActive = String(value) === String(selectedValue);
-        const diamondType = isDiamondQuality ? (opt.diamond_type || centerStone || "").trim() : "";
-        const diamondTypeClass = diamondType
-          ? diamondType.toLowerCase().includes("lab")
-            ? "jd-pill-lab"
-            : diamondType.toLowerCase().includes("earth")
-            ? "jd-pill-earth"
-            : ""
-          : "";
+        const diamondType =
+          showDiamondType && isDiamondQuality ? (opt.diamond_type || centerStone || "").trim() : "";
+        const diamondTypeClass =
+          diamondType
+            ? diamondType.toLowerCase().includes("lab")
+              ? "jd-pill-lab"
+              : diamondType.toLowerCase().includes("earth")
+              ? "jd-pill-earth"
+              : ""
+            : "";
 
         return (
           <button
@@ -708,7 +712,7 @@ const FilterGroup = ({ group, options, value, onSelect }) => (
                 }}
               />
             ) : null}
-            {isDiamondQuality && centerStone ? (
+            {showDiamondType && isDiamondQuality && centerStone ? (
               <span className="jd-pill-text jd-pill-text-dual">
                 <span className="jd-pill-line jd-pill-primary">{pillText}</span>
                 <span className={`jd-pill-line jd-pill-sub ${diamondTypeClass}`}>{centerStone}</span>
@@ -903,6 +907,12 @@ const JewelryDetails = () => {
     const num = Number(val);
     if (Number.isNaN(num)) return valueOrDash(val);
     return `${num.toFixed(2)} CT`;
+  };
+  const formatPieces = (val) => {
+    if (val === undefined || val === null || val === "") return "-";
+    const num = Number(val);
+    if (Number.isNaN(num)) return valueOrDash(val);
+    return String(Math.round(num));
   };
 
   const toNumberIfPresent = (value) => {
@@ -1388,9 +1398,8 @@ const JewelryDetails = () => {
     if (selectionKey === "diamondQuality") {
       const option = getSelectedOption(selectionKey);
       if (option) {
-        const centerStone =
-          option.center_stone_name || option.centerStoneName || option.diamond_type || option.diamondType;
-        return [option.label, centerStone].filter(Boolean).join(" | ");
+        const originLabel = getSelectedLabel("diamondOrigin");
+        return [option.label, originLabel].filter(Boolean).join(" | ");
       }
     }
     return getSelectedLabel(selectionKey) || selection[selectionKey];
@@ -1412,6 +1421,86 @@ const JewelryDetails = () => {
       selection.ringSize ||
       ""
     : "";
+  const formatInches = (val) => {
+    if (val === undefined || val === null || val === "") return "";
+    const text = String(val).trim();
+    if (!text || text === "-") return text;
+    if (/\b(inches|inch|in\.)\b/i.test(text) || text.includes('"')) return text;
+    return `${text} inches`;
+  };
+  const isTruthyFlag = (val) =>
+    val === true ||
+    val === 1 ||
+    val === "1" ||
+    String(val).toLowerCase() === "true" ||
+    String(val).toLowerCase() === "yes" ||
+    String(val).toLowerCase() === "y";
+  const getOptionValueLabel = (values, target) => {
+    const targetId = normalizeValueId(
+      target?.value_id ?? target?.id ?? target?.value ?? target
+    );
+    if (!targetId) return "";
+    const match = (Array.isArray(values) ? values : []).find(
+      (value) =>
+        normalizeValueId(value?.value_id ?? value?.id ?? value?.value) === targetId
+    );
+    if (!match) return String(targetId);
+    return (
+      normalizeOptionText(
+        match?.value_name ?? match?.label ?? match?.name ?? match?.value
+      ) || String(targetId)
+    );
+  };
+  const sizeOption = (Array.isArray(productOptions) ? productOptions : []).find(
+    (option) => normalizeValueId(option?.options_id) === "1"
+  );
+  const sizeOptionId = normalizeValueId(sizeOption?.options_id);
+  const sizeOptionValues = Array.isArray(sizeOption?.values) ? sizeOption.values : [];
+  const hasCustomSizeOption = sizeOptionId === "1";
+  const sizeOptionSelectedId =
+    sizeOptionId && optionSelection?.[sizeOptionId] !== undefined
+      ? optionSelection[sizeOptionId]
+      : "";
+  const sizeOptionSelectedLabel =
+    getOptionValueLabel(sizeOptionValues, sizeOptionSelectedId) ||
+    normalizeOptionText(sizeOptionSelectedId);
+  const sizeOptionDefaultValue =
+    sizeOptionValues.length
+      ? sizeOptionValues.find((value) =>
+          isTruthyFlag(
+            value?.is_default ??
+              value?.isDefault ??
+              value?.default ??
+              value?.default_value ??
+              value?.defaultValue
+          )
+        ) ||
+        sizeOptionValues.find((value) => isTruthyFlag(value?.is_compulsory)) ||
+        sizeOptionValues[0] ||
+        null
+      : null;
+  const sizeOptionStandardLabel = sizeOptionValues.length
+    ? getOptionValueLabel(sizeOptionValues, sizeOptionDefaultValue)
+    : sizeOptionSelectedLabel;
+  const standardRingSizeValue =
+    product?.default_size && String(product.default_size) !== "0"
+      ? product.default_size
+      : ringSizeOptions[0]?.value ?? ringSizeOptions[0]?.id ?? "";
+  const standardRingSizeLabel = hasRingSizeOptions
+    ? ringSizeOptions.find(
+        (opt) =>
+          normalizeValueId(opt.value ?? opt.id) === normalizeValueId(standardRingSizeValue)
+      )?.label ||
+      standardRingSizeValue ||
+      ""
+    : "";
+  const sizeDisplay = hasCustomSizeOption
+    ? {
+        standard: formatInches(sizeOptionStandardLabel),
+        selected: formatInches(sizeOptionSelectedLabel || sizeOptionStandardLabel),
+      }
+    : { standard: standardRingSizeLabel, selected: ringSizeLabel };
+  const showSizeRows = hasCustomSizeOption || hasRingSizeOptions;
   const customOptions = (Array.isArray(productOptions) ? productOptions : []).filter((option) => {
     const optionId = normalizeValueId(option?.options_id);
     return optionId && optionId !== "2";
@@ -1784,22 +1873,6 @@ const JewelryDetails = () => {
   const isAddToCartDisabled = isOutOfStock || Boolean(quantityError);
   const cartButtonDisabled = isAddToCartDisabled || cartLoading;
 
-  const computedStandardPieces = canAdjustPieces
-    ? applyAdjustments(
-        selectionStats.standardPieces,
-        adjustmentRows,
-        "estimated_symbol",
-        "estimated_weight"
-      )
-    : selectionStats.standardPieces;
-  const computedStandardTotalCt = canAdjustCarat
-    ? applyAdjustments(
-        selectionStats.standardTotalCt,
-        adjustmentRows,
-        "options_symbol",
-        "estimated_weight"
-      )
-    : selectionStats.standardTotalCt;
   const computedEstimatedPieces = canAdjustPieces
     ? estDiamondPcs !== null && estDiamondPcs !== undefined
       ? estDiamondPcs
@@ -1810,6 +1883,18 @@ const JewelryDetails = () => {
       ? estCaratWt
       : selectionStats.estimatedCt
     : selectionStats.estimatedCt;
+  const standardTotalCtValue =
+    selectionStats.standardTotalCt !== undefined &&
+    selectionStats.standardTotalCt !== null &&
+    selectionStats.standardTotalCt !== ""
+      ? selectionStats.standardTotalCt
+      : productEstTotalCt;
+  const standardPiecesValue =
+    selectionStats.standardPieces !== undefined &&
+    selectionStats.standardPieces !== null &&
+    selectionStats.standardPieces !== ""
+      ? selectionStats.standardPieces
+      : productTotalPcs;
 
   const buildMediaUrl = (filename, type = "image") => {
     if (!filename) return "";
@@ -1846,8 +1931,8 @@ const JewelryDetails = () => {
       title: "Product Information",
       rows: [
         { key: "Style No.", value: displaySku },
-        ...(hasRingSizeOptions
-          ? [{ key: "Standard Size", value: ringSizeLabel }]
+        ...(showSizeRows
+          ? [{ key: "Standard Size", value: sizeDisplay.standard }]
           : []),
         { key: "Metal Type", value: selectedMetal },
         { key: "Stone Type", value: valueOrDash(productStoneType) },
@@ -1892,16 +1977,16 @@ const JewelryDetails = () => {
     {
       title: "Your Selection",
       rows: [
-        ...(hasRingSizeOptions
+        ...(showSizeRows
           ? [
-              { key: "Standard Size", value: ringSizeLabel },
-              { key: "Selected Size", value: ringSizeLabel },
+              { key: "Standard Size", value: sizeDisplay.standard },
+              { key: "Selected Size", value: sizeDisplay.selected },
             ]
           : []),
-        { key: "Standard Total Ct (W)", value: formatCt(productEstTotalCt) },
-        { key: "Est. Ct (W)", value: valueOrDash(computedEstimatedCt) },
-        { key: "Standard Pieces", value: valueOrDash(productTotalPcs) },        
-        { key: "Est. Pieces", value: valueOrDash(computedEstimatedPieces) },        
+        { key: "Standard Total Ct (W)", value: formatCt(standardTotalCtValue) },
+        { key: "Est. Ct (W)", value: formatCt(computedEstimatedCt) },
+        { key: "Standard Pieces", value: valueOrDash(standardPiecesValue) },        
+        { key: "Est. Pieces", value: formatPieces(computedEstimatedPieces) },        
       ],
     },
   ];
@@ -1958,8 +2043,26 @@ const JewelryDetails = () => {
                       </button>
                     ))
                   : ["Image", "Video", "360 view", "Details"].map((label) => (
-                      <button key={label} type="button" className="jd-thumb">
-                        {label}
+                      <button
+                        key={label}
+                        type="button"
+                        className={`jd-thumb ${label === "Video" ? "jd-thumb-video" : ""}`}
+                        aria-label={label}
+                      >
+                        {label === "Video" ? (
+                          <span className="jd-thumb-play" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                              <path
+                                d="M8 5.5L18.5 12L8 18.5V5.5Z"
+                                stroke="#2c3b5c"
+                                strokeWidth="1.6"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </span>
+                        ) : (
+                          label
+                        )}
                       </button>
                     ))}
               </div>
@@ -2053,23 +2156,53 @@ const JewelryDetails = () => {
 
               {/* FILTER ACCORDIONS */}
               {FILTER_GROUPS.map((group) => {
+                if (group.key === "diamondOrigin") return null;
                 const groupOptions =
                   group.key === "diamondQuality"
                     ? diamondQualityOptions
                     : filterOptions[group.sourceKey] || [];
-                if (groupOptions.length <= 1) return null;
+                const originOptions = group.key === "diamondQuality" ? filterOptions.origins || [] : [];
+                const showOriginOptions = group.key === "diamondQuality" && originOptions.length > 1;
+                const showQualityOptions = groupOptions.length > 1;
+                if (group.key === "diamondQuality") {
+                  if (!showOriginOptions && !showQualityOptions) return null;
+                } else if (groupOptions.length <= 1) {
+                  return null;
+                }
                 return (
                   <Accordion
                     key={group.key}
                     title={group.label}
                     value={getSelectedSummary(group.key) || selection[group.key]}
                   >
-                    <FilterGroup
-                      group={group}
-                      options={groupOptions}
-                      value={selection[group.key]}
-                      onSelect={handleFilterSelect}
-                    />
+                    {group.key === "diamondQuality" ? (
+                      <>
+                        {showOriginOptions ? (
+                          <FilterGroup
+                            group={{ key: "diamondOrigin" }}
+                            label="Diamond Origin"
+                            options={originOptions}
+                            value={selection.diamondOrigin}
+                            onSelect={handleFilterSelect}
+                          />
+                        ) : null}
+                        {showQualityOptions ? (
+                          <FilterGroup
+                            group={group}
+                            options={groupOptions}
+                            value={selection[group.key]}
+                            onSelect={handleFilterSelect}
+                          />
+                        ) : null}
+                      </>
+                    ) : (
+                      <FilterGroup
+                        group={group}
+                        options={groupOptions}
+                        value={selection[group.key]}
+                        onSelect={handleFilterSelect}
+                      />
+                    )}
                   </Accordion>
                 );
               })}
@@ -2165,25 +2298,24 @@ const JewelryDetails = () => {
               ) : null}
 
               {/* Quantity + Price */}
-              <div className="jd-quantity-row">
+               <div className="jd-quantity-row">
                 <div className="jd-quantity">
-                  <label htmlFor="jd-qty" className="jd-filter-label">Quantity</label>
-                  <input
-                    id="jd-qty"
-                    type="number"
-                    min="1"
-                    max={hasMaxQuantity ? maxQuantity : undefined}
-                    step="1"
-                    className="form-control jd-qty-input"
-                    value={quantity}
-                    onChange={handleQuantityChange}
-                  />
-                  {quantityMessage ? (
-                    <span className="jd-qty-error">{quantityMessage}</span>
-                  ) : null}
-                </div>
-
-                <div className="jd-price-add">
+                  <div className="jd-quantity-col">
+                    <label htmlFor="jd-qty" className="jd-filter-label">Quantity</label>
+                    <input
+                      id="jd-qty"
+                      type="number"
+                      min="1"
+                      max={hasMaxQuantity ? maxQuantity : undefined}
+                      step="1"
+                      className="form-control jd-qty-input"
+                      value={quantity}
+                      onChange={handleQuantityChange}
+                    />
+                    {quantityMessage ? (
+                      <span className="jd-qty-error">{quantityMessage}</span>
+                    ) : null}
+                  </div>
                   <div className="jd-price">{displayPrice}</div>
                   {isAuthenticated ? (
                     <button
@@ -2213,6 +2345,11 @@ const JewelryDetails = () => {
                       <i className="fa fa-shopping-cart" aria-hidden="true" /> Add To Cart
                     </button>
                   )}
+                </div>
+
+                <div className="jd-price-add">
+                  
+                  
                   {availabilityView.type === "fallback" ? (
                     <div className="jd-availability">Availability: Made to Order</div>
                   ) : availabilityView.type === "by_size" ? (
@@ -2239,16 +2376,26 @@ const JewelryDetails = () => {
                   ) : (
                     <div className="jd-availability">
                       <div className="product-detail-gray-do tool-dot-gt">Made to Order</div>
-                      <div className="product-detail-gray-do tool-dot-gt">
+                      <div className="product-detail-gray-do">
                         Expected to Ship by {formatShipDateLong(availabilityView.madeToOrderShipDate)}
                       </div>
-                      <div className="product-detail-gray-do tool-dot-gt">
+                      <div className="product-detail-gray-do">
                         Please contact us for any rush order requirements.
                       </div>
+                       <p className="jd-note">
+                        Note: Standard image displayed. Actual product image may vary based on selected options.
+                      </p>
                     </div>
                   )}
-                  {loading && <div className="jd-status">Loading product...</div>}
-                  {error && <div className="jd-status jd-error">{error}</div>}
+                  <div className="jd-status-slot" aria-live="polite">
+                    {loading ? (
+                      <div className="jd-status">Loading product...</div>
+                    ) : error ? (
+                      <div className="jd-status jd-error">{error}</div>
+                    ) : (
+                      <div className="jd-status jd-status-placeholder" aria-hidden="true" />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

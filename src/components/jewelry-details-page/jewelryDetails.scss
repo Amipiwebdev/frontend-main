@@ -1,6 +1,6 @@
 /* Accordion Wrapper */
 .jd-accordion {
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
   border-radius: 16px;
   margin-bottom: 0px;
   background: #fff;
@@ -31,8 +31,7 @@
 
 .jd-acc-title {
   font-weight: 700;
-    letter-spacing: .5px;
-    color: #223052;
+    color: #2c3b5c;
     font-size: 14px;
     flex-shrink: 0;
     text-transform: uppercase;
@@ -45,7 +44,7 @@
     border-radius: 12px;
     border: 1px solid #e1e6f2;
     background: #ffffff;
-    color: #223052;
+    color: #2c3b5c;
     font-size: 14px;
     font-weight: 700;
     line-height: 1;
@@ -195,12 +194,14 @@ button.jd-link-button {
     color: #fed700;
     border-radius: 8px;
     padding: 4px 8px;
+    display: none;
 }
 .jd-pill-sub.jd-pill-lab{
     background: #6abf69;
     color: #0d2b0d;
     border-radius: 8px;
     padding: 4px 8px;
+    display: none;
 }
 .jd-pill.is-active .jd-pill-sub{
     opacity: 1;
@@ -236,7 +237,7 @@ button.jd-pill.is-active .jd-pill-text {
   min-width:70px;
   // padding:8px 12px;
   background-size:160% 100%;
-  border:1px solid #d4d9e5;
+  border:1px solid #c1c2c5;
   box-shadow:0 6px 16px rgba(34,48,82,0.12);
 }
 .jd-metal-pill .jd-pill-text{
@@ -244,9 +245,9 @@ button.jd-pill.is-active .jd-pill-text {
   padding:0;
   border:0;
   background:transparent;
-  font-weight:800;
+  font-weight:normal;
   font-size:13px;
-  color:#223052;
+  color:#2c3b5c;
 }
 .jd-metal-pill.is-active{
   border-color:#2c3b5c;
@@ -270,7 +271,7 @@ button.jd-pill.is-active {
     border: 1px solid #2c3b5c;
 }
 .jd-acc-select {
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
   padding: 6px 10px;
   border-radius: 12px;
   font-size: 13px;
@@ -286,7 +287,7 @@ button.jd-pill.is-active {
 .jd-select {
   max-width: 320px;
   border-radius: 10px;
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
   padding: 10px 12px;
   font-weight: 700;
   color: #2c3b5c;
@@ -348,7 +349,7 @@ button.jd-pill.is-active {
   color: #ffffff;
   font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.06em;
+  
   text-transform: uppercase;
   text-align: center;
 }
@@ -389,7 +390,7 @@ button.jd-pill.is-active {
 .jd-media-primary {
   min-height: 420px;
   border-radius: 16px;
-  border: 1px dashed #d4d9e5;
+  border: 1px dashed #c1c2c5;
   //background: linear-gradient(140deg, #f9fafc, #eef1f7);
   display: flex;
   align-items: center;
@@ -401,9 +402,11 @@ button.jd-pill.is-active {
 }
 
 .jd-media-thumbs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
-  gap: 10px;
+      display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+
 }
 
 .jd-actions {
@@ -413,15 +416,16 @@ button.jd-pill.is-active {
   margin: 4px 0 0;
   padding: 0;
   list-style: none;
+  justify-content: center;
 }
 
 .jd-action-btn {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
   background: #fff;
-  color: #2c3b5c;
+  color: #c1c2c5;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -445,13 +449,15 @@ button.jd-pill.is-active {
 }
 
 .jd-thumb {
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
   border-radius: 10px;
   padding: 10px 12px;
   background: #fff;
   font-weight: 700;
   color: #2c3b5c;
   transition: all 0.18s ease;
+  width: 100px;
+    height: 70px;
 }
 
 .jd-thumb:hover {
@@ -461,8 +467,10 @@ button.jd-pill.is-active {
 
 .jd-note {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   color: #6c788f;
+  padding-left: 19px;
+  margin-top: 15px;
 }
 
 .jd-config {
@@ -478,7 +486,18 @@ button.jd-pill.is-active {
   border-radius: 10px;
   font-weight: 700;
   font-size: 14px;
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
+}
+
+.jd-status-slot {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.jd-status-placeholder {
+  visibility: hidden;
+  width: 100%;
 }
 
 .jd-status.jd-error {
@@ -496,8 +515,8 @@ button.jd-pill.is-active {
 
 .jd-sku {
   font-size: 14px;
-  letter-spacing: 0.02em;
-  color: #5b6785;
+  
+  color: #6c788f;
 }
 
 .jd-link-button {
@@ -530,7 +549,7 @@ button.jd-pill.is-active {
   display: inline-block;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  
   text-transform: uppercase;
   color: #1a2d47;
   margin-bottom: 8px;
@@ -538,23 +557,24 @@ button.jd-pill.is-active {
 
 .jd-quantity-row {
   display: flex;
-  align-items: flex-end;
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
   margin-top: 8px;
+  flex-direction: column;
 }
 
 .jd-quantity {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: 6px;
 }
 
 .jd-qty-input {
   max-width: 140px;
   border-radius: 10px;
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
   font-weight: 700;
   color: #2c3b5c;
   padding: 10px 12px;
@@ -570,12 +590,11 @@ button.jd-pill.is-active {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .jd-price {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: bold;
   color: #2c3b5c;
 }
 
@@ -585,7 +604,7 @@ button.jd-pill.is-active {
   border-radius: 12px;
   padding: 12px 22px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  
 }
 
 .jd-add:hover {
@@ -600,7 +619,7 @@ button.jd-pill.is-active {
 
 .jd-availability {
   font-size: 13px;
-  color: #5b6785;
+  color: #6c788f;
 }
 
 .jd-product-details {
@@ -621,10 +640,11 @@ button.jd-pill.is-active {
 }
 
 .jd-details-head h2 {
-  margin: 0;
-  font-size: 22px;
-  color: #2c3b5c;
-  letter-spacing: 0.02em;
+    font-weight: 300;
+    color: #2c3b5b;
+    font-size: 30px;
+    margin: 0;
+    text-transform: uppercase;  
 }
 
 .jd-help {
@@ -646,7 +666,46 @@ button.jd-pill.is-active {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
+.product-detail-gray-do.tool-dot-gt:before {
+    background: #c1c2c5;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    position: absolute;
+    content: '';
+    left: 0;
+    top: 7px;
+}
+.jd-action-btn:hover i {
+    color: #2c3b5c;
+}
+.product-detail-gray-do {
+    font-size: 12px;
+    padding-left: 19px;
+}
 
+.jd-quantity-row .band-cart {
+    background: #2c3b5c !important;
+    color: #FFF;
+    border: 0;
+    font-weight: normal;
+}
+
+.band-cart:hover i {
+    color: #2c3b5c !important;
+}
+
+.band-cart:hover {
+    background: #fed700 !important;
+    color: #2c3b5c;
+}
+
+.product-detail-gray-do.tool-dot-gt {
+    position: relative;
+    padding-left: 19px;
+    font-size: 15px;
+    font-weight: 600;
+}
 .jd-detail-card {
  // background: #f8f9fc;
   border: 1px solid #e6e8ef;
@@ -656,16 +715,15 @@ button.jd-pill.is-active {
 }
 
 .jd-card-title {
-  font-weight: 800;
-  font-size: 14px;
-  letter-spacing: 0.03em;
+  font-weight: bold;
+  font-size: 16px;
   text-transform: uppercase;
   color: #1a2d47;
   margin: 0 0 10px;
   padding-bottom: 8px;
   padding: 10px;
   border-bottom: 1px solid #e0e3ec;
-  background: #e0e3ec;
+  background: #f1f1f1;
   border-radius: 10px 10px 0 0;
 }
 
@@ -679,7 +737,7 @@ button.jd-pill.is-active {
   grid-template-columns: 1.2fr 1fr;
   gap: 10px;
   padding: 6px 0;
-  border-bottom: 1px dashed #d4d9e5;
+  border-bottom: 1px dashed #c1c2c5;
 }
 
 .jd-detail-row:last-child {
@@ -700,7 +758,7 @@ button.jd-pill.is-active {
 .jd-footnote {
   margin: 14px 0 0;
   text-align: center;
-  color: #5b6785;
+  color: #6c788f;
   font-size: 13px;
 }
 
@@ -755,7 +813,7 @@ button.jd-pill.is-active {
 
 /* ✅ main single select pill */
 .select2-container--default .select2-selection--single {
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
   border-radius: 12px;
   height: 36px;
   display: flex;
@@ -787,7 +845,7 @@ button.jd-pill.is-active {
 
 /* ✅ dropdown menu */
 .select2-container--default .select2-dropdown {
-  border: 1px solid #d4d9e5;
+  border: 1px solid #c1c2c5;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.12);
@@ -828,3 +886,72 @@ button.jd-pill.is-active {
 }
 .jd-details-grid article.jd-detail-card:last-child .jd-card-title{ background: #2c3b5c;color: #FFF;padding: 10px;border-radius: 10px 10px 0 0;}
 .jd-details-grid article.jd-detail-card:last-child .jd-detail-list{padding:0 10px 0 10px;}
+
+
+
+/* =========================
+   RESPONSIVE FIX ONLY
+   ========================= */
+
+/* Tablet */
+@media (max-width: 768px) {
+  .jd-acc-title { font-size: 13px; }
+  .jd-acc-value { max-width: 70%; }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  /* Accordion header: title/value ko stack kar do */
+  .jd-acc-header{
+    align-items: flex-start;
+  }
+
+  .jd-acc-left{
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  /* Value pill full width + wrap allow */
+  .jd-acc-value{
+    margin-left: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.2;
+  }
+
+  /* Arrow right/top aligned rahe */
+  .jd-acc-icon{
+    margin-left: auto;
+    margin-top: 2px;
+  }
+
+  /* Select2 mobile width */
+  .select2-container{
+    width: 100% !important;
+  }
+
+  /* Custom option cards: 2 per row */
+  .jd-custom-option-back .jd-option-card{
+    width: calc(50% - 6px);
+  }
+
+  /* Pills: 2 per row (optional, but responsive stable) */
+  .jd-pill-row{
+    gap: 8px;
+  }
+  .jd-pill{
+    flex: 0 0 calc(50% - 4px);
+  }
+  .jd-pill-text{
+    width: 100%;
+  }
+}
+@media (max-width: 1200px) {
+  .jd-upper {
+    grid-template-columns: 1fr !important;
+  }
+}
