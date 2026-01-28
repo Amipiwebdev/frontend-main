@@ -28,7 +28,7 @@ const FALLBACK_FILTER_VALUES = {
 
 const FILTER_GROUPS = [
   { key: "shape", label: "Shape", sourceKey: "shapes" },
-  { key: "diamondWeight", label: "Diamond Weight", sourceKey: "diamond_weight_groups" },
+  { key: "diamondWeight", label: "Stone Weight", sourceKey: "diamond_weight_groups" },
   { key: "metalType", label: "Metal Type", sourceKey: "metal_types" },
   { key: "diamondOrigin", label: "Diamond Origin", sourceKey: "origins" },
   { key: "diamondQuality", label: "Diamond Quality", sourceKey: "diamond_qualities" },
