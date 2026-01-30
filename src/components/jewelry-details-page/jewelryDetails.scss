@@ -401,6 +401,28 @@ button.jd-pill.is-active {
   padding: 24px;
 }
 
+.jd-media-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #9aa3b2;
+}
+
+.jd-media-placeholder-img {
+  width: 180px;
+  max-width: 70%;
+  height: auto;
+  object-fit: contain;
+  opacity: 0.7;
+}
+
+.jd-media-placeholder-text {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
 .jd-media-thumbs {
       display: flex;
     align-items: center;
@@ -458,6 +480,18 @@ button.jd-pill.is-active {
   transition: all 0.18s ease;
   width: 100px;
     height: 70px;
+}
+
+.jd-thumb-video {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jd-thumb-video-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .jd-thumb:hover {

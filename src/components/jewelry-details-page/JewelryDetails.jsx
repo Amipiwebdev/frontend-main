@@ -14,6 +14,9 @@ const SHAPE_ICONS = {
   Princess: "src/assets/shapes/princess.svg",
 };
 
+const FALLBACK_MEDIA_IMAGE = `${import.meta.env.BASE_URL}images/image-not-availbale.jpg`;
+const VIDEO_THUMB_ICON = `${import.meta.env.BASE_URL}images/videoplay.png`;
+
 
 const CUSTOM_OPTIONS = [];
 
@@ -2017,55 +2020,49 @@ const JewelryDetails = () => {
                     <img src={activeMediaItem.src} alt={displayTitle} className="jd-media-img" width={600} />
                   )
                 ) : (
-                  <span>Image / Video placeholder</span>
+                  <div className="jd-media-placeholder">
+                    <img
+                      src={FALLBACK_MEDIA_IMAGE}
+                      alt="Image Not Found"
+                      className="jd-media-placeholder-img"
+                      width={600}
+                    />
+                    <span className="jd-media-placeholder-text">Image Not Found</span>
+                  </div>
                 )}
               </div>
-              <div className="jd-media-thumbs">
-                {mediaItems.length
-                  ? mediaItems.map((item, idx) => (
-                      <button
-                        key={`${item.type}-${idx}`}
-                        type="button"
-                        className={`jd-thumb ${idx === activeMedia ? "is-active" : ""}`}
-                        onClick={() => setActiveMedia(idx)}
-                        title={item.type === "video" ? "Video" : "Image"}
-                      >
-                        {item.type === "video" ? (
-                          <span>Video</span>
-                        ) : (
-                          <img
-                            src={item.src}
-                            alt={`${displayTitle} view ${idx + 1}`}
-                            className="jd-thumb-img"
-                            width={50}
-                          />
-                        )}
-                      </button>
-                    ))
-                  : ["Image", "Video", "360 view", "Details"].map((label) => (
-                      <button
-                        key={label}
-                        type="button"
-                        className={`jd-thumb ${label === "Video" ? "jd-thumb-video" : ""}`}
-                        aria-label={label}
-                      >
-                        {label === "Video" ? (
-                          <span className="jd-thumb-play" aria-hidden="true">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                              <path
-                                d="M8 5.5L18.5 12L8 18.5V5.5Z"
-                                stroke="#2c3b5c"
-                                strokeWidth="1.6"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </span>
-                        ) : (
-                          label
-                        )}
-                      </button>
-                    ))}
-              </div>
+              {mediaItems.length ? (
+                <div className="jd-media-thumbs">
+                  {mediaItems.map((item, idx) => (
+                    <button
+                      key={`${item.type}-${idx}`}
+                      type="button"
+                      className={`jd-thumb ${idx === activeMedia ? "is-active" : ""} ${
+                        item.type === "video" ? "jd-thumb-video" : ""
+                      }`}
+                      onClick={() => setActiveMedia(idx)}
+                      title={item.type === "video" ? "Video" : "Image"}
+                    >
+                      {item.type === "video" ? (
+                        <img
+                          src={VIDEO_THUMB_ICON}
+                          alt="Video"
+                          className="jd-thumb-video-img"
+                          width={28}
+                          height={28}
+                        />
+                      ) : (
+                        <img
+                          src={item.src}
+                          alt={`${displayTitle} view ${idx + 1}`}
+                          className="jd-thumb-img"
+                          width={50}
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <ul className="jd-actions">
                 <li>
                   <button
@@ -2117,9 +2114,9 @@ const JewelryDetails = () => {
                   </button>
                 </li>
               </ul>
-              <p className="jd-note">
+              {/* <p className="jd-note">
                 Note: Standard image displayed. Actual product image may vary based on selected options.
-              </p>
+              </p> */}
             </div>
 
             {/* Right Column */}
