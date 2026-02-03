@@ -17,6 +17,44 @@ const SHAPE_ICONS = {
 const FALLBACK_MEDIA_IMAGE = `${import.meta.env.BASE_URL}images/image-not-availbale.jpg`;
 const VIDEO_THUMB_ICON = `${import.meta.env.BASE_URL}images/videoplay.png`;
 
+const PROMO_BADGE_RULES = [
+  { keys: ["best", "best sellers"], file: "promotion-best.png", title: "Best Sellers" },
+  { keys: ["cl", "closeouts/clearance"], file: "promotion-cl.png", title: "Closeouts/Clearance" },
+  { keys: ["hot"], file: "promotion-hot.png", title: "Hot" },
+  { keys: ["superdeal"], file: "superdeal.png", title: "Superdeal" },
+  { keys: ["new"], file: "promotion-new.png", title: "New" },
+  { keys: ["ltd"], file: "promotion-ltd.png", title: "Ltd" },
+  { keys: ["sale"], file: "promotion-sale.png", title: "Sale" },
+  { keys: ["aict"], file: "act_img.png", title: "Actual" },
+];
+
+const pickPromotionBadge = (product) => {
+  if (!product) return null;
+
+  const promo = (product.product_promotion ?? "").toString().trim();
+
+  if (promo) {
+    const tokens = promo
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    for (const token of tokens) {
+      for (const rule of PROMO_BADGE_RULES) {
+        if (rule.keys.includes(token)) return rule;
+      }
+    }
+  }
+
+  // fallback like old PHP
+  if (Number(product.is_superdeals) === 1) {
+    return { file: "superdeal.png", title: "Superdeal" };
+  }
+  if (Number(product.is_new) === 1) {
+    return { file: "new.png", title: "New" };
+  }
+  return null;
+};
 
 const CUSTOM_OPTIONS = [];
 
@@ -563,48 +601,71 @@ const selectionFromProduct = (product = {}) => {
 
 const buildSelectionParams = (selection = {}, options = {}, designId, relatedDesignId) => {
   const resolve = (sourceKey, selectionKey) => {
-    const list = options[sourceKey] || [];
-    const selVal = selection[selectionKey];
+    const list = options?.[sourceKey] || [];
+    const selVal = selection?.[selectionKey];
     const selValStr = selVal !== undefined && selVal !== null ? String(selVal) : "";
+
     const match = list.find(
-      (opt) => String(opt.value) === selValStr || String(opt.label) === selValStr
+      (opt) => String(opt?.value) === selValStr || String(opt?.label) === selValStr
     );
+
     const numericLike =
       selValStr && /^[0-9]+(\.[0-9]+)?$/.test(selValStr) ? Number(selValStr) : undefined;
+
     const paramVal =
       match?.id ??
       match?.value_id ??
       (Number.isFinite(match?.value) ? match.value : undefined) ??
       numericLike ??
       (selValStr || undefined);
+
+    // allow 0 explicitly
     if (paramVal === 0) return 0;
     return paramVal || undefined;
   };
 
+  // origin selection can be object or primitive
   const selectedOriginId =
     selection?.diamondOrigin?.id ??
     selection?.diamondOrigin?.value_id ??
     selection?.diamondOrigin?.value ??
     selection?.diamondOrigin;
+
   const resolvedOriginId =
     selectedOriginId !== undefined && selectedOriginId !== null && selectedOriginId !== ""
       ? selectedOriginId
       : resolve("origins", "diamondOrigin");
-  const centerStoneTypeId =
-    resolvedOriginId === 0 ? 0 : resolvedOriginId || "";
+
+  const centerStoneTypeId = resolvedOriginId === 0 ? 0 : resolvedOriginId || undefined;
+
+  // Correct keys (backend expects these)
+  const diamondWeightId = resolve("diamond_weight_groups", "diamondWeight");
+  const shapeId = resolve("shapes", "shape");
+  const metalTypeId = resolve("metal_types", "metalType");
+  const diamondQualityId = resolve("diamond_qualities", "diamondQuality");
+  const ringSizeId = resolve("ring_sizes", "ringSize");
 
   return {
-    diamond_weight_group_id: resolve("diamond_weight_groups", "diamondWeight"),
-    shape: resolve("shapes", "shape"),
-    metal: resolve("metal_types", "metalType"),
-    sptmt_metal_type_id: resolve("metal_types", "metalType"),
+    // ✅ backend keys
+    diamond_weight_group_id: diamondWeightId,
+    shape_id: shapeId,
+    metal_type_id: metalTypeId,
     center_stone_type_id: centerStoneTypeId,
-    product_quantity: resolve("diamond_qualities", "diamondQuality"),
-    ringSize: resolve("ring_sizes", "ringSize"),
+    diamond_quality_id: diamondQualityId,
+    ring_size_id: ringSizeId,
+
     design_id: designId || undefined,
     related_design_id: relatedDesignId || undefined,
+
+    // ✅ backward-compatible aliases (safe: backend will ignore if not used)
+    // keep these so other endpoints (like carttoggle) won't break if they were using old keys
+    shape: shapeId,
+    metal: metalTypeId,
+    sptmt_metal_type_id: metalTypeId,
+    ringSize: ringSizeId,
   };
 };
+
 
 const deriveSelection = (options, product, currentSelection = {}, preferProductValues = false) => {
   const base = buildInitialSelections(options);
@@ -1994,6 +2055,8 @@ const JewelryDetails = () => {
     },
   ];
 
+  const promotionBadge = pickPromotionBadge(product);
+
   return (
     <>
       <Header />
@@ -2004,7 +2067,26 @@ const JewelryDetails = () => {
 
             {/* Media */}
             <div className="jd-media">
-              <div className="jd-media-primary">
+              <div className="jd-media-primary" style={{ position: "relative" }}>
+                {promotionBadge?.file ? (
+                  <img
+                    src={`${import.meta.env.BASE_URL}images/${promotionBadge.file}`}
+                    alt={promotionBadge.title || "Promotion"}
+                    title={promotionBadge.title || "Promotion"}
+                    style={{
+                      position: "absolute",
+                      top: 12,
+                      left: 12,
+                      zIndex: 3,
+                      height: 48,
+                      width: "auto",
+                      pointerEvents: "none",
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : null}
                 {activeMediaItem ? (
                   activeMediaItem.type === "video" ? (
                     <video
@@ -2177,7 +2259,7 @@ const JewelryDetails = () => {
                         {showOriginOptions ? (
                           <FilterGroup
                             group={{ key: "diamondOrigin" }}
-                            label="Diamond Origin"
+                            label=""
                             options={originOptions}
                             value={selection.diamondOrigin}
                             onSelect={handleFilterSelect}
