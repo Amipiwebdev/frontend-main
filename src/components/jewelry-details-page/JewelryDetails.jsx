@@ -56,6 +56,18 @@ const pickPromotionBadge = (product) => {
   return null;
 };
 
+const hasPromotionToken = (product, token) => {
+  if (!product) return false;
+  const promo = (product.product_promotion ?? "").toString().trim();
+  if (!promo) return false;
+  const target = token.toLowerCase();
+  return promo
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(target);
+};
+
 const CUSTOM_OPTIONS = [];
 
 const FALLBACK_FILTER_VALUES = {
@@ -821,10 +833,22 @@ const JewelryDetails = () => {
   const [comparLoading, setComparLoading] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
+  const [couponBanner, setCouponBanner] = useState(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponSuccess, setCouponSuccess] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(null);
+  const [couponTotal, setCouponTotal] = useState(null);
+  const [couponApplied, setCouponApplied] = useState(false);
   const requestIdRef = useRef(0);
   const jewelryPriceLevel = getJewelryPriceLevel();
   const { user: authUser } = useAuth();
   const isAuthenticated = Boolean(authUser);
+  const authJewelryLevel = normalizePriceLevel(
+    authUser?.pricing_ctx?.jewelry_level ?? authUser?.levels?.jewelry
+  );
+  const effectiveJewelryPriceLevel = authJewelryLevel ?? jewelryPriceLevel;
   const redirectToLogin = useCallback((replace = false) => {
     if (typeof window === "undefined") return;
     const loginUrl = buildLoginUrl(window.location.href);
@@ -1085,6 +1109,26 @@ const JewelryDetails = () => {
         );
 
         setProduct(data.product || null);
+        const bannerProductId = data.product?.products_id;
+        if (bannerProductId) {
+          const { customers_id } = getClientIds();
+          const { AMIPI_FRONT_IS_REATILER } = getPricingParams();
+          apiSession
+            .get("/api/coupon/banner", {
+              params: {
+                products_id: bannerProductId,
+                customers_id,
+                AMIPI_FRONT_IS_REATILER,
+              },
+            })
+            .then((res) => {
+              const banner = res?.data?.coupon ?? null;
+              setCouponBanner(banner || null);
+            })
+            .catch(() => setCouponBanner(null));
+        } else {
+          setCouponBanner(null);
+        }
         setMedia(data.media || { images: [], videos: [] });
         setAvailability(data.availability || null);
         setFilterOptions(normalizedFilters);
@@ -1878,7 +1922,7 @@ const JewelryDetails = () => {
       )
     );
     const basePrice = toNumberIfPresent(
-      getSelectedProductPrice(product, jewelryPriceLevel)
+      getSelectedProductPrice(product, effectiveJewelryPriceLevel)
     );
 
     const diamondPcs = applyAdjustments(
@@ -1898,7 +1942,7 @@ const JewelryDetails = () => {
     setEstDiamondPcs((prev) => (prev === diamondPcs ? prev : diamondPcs));
     setEstCaratWt((prev) => (prev === caratWeight ? prev : caratWeight));
     setEstPrice((prev) => (prev === price ? prev : price));
-  }, [product, ringOptionSelected, productOptions, optionSelection, jewelryPriceLevel]);
+  }, [product, ringOptionSelected, productOptions, optionSelection, effectiveJewelryPriceLevel]);
 
   const productEstTotalCt = getProductValue("total_carat_weight", "total_carat", "total_ct_w");
   const productTotalPcs = getProductValue("diamond_pics", "stn1_pcs", "stn2_pcs");
@@ -1926,16 +1970,120 @@ const JewelryDetails = () => {
   );
 
   const unitPrice = canAdjustPrice
-    ? estPrice ?? getSelectedProductPrice(product, jewelryPriceLevel)
-    : getSelectedProductPrice(product, jewelryPriceLevel);
+    ? estPrice ?? getSelectedProductPrice(product, effectiveJewelryPriceLevel)
+    : getSelectedProductPrice(product, effectiveJewelryPriceLevel);
   const unitPriceValue = toNumberIfPresent(unitPrice);
   const totalPriceValue = unitPriceValue !== null ? unitPriceValue * quantity : null;
   const displayPrice = totalPriceValue !== null ? formatPrice(totalPriceValue) : "";
+  const basePriceLevel3 = toNumberIfPresent(product?.products_price3);
+  const crossUnitPrice = basePriceLevel3 !== null
+    ? applyAdjustments(basePriceLevel3, adjustmentRows, "options_symbol", "options_price")
+    : null;
+  const crossUnitPriceValue = toNumberIfPresent(crossUnitPrice);
+  const crossTotalPriceValue = crossUnitPriceValue !== null ? crossUnitPriceValue * quantity : null;
+  const crossPrice = crossTotalPriceValue !== null ? formatPrice(crossTotalPriceValue) : "";
+  const showCrossPrice =
+    effectiveJewelryPriceLevel !== null &&
+    effectiveJewelryPriceLevel !== 3 &&
+    crossTotalPriceValue !== null &&
+    crossPrice !== "";
+  const couponAdjustedTotal =
+    couponApplied && couponTotal !== null ? couponTotal : totalPriceValue;
+  const couponDisplayPrice =
+    couponAdjustedTotal !== null ? formatPrice(couponAdjustedTotal) : "";
   const availabilityView = buildAvailabilityView(availability);
 
   const quantityMessage = isOutOfStock ? "Out of stock." : quantityError;
   const isAddToCartDisabled = isOutOfStock || Boolean(quantityError);
   const cartButtonDisabled = isAddToCartDisabled || cartLoading;
+
+  const handleCouponApply = async () => {
+    if (!couponCode || !couponCode.trim()) {
+      setCouponError("Please enter a coupon code.");
+      setCouponSuccess("");
+      setCouponApplied(false);
+      setCouponDiscount(null);
+      setCouponTotal(null);
+      return;
+    }
+    if (!product?.products_id || couponLoading) return;
+
+    const { customers_id, parent_retailer_id } = getClientIds();
+    const { AMIPI_FRONT_IS_REATILER } = getPricingParams();
+    const payload = {
+      CouponCode: couponCode.trim(),
+      products_id: product.products_id,
+      customers_id,
+      parent_retailer_id,
+      AMIPI_FRONT_IS_REATILER,
+      total_price: totalPriceValue !== null ? totalPriceValue : unitPriceValue,
+      product_quantity: quantity,
+    };
+
+    try {
+      setCouponLoading(true);
+      const { data } = await apiSession.post("/api/coupon/apply", payload);
+      const discountValue = toNumberIfPresent(
+        data?.coupon_discount ??
+          data?.discount ??
+          data?.couponDiscount ??
+          data?.discount_amount ??
+          data?.discountAmount
+      );
+      const totalValue = toNumberIfPresent(
+        data?.coupon_total ??
+          data?.total ??
+          data?.total_price ??
+          data?.couponTotal ??
+          data?.grand_total ??
+          data?.grandTotal
+      );
+      const resolvedTotal =
+        totalValue !== null
+          ? totalValue
+          : totalPriceValue !== null && discountValue !== null
+          ? totalPriceValue - discountValue
+          : null;
+      const resolvedDiscount =
+        discountValue !== null
+          ? discountValue
+          : totalPriceValue !== null && resolvedTotal !== null
+          ? totalPriceValue - resolvedTotal
+          : null;
+      const discountText = resolvedDiscount !== null ? formatPrice(resolvedDiscount) : "";
+
+      setCouponApplied(true);
+      setCouponDiscount(resolvedDiscount);
+      setCouponTotal(resolvedTotal);
+      setCouponSuccess(
+        `Yay! You saved ${discountText || "$0.00"} with this coupon.`
+      );
+      setCouponError("");
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "Unable to apply coupon.";
+      setCouponError(message);
+      setCouponSuccess("");
+      setCouponApplied(false);
+      setCouponDiscount(null);
+      setCouponTotal(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleCouponClear = async () => {
+    try {
+      await apiSession.post("/api/coupon/clear");
+    } catch {}
+    setCouponApplied(false);
+    setCouponDiscount(null);
+    setCouponTotal(null);
+    setCouponSuccess("");
+    setCouponError("");
+  };
 
   const computedEstimatedPieces = canAdjustPieces
     ? estDiamondPcs !== null && estDiamondPcs !== undefined
@@ -2056,6 +2204,7 @@ const JewelryDetails = () => {
   ];
 
   const promotionBadge = pickPromotionBadge(product);
+  const hideStandardImageNote = hasPromotionToken(product, "aict");
 
   return (
     <>
@@ -2242,9 +2391,10 @@ const JewelryDetails = () => {
                     : filterOptions[group.sourceKey] || [];
                 const originOptions = group.key === "diamondQuality" ? filterOptions.origins || [] : [];
                 const showOriginOptions = group.key === "diamondQuality" && originOptions.length > 1;
-                const showQualityOptions = groupOptions.length > 1;
+                const showQualityOptions =
+                  group.key === "diamondQuality" ? groupOptions.length > 0 : groupOptions.length > 1;
                 if (group.key === "diamondQuality") {
-                  if (!showOriginOptions && !showQualityOptions) return null;
+                  if (!originOptions.length && !groupOptions.length) return null;
                 } else if (groupOptions.length <= 1) {
                   return null;
                 }
@@ -2395,7 +2545,23 @@ const JewelryDetails = () => {
                       <span className="jd-qty-error">{quantityMessage}</span>
                     ) : null}
                   </div>
-                  <div className="jd-price">{displayPrice}</div>
+                  <div className="jd-price">
+                    {showCrossPrice ? (
+                      <span className="price-cross">
+                        <del>{crossPrice}</del>
+                      </span>
+                    ) : null}
+                    <span className="jd-price-current">
+                      {couponApplied ? (
+                        <>
+                          <del>{displayPrice}</del>
+                          <span className="price-cross">{couponDisplayPrice}</span>
+                        </>
+                      ) : (
+                        displayPrice
+                      )}
+                    </span>
+                  </div>
                   {isAuthenticated ? (
                     <button
                       type="button"
@@ -2424,6 +2590,56 @@ const JewelryDetails = () => {
                       <i className="fa fa-shopping-cart" aria-hidden="true" /> Add To Cart
                     </button>
                   )}
+                </div>
+
+                <div className="coupon-box" data-discount={couponDiscount ?? ""}>
+                  {couponBanner ? (
+                    <div className="border" id="coupon_amt_div">
+                      <p className="cpn-title">{couponBanner.coupon_name}</p>
+                      <p className="cpn-border">{couponBanner.coupon_description}</p>
+                    </div>
+                  ) : null}
+                  <input
+                    type="text"
+                    className="bg"
+                    placeholder="Enter Coupon Code"
+                    id="CouponCode"
+                    name="CouponCode"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                  />
+                  <input
+                    type="button"
+                    className="common-btn redeem-button"
+                    value={couponLoading ? "APPLY..." : "APPLY"}
+                    onClick={handleCouponApply}
+                    disabled={couponLoading}
+                  />
+                  {couponApplied ? (
+                    <button
+                      type="button"
+                      className="jd-link-button"
+                      onClick={handleCouponClear}
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                  <div
+                    id="CheckOut_Error"
+                    className="alert alert-block alert-danger fade in"
+                    style={{ display: couponError ? "block" : "none" }}
+                    role="alert"
+                  >
+                    {couponError}
+                  </div>
+                  <div
+                    id="CheckOut_Success"
+                    className="alert alert-block alert-success fade in"
+                    style={{ display: couponSuccess ? "block" : "none" }}
+                    role="alert"
+                  >
+                    {couponSuccess}
+                  </div>
                 </div>
 
                 <div className="jd-price-add">
@@ -2461,9 +2677,11 @@ const JewelryDetails = () => {
                       <div className="product-detail-gray-do">
                         Please contact us for any rush order requirements.
                       </div>
-                       <p className="jd-note">
-                        Note: Standard image displayed. Actual product image may vary based on selected options.
-                      </p>
+                      {!hideStandardImageNote ? (
+                        <p className="jd-note">
+                          Note: Standard image displayed. Actual product image may vary based on selected options.
+                        </p>
+                      ) : null}
                     </div>
                   )}
                   <div className="jd-status-slot" aria-live="polite">
