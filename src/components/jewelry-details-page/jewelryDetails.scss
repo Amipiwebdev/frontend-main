@@ -122,7 +122,7 @@ button.jd-acc-header.open {
 }
 
 .jd-pill {
-      box-shadow: 0 1.5px 12px #2d33432e;
+      // box-shadow: 0 1.5px 12px #2d33432e;
     background: #fff;
     border-radius: 12px;
     padding: 0;
@@ -131,6 +131,7 @@ button.jd-acc-header.open {
     transition: all 0.18s ease;
     border: 1px solid transparent;
     font-weight: normal;
+    border: 1px solid #ededed;
 
   &:hover {
     border-color: #2c3b5c;
@@ -1014,3 +1015,105 @@ button.jd-pill.is-active {
     grid-template-columns: 1fr !important;
   }
 }
+
+.jd-filter-block.jd-acc-diamondOrigin button.jd-pill.is-active span {
+    color: #fed700;
+}
+.jd-filter-block.jd-acc-diamondOrigin button.jd-pill.is-active {
+    background: #2c3b5c;
+}
+
+.jd-filter-block.jd-acc-diamondQuality button.jd-pill.is-active{background: transparent !important;}
+.jd-filter-block.jd-acc-diamondQuality button.jd-pill.is-active span{color: #2c3b5c !important;}
+
+--------------------------
+ 
+/* ✅ Diamond Quality Accordion Layout */
+
+.jd-accordion.jd-acc-diamond-quality .jd-acc-body {
+
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 16px;
+
+}
+ 
+/* ✅ LEFT: Diamond Quality (Wrap allowed) */
+
+.jd-accordion.jd-acc-diamond-quality
+
+  .jd-filter-block.jd-acc-diamondQuality {
+
+  order: 1;
+
+  flex: 1 1 auto;   /* take remaining space */
+
+  min-width: 0;
+
+}
+ 
+/* Quality pills wrap to next line */
+
+.jd-accordion.jd-acc-diamond-quality
+
+  .jd-filter-block.jd-acc-diamondQuality
+
+  .jd-pill-row {
+
+  display: flex;
+
+  justify-content: flex-start;
+
+  flex-wrap: wrap;   /* ✅ break into next line */
+
+  gap: 10px;
+
+}
+ 
+/* ✅ RIGHT: Diamond Origin (Always Fixed Right) */
+
+.jd-accordion.jd-acc-diamond-quality
+
+  .jd-filter-block.jd-acc-diamondOrigin {
+
+  order: 2;
+
+  flex: 0 0 auto;     /* fixed width */
+
+  margin-left: auto;  /* push to right */
+
+  white-space: nowrap;
+
+}
+ 
+/* Origin pills should never wrap */
+
+.jd-accordion.jd-acc-diamond-quality
+
+  .jd-filter-block.jd-acc-diamondOrigin
+
+  .jd-pill-row {
+
+  display: flex;
+
+  justify-content: flex-end;
+
+  flex-wrap: nowrap;   /* ✅ always single line */
+
+  gap: 10px;
+
+}
+ 
+/* Remove full width issue */
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block {
+
+  width: auto !important;
+
+}
+
+ 

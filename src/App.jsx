@@ -16,6 +16,7 @@ export default function App() {
           <Route path="/bands" element={<Bands />} />
           <Route path="/bracelets" element={<Bracelets />} />
           <Route path="/details/jewelry/:sku" element={<JewelryDetails />} />
+          <Route path="/details/jewelry/:sku/:productid" element={<JewelryDetails />} />
           <Route path="/details" element={<JewelryDetails />} />
         </Routes>
       </BrowserRouter>

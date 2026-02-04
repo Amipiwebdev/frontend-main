@@ -805,7 +805,7 @@ const FilterGroup = ({ group, options, value, onSelect, label, showDiamondType =
 
 // ---------------------- MAIN COMPONENT ----------------------
 const JewelryDetails = () => {
-  const { sku, productid } = useParams();
+  const { sku } = useParams();
   const [product, setProduct] = useState(null);
   const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS);
   const [productOptions, setProductOptions] = useState([]);
@@ -1074,7 +1074,7 @@ const JewelryDetails = () => {
     setError("");
 
     api
-      .get(`/product-details/jewelry/${sku}${productid ? `/${productid}` : ""}`, { params: requestParams })
+      .get(`/product-details/jewelry/${sku}`, { params: requestParams })
       .then((res) => {
         if (requestId !== requestIdRef.current) return;
         const data = res.data || {};
@@ -1374,7 +1374,7 @@ const JewelryDetails = () => {
         product?.related_design_id ||
         product?.relatedDesignId,
     });
-  }, [sku, productid]);
+  }, [sku]);
 
   useEffect(() => {
     const nextOption = getRingSizeRow(productOptions, filterOptions, {
@@ -2612,7 +2612,6 @@ const JewelryDetails = () => {
                   )}
                 </div>
 
-              {Boolean(couponBanner?.coupon_id ?? couponBanner) ? (
                 <div className="coupon-box" data-discount={couponDiscount ?? ""}>
                   {couponBanner ? (
                     <div className="border" id="coupon_amt_div">
@@ -2662,7 +2661,6 @@ const JewelryDetails = () => {
                     {couponSuccess}
                   </div>
                 </div>
-              ) : null}
 
                 <div className="jd-price-add">
                   
