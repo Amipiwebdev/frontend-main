@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "../common/Header";
 import Footer from "../common/Footer";
 import { api, apiSession } from "../../apiClient";
@@ -84,12 +84,26 @@ const FILTER_GROUPS = [
   { key: "diamondWeight", label: "Stone Weight", sourceKey: "diamond_weight_groups" },
   { key: "metalType", label: "Metal Type", sourceKey: "metal_types" },
   { key: "diamondOrigin", label: "Diamond Origin", sourceKey: "origins" },
-  { key: "diamondQuality", label: "Diamond Quality", sourceKey: "diamond_qualities" },
+  { key: "diamondQuality", label: "Quality", sourceKey: "diamond_qualities" },
 ];
 
 const LOGIN_HOST_URL = "https://www.amipi.com/bands";
 const buildLoginUrl = (returnUrl) =>
   `${LOGIN_HOST_URL}?redirect=${encodeURIComponent(returnUrl)}`;
+
+const normalizeSeoPath = (seoUrl) => {
+  if (!seoUrl) return "";
+  let path = String(seoUrl).trim();
+  if (!path) return "";
+  path = path.replace(/^https?:\/\/[^/]+/i, "");
+  path = path.split("?")[0].split("#")[0];
+  path = path.replace(/^\/+/, "").replace(/\/+$/, "");
+  if (path.toLowerCase().startsWith("details/")) {
+    path = path.slice("details/".length);
+  }
+  if (!path) return "";
+  return path.includes("/") ? path : `jewelry/${path}`;
+};
 
 const normalizeOptionText = (input) => {
   if (input === undefined || input === null) return "";
@@ -698,11 +712,15 @@ const Accordion = ({ title, value, children }) => {
   const [open, setOpen] = useState(false);
 
   // ✅ title text se class banegi
-  const slug = String(title || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+  const normalizedTitle = String(title || "").trim();
+  const slugOverride =
+    normalizedTitle.toLowerCase() === "quality" ? "diamond-quality" : "";
+  const slug =
+    slugOverride ||
+    normalizedTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
 
   return (
     <div className={`jd-accordion jd-acc-${slug}`}>
@@ -806,6 +824,7 @@ const FilterGroup = ({ group, options, value, onSelect, label, showDiamondType =
 // ---------------------- MAIN COMPONENT ----------------------
 const JewelryDetails = () => {
   const { sku, productid } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS);
   const [productOptions, setProductOptions] = useState([]);
@@ -842,6 +861,7 @@ const JewelryDetails = () => {
   const [couponTotal, setCouponTotal] = useState(null);
   const [couponApplied, setCouponApplied] = useState(false);
   const requestIdRef = useRef(0);
+  const skipNextSkuFetchRef = useRef(false);
   const jewelryPriceLevel = getJewelryPriceLevel();
   const { user: authUser } = useAuth();
   const isAuthenticated = Boolean(authUser);
@@ -1047,6 +1067,26 @@ const JewelryDetails = () => {
     return adjusted;
   };
 
+  const replaceDetailsUrl = (nextProduct) => {
+    if (typeof window === "undefined") return;
+    const seoPath = normalizeSeoPath(nextProduct?.products_seo_url);
+    if (!seoPath) return;
+    let nextPath = `/details/${seoPath}`;
+    if (productid && !nextPath.endsWith(`/${productid}`)) {
+      nextPath = `${nextPath}/${productid}`;
+    }
+    if (window.location.pathname === nextPath) return;
+    skipNextSkuFetchRef.current = true;
+    navigate(
+      {
+        pathname: nextPath,
+        search: window.location.search,
+        hash: window.location.hash,
+      },
+      { replace: true }
+    );
+  };
+
   const fetchProductDetails = (
     nextSelection = selection,
     { resetSelection = false, designOverride, relatedDesignOverride, filterMeta } = {}
@@ -1108,7 +1148,9 @@ const JewelryDetails = () => {
           selectionOptions
         );
 
-        setProduct(data.product || null);
+        const nextProduct = data.product || null;
+        setProduct(nextProduct);
+        replaceDetailsUrl(nextProduct);
         const bannerProductId = data.product?.products_id;
         if (bannerProductId) {
           const { customers_id } = getClientIds();
@@ -1364,6 +1406,10 @@ const JewelryDetails = () => {
   }, [maxQuantity]);
 
   useEffect(() => {
+    if (skipNextSkuFetchRef.current) {
+      skipNextSkuFetchRef.current = false;
+      return;
+    }
     if (!sku) return;
     fetchProductDetails(buildInitialSelections(filterOptions), {
       resetSelection: true,
@@ -1680,10 +1726,10 @@ const JewelryDetails = () => {
         key={`custom-option-${optionId}`}
         className={`jd-custom-option ${isBackOption ? "jd-custom-option-back" : ""}`}
       >
-        <div className="jd-custom-option-title">
+        {/* <div className="jd-custom-option-title">
           {optionLabel}
           {!isCompulsory ? null : <span className="jd-required"> *</span>}
-        </div>
+        </div> */}
         <div className="jd-custom-option-control">
           {optionType === 0 ? (
             <select
@@ -2128,9 +2174,9 @@ const JewelryDetails = () => {
     : [];
 
   const mediaItems = [
-    ...(media.images || []).map((img) => ({ type: "image", src: buildMediaUrl(img, "image") })),
     ...(media.videos || []).map((vid) => ({ type: "video", src: buildMediaUrl(vid, "video") })),
     ...videoLinkItems.map((link) => ({ type: "video_link", src: buildMediaUrl(link, "video") })),
+    ...(media.images || []).map((img) => ({ type: "image", src: buildMediaUrl(img, "image") })),
   ].filter((item) => item.src);
 
   useEffect(() => {
@@ -2247,6 +2293,7 @@ const JewelryDetails = () => {
                   activeMediaItem.type === "video" ? (
                     <video
                       src={activeMediaItem.src}
+                      autoPlay
                       controls
                       loop
                       muted
@@ -2731,9 +2778,10 @@ const JewelryDetails = () => {
             <h2>Product Details</h2>
             <div className="jd-help">
               <span>Have questions? Our experts are available to assist you.</span>
-              <a href="tel:+18005302647">+1 (800) 530-2647</a>
-              <a href="mailto:info@amipi.com">Email Us</a>
+              <a href="tel:+18005302647"><svg fill="none" height="512" viewBox="0 0 24 24" width="512" xmlns="http://www.w3.org/2000/svg" id="fi_7794620"><path d="m9.50289 4.25722-.92848.37139zm1.05431 2.63566.9284-.37139zm-.3206 2.02315.7683.64018zm-.56735.68087.76825.6402zm.12223 2.6946-.70711.7071zm1.91702 1.917.7071-.7071zm2.6946.1222-.6402-.7682zm.6809-.5673.6402.7682zm2.0231-.3206-.3714.9285zm2.6357 1.0543.3714-.9285zm-14.84806-10.4971h2.75119v-2h-2.75119zm3.67967.62861 1.05426 2.63566 1.85693-.74278-1.0542-2.63566zm.89401 3.64724-.56739.68087 1.53647 1.28038.5674-.68089zm-.38405 4.72275 1.91703 1.917 1.4142-1.4142-1.917-1.917zm5.95893 2.1004.6809-.5674-1.2804-1.5365-.6809.5674zm1.6924-.7277 2.6357 1.0543.7428-1.857-2.6357-1.0542zm3.2643 1.9828v2.7512h2v-2.7512zm-.8947 3.6459c-8.3424 0-15.1053-6.7629-15.1053-15.10526h-2c0 9.44696 7.65829 17.10526 17.1053 17.10526zm.8947-.8947c0 .4941-.4006.8947-.8947.8947v2c1.5987 0 2.8947-1.296 2.8947-2.8947zm-.6286-3.6797c.3796.1519.6286.5196.6286.9285h2c0-1.2267-.7469-2.3299-1.8858-2.7855zm-3.6472-.894c.2821-.2352.6705-.2967 1.0115-.1603l.7428-1.8569c-1.0231-.4093-2.1882-.2247-3.0347.4807zm-4.7228.384c1.0972 1.0972 2.8499 1.1767 4.0419.1834l-1.2804-1.5365c-.3973.3311-.9816.3046-1.3473-.0611zm-2.10037-5.95888c-.99332 1.19198-.91381 2.94468.18334 4.04188l1.41423-1.4142c-.3657-.3657-.3922-.95-.0611-1.3473zm.72764-1.69245c.13642.34103.07489.7294-.16025 1.01158l1.53648 1.28036c.7054-.84651.89-2.01162.4807-3.03472zm-1.98274-3.26427c.40891 0 .77662.24895.92848.62861l1.85699-.74278c-.45563-1.13898-1.55875-1.88583-2.78547-1.88583zm-2.75119-2c-1.59872 0-2.89474 1.29602-2.89474 2.89474h2c0-.49415.40059-.89474.89474-.89474z" fill="rgb(0,0,0)"></path></svg> +1 (800) 530-2647</a>
+              <a href="mailto:info@amipi.com"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="fi_10421464"><g id="Layer_2" data-name="Layer 2"><path d="m19 20.5h-14a4.00427 4.00427 0 0 1 -4-4v-9a4.00427 4.00427 0 0 1 4-4h14a4.00427 4.00427 0 0 1 4 4v9a4.00427 4.00427 0 0 1 -4 4zm-14-15a2.00229 2.00229 0 0 0 -2 2v9a2.00229 2.00229 0 0 0 2 2h14a2.00229 2.00229 0 0 0 2-2v-9a2.00229 2.00229 0 0 0 -2-2z"></path><path d="m12 13.43359a4.99283 4.99283 0 0 1 -3.07031-1.0542l-6.544-5.08984a1.00035 1.00035 0 0 1 1.22852-1.5791l6.54394 5.08984a2.99531 2.99531 0 0 0 3.6836 0l6.54394-5.08984a1.00035 1.00035 0 0 1 1.22852 1.5791l-6.544 5.08984a4.99587 4.99587 0 0 1 -3.07021 1.0542z"></path></g></svg> Email Us</a>
             </div>
+ 
           </div>
 
           <div className="jd-details-grid">

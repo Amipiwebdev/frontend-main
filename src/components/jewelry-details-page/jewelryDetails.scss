@@ -576,9 +576,9 @@ button.jd-pill.is-active {
   line-height: 1.6;
 }
 
-.jd-filter-block {
-  margin-top: 6px;
-}
+// .jd-filter-block {
+//   margin-top: 6px;
+// }
 
 .jd-filter-label {
   display: inline-block;
@@ -1015,60 +1015,58 @@ button.jd-pill.is-active {
     grid-template-columns: 1fr !important;
   }
 }
-
 .jd-filter-block.jd-acc-diamondOrigin button.jd-pill.is-active span {
     color: #fed700;
 }
 .jd-filter-block.jd-acc-diamondOrigin button.jd-pill.is-active {
     background: #2c3b5c;
 }
-
+ 
 .jd-filter-block.jd-acc-diamondQuality button.jd-pill.is-active{background: transparent !important;}
 .jd-filter-block.jd-acc-diamondQuality button.jd-pill.is-active span{color: #2c3b5c !important;}
-
-
+ 
+ 
 /* Diamond Quality Accordion Layout (centered origin tabs) */
 .jd-accordion.jd-acc-diamond-quality .jd-acc-body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
+  // gap: 12px;
+  padding: 0;
 }
-
+.jd-filter-block.jd-acc-diamondQuality{padding: 5px 10px 10px;}
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block {
   width: 100%;
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin {
   order: 0;
   display: flex;
   justify-content: center;
   margin-bottom: 2px;
   background-color: #f1f1f1;
-  
+ 
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill-row {
   display: flex;
   justify-content: center;
   flex-wrap: nowrap;
   gap: 24px;
-  padding: 4px 0 8px;
-  border-bottom: 1px solid #e1e6f2;
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill {
   background: transparent;
   border: 0;
   box-shadow: none;
-  padding: 0;
+  padding: 0 14px;
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill:hover {
   border: 0;
   box-shadow: none;
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill-text {
   width: auto;
   padding: 6px 12px;
@@ -1077,25 +1075,38 @@ button.jd-pill.is-active {
   font-weight: 700;
   font-size: 13px;
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill.is-active {
-  background: transparent;
-  border: 0;
+      color: #223052;
+    // border: 1px solid #d9d9d9;
+    // border-bottom: 1px solid #FFFFFF;
+    margin-bottom: -1px;
+    padding: 0 14px;
+    border-radius: 10px 10px 0 0 ;
+    background-color: #fff;
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill.is-active .jd-pill-text {
   color: #2c3b5c;
   border-bottom-color: #2c3b5c;
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondQuality {
   order: 1;
   min-width: 0;
 }
-
+ 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondQuality .jd-pill-row {
   display: flex;
   justify-content: flex-start;
   flex-wrap: wrap;
   gap: 10px;
+}
+.jd-help svg{
+    width: 22px;
+    height: 22px;
+}
+ 
+.jd-help svg path {
+    fill: #2c3b5c;
 }
