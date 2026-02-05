@@ -2314,57 +2314,14 @@ const JewelryDetails = () => {
                   })}
                 </div>
               ) : null}
-              <ul className="jd-actions">
-                <li>
-                  <button
-                    type="button"
-                    className="jd-action-btn"
-                    title="Share With A Friend"
-                    onClick={() => setShareOpen(true)}
-                  >
-                    <i className="fa fa-share-alt" aria-hidden="true" />
-                  </button>
-                </li>
-                <li>
-                  {isAuthenticated ? (
-                    <button
-                      type="button"
-                      onClick={handleWishlistToggle}
-                      disabled={wishLoading}
-                      className={`jd-action-btn ${isWishlisted ? "is-active" : ""}`}
-                      aria-pressed={isWishlisted}
-                      aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                      title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
-                    >
-                      <i className="fa fa-heart" aria-hidden="true" />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => redirectToLogin()}
-                      disabled={wishLoading}
-                      className="jd-action-btn"
-                      aria-label="Add to wishlist"
-                      title="Add to Wishlist"
-                    >
-                      <i className="fa fa-heart" aria-hidden="true" />
-                    </button>
-                  )}
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={handleCompareToggle}
-                    disabled={comparLoading}
-                    className={`jd-action-btn ${isCompared ? "is-active" : ""}`}
-                    aria-pressed={isCompared}
-                    aria-label={isCompared ? "Remove from compare" : "Add to compare"}
-                    title={isCompared ? "Remove From Compare" : "Add to Compare"}
-                  >
-                    <i className="fa fa-compress" aria-hidden="true" />
-                  </button>
-                </li>
-              </ul>
+
+              {!hideStandardImageNote ? (
+                        <p className="jd-note">
+                          Note: Standard image displayed. Actual product image may vary based on selected options.
+                        </p>
+                      ) : null}
+
+              
               {/* <p className="jd-note">
                 Note: Standard image displayed. Actual product image may vary based on selected options.
               </p> */}
@@ -2582,6 +2539,57 @@ const JewelryDetails = () => {
                       )}
                     </span>
                   </div>
+                  <ul className="jd-actions">
+                <li>
+                  <button
+                    type="button"
+                    className="jd-action-btn"
+                    title="Share With A Friend"
+                    onClick={() => setShareOpen(true)}
+                  >
+                    <i className="fa fa-share-alt" aria-hidden="true" />
+                  </button>
+                </li>
+                <li>
+                  {isAuthenticated ? (
+                    <button
+                      type="button"
+                      onClick={handleWishlistToggle}
+                      disabled={wishLoading}
+                      className={`jd-action-btn ${isWishlisted ? "is-active" : ""}`}
+                      aria-pressed={isWishlisted}
+                      aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                      title={isWishlisted ? "Remove From Wishlist" : "Add to Wishlist"}
+                    >
+                      <i className="fa fa-heart" aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => redirectToLogin()}
+                      disabled={wishLoading}
+                      className="jd-action-btn"
+                      aria-label="Add to wishlist"
+                      title="Add to Wishlist"
+                    >
+                      <i className="fa fa-heart" aria-hidden="true" />
+                    </button>
+                  )}
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleCompareToggle}
+                    disabled={comparLoading}
+                    className={`jd-action-btn ${isCompared ? "is-active" : ""}`}
+                    aria-pressed={isCompared}
+                    aria-label={isCompared ? "Remove from compare" : "Add to compare"}
+                    title={isCompared ? "Remove From Compare" : "Add to Compare"}
+                  >
+                    <i className="fa fa-compress" aria-hidden="true" />
+                  </button>
+                </li>
+              </ul>
                   {isAuthenticated ? (
                     <button
                       type="button"
@@ -2699,11 +2707,7 @@ const JewelryDetails = () => {
                       <div className="product-detail-gray-do">
                         Please contact us for any rush order requirements.
                       </div>
-                      {!hideStandardImageNote ? (
-                        <p className="jd-note">
-                          Note: Standard image displayed. Actual product image may vary based on selected options.
-                        </p>
-                      ) : null}
+                      
                     </div>
                   )}
                   <div className="jd-status-slot" aria-live="polite">

@@ -1026,94 +1026,76 @@ button.jd-pill.is-active {
 .jd-filter-block.jd-acc-diamondQuality button.jd-pill.is-active{background: transparent !important;}
 .jd-filter-block.jd-acc-diamondQuality button.jd-pill.is-active span{color: #2c3b5c !important;}
 
---------------------------
- 
-/* ✅ Diamond Quality Accordion Layout */
 
+/* Diamond Quality Accordion Layout (centered origin tabs) */
 .jd-accordion.jd-acc-diamond-quality .jd-acc-body {
-
   display: flex;
-
-  align-items: flex-start;
-
-  justify-content: space-between;
-
-  gap: 16px;
-
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
 }
- 
-/* ✅ LEFT: Diamond Quality (Wrap allowed) */
-
-.jd-accordion.jd-acc-diamond-quality
-
-  .jd-filter-block.jd-acc-diamondQuality {
-
-  order: 1;
-
-  flex: 1 1 auto;   /* take remaining space */
-
-  min-width: 0;
-
-}
- 
-/* Quality pills wrap to next line */
-
-.jd-accordion.jd-acc-diamond-quality
-
-  .jd-filter-block.jd-acc-diamondQuality
-
-  .jd-pill-row {
-
-  display: flex;
-
-  justify-content: flex-start;
-
-  flex-wrap: wrap;   /* ✅ break into next line */
-
-  gap: 10px;
-
-}
- 
-/* ✅ RIGHT: Diamond Origin (Always Fixed Right) */
-
-.jd-accordion.jd-acc-diamond-quality
-
-  .jd-filter-block.jd-acc-diamondOrigin {
-
-  order: 2;
-
-  flex: 0 0 auto;     /* fixed width */
-
-  margin-left: auto;  /* push to right */
-
-  white-space: nowrap;
-
-}
- 
-/* Origin pills should never wrap */
-
-.jd-accordion.jd-acc-diamond-quality
-
-  .jd-filter-block.jd-acc-diamondOrigin
-
-  .jd-pill-row {
-
-  display: flex;
-
-  justify-content: flex-end;
-
-  flex-wrap: nowrap;   /* ✅ always single line */
-
-  gap: 10px;
-
-}
- 
-/* Remove full width issue */
 
 .jd-accordion.jd-acc-diamond-quality .jd-filter-block {
-
-  width: auto !important;
-
+  width: 100%;
 }
 
- 
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin {
+  order: 0;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2px;
+  background-color: #f1f1f1;
+  
+}
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 24px;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid #e1e6f2;
+}
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill:hover {
+  border: 0;
+  box-shadow: none;
+}
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill-text {
+  width: auto;
+  padding: 6px 12px;
+  border-radius: 0;
+  border-bottom: 3px solid transparent;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill.is-active {
+  background: transparent;
+  border: 0;
+}
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondOrigin .jd-pill.is-active .jd-pill-text {
+  color: #2c3b5c;
+  border-bottom-color: #2c3b5c;
+}
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondQuality {
+  order: 1;
+  min-width: 0;
+}
+
+.jd-accordion.jd-acc-diamond-quality .jd-filter-block.jd-acc-diamondQuality .jd-pill-row {
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+}
