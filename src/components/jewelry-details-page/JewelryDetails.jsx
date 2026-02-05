@@ -105,6 +105,39 @@ const normalizeSeoPath = (seoUrl) => {
   return path.includes("/") ? path : `jewelry/${path}`;
 };
 
+const normalizeSeoSlug = (seoUrl) => {
+  const path = normalizeSeoPath(seoUrl);
+  if (!path) return "";
+  const parts = path.split("/").filter(Boolean);
+  return parts[parts.length - 1] || "";
+};
+
+const selectionStorageKey = (skuValue) =>
+  skuValue ? `jd_selection_${String(skuValue)}` : "";
+
+const readSelectionCache = (skuValue) => {
+  if (typeof window === "undefined") return null;
+  const key = selectionStorageKey(skuValue);
+  if (!key) return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeSelectionCache = (skuValue, payload) => {
+  if (typeof window === "undefined") return;
+  const key = selectionStorageKey(skuValue);
+  if (!key) return;
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(payload));
+  } catch {}
+};
+
 const normalizeOptionText = (input) => {
   if (input === undefined || input === null) return "";
   if (typeof input === "string" || typeof input === "number" || typeof input === "boolean") {
@@ -167,6 +200,54 @@ const normalizeOptionValue = (input) => {
   }
   const text = normalizeOptionText(input);
   return text === "" ? undefined : text;
+};
+
+const normalizeSkuValue = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+const normalizeSkuToken = (value) =>
+  String(value ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+const extractMetalCodeFromSku = (skuValue) => {
+  const normalized = normalizeSkuToken(skuValue);
+  if (!normalized) return "";
+  if (
+    normalized.includes("PTE") ||
+    normalized.includes("PLAT") ||
+    normalized.includes("PLT") ||
+    normalized.includes("PT")
+  ) {
+    return "PLAT";
+  }
+  const codes = ["18Y", "18W", "14Y", "14W", "10Y", "10W"];
+  for (const code of codes) {
+    if (normalized.includes(code)) return code;
+  }
+  return "";
+};
+
+const resolveMetalFromSku = (options = [], skuValue) => {
+  const metalCode = extractMetalCodeFromSku(skuValue);
+  if (!metalCode) return null;
+  const codeKey = normalizeSkuToken(metalCode);
+  const match = (Array.isArray(options) ? options : []).find((opt) => {
+    const labelKey = normalizeSkuToken(
+      opt?.label ??
+        opt?.value_name ??
+        opt?.name ??
+        opt?.title ??
+        opt?.dmt_tooltip ??
+        opt?.tooltip ??
+        opt?.value
+    );
+    return labelKey && (labelKey.includes(codeKey) || codeKey.includes(labelKey));
+  });
+  if (!match) return null;
+  return normalizeOptionValue(match?.value_id ?? match?.id ?? match?.value ?? match);
 };
 
 const toOptionList = (list, fallback = []) => {
@@ -731,7 +812,7 @@ const Accordion = ({ title, value, children }) => {
       >
         <div className="jd-acc-left">
           <span className="jd-acc-title">{title}</span>
-          <span className="jd-acc-value">{value}</span>
+          <span className="jd-acc-value">{value} </span>
         </div>
 
         <span className="jd-acc-icon">
@@ -862,6 +943,7 @@ const JewelryDetails = () => {
   const [couponApplied, setCouponApplied] = useState(false);
   const requestIdRef = useRef(0);
   const skipNextSkuFetchRef = useRef(false);
+  const skuCorrectionRef = useRef(new Set());
   const jewelryPriceLevel = getJewelryPriceLevel();
   const { user: authUser } = useAuth();
   const isAuthenticated = Boolean(authUser);
@@ -1130,6 +1212,19 @@ const JewelryDetails = () => {
           selectionSeed,
           resetSelection
         );
+        const skuMetalValue = resolveMetalFromSku(
+          normalizedFilters.metal_types,
+          sku
+        );
+        const seedHasMetal =
+          selectionSeed?.metalType !== undefined &&
+          selectionSeed?.metalType !== null &&
+          selectionSeed?.metalType !== "";
+        const productMetal = selectionFromProduct(data.product).metalType;
+        const selectionBase =
+          resetSelection && !seedHasMetal && !productMetal && skuMetalValue
+            ? { ...baseSelection, metalType: skuMetalValue }
+            : baseSelection;
         const keepOriginOption =
           (resetSelection ? null : getOptionBySelection(originOptions, selectionSeed.diamondOrigin)) ||
           getOptionBySelection(originOptions, baseSelection.diamondOrigin) ||
@@ -1144,11 +1239,41 @@ const JewelryDetails = () => {
         );
         const selectionOptions = { ...normalizedFilters, diamond_qualities: filteredQualities };
         const nextSelectionState = syncSelectionWithOptions(
-          { ...baseSelection, diamondOrigin: keepOriginValue },
+          { ...selectionBase, diamondOrigin: keepOriginValue },
           selectionOptions
         );
 
         const nextProduct = data.product || null;
+        const normalizedSku = normalizeSkuValue(sku);
+        const productStyle = normalizeSkuValue(nextProduct?.products_style_no);
+        const productSlug = normalizeSkuValue(
+          normalizeSeoSlug(nextProduct?.products_seo_url)
+        );
+        const productMatchesSku =
+          normalizedSku && (productStyle === normalizedSku || productSlug === normalizedSku);
+        if (
+          resetSelection &&
+          skuMetalValue &&
+          normalizedSku &&
+          !productMatchesSku &&
+          !skuCorrectionRef.current.has(normalizedSku)
+        ) {
+          skuCorrectionRef.current.add(normalizedSku);
+          fetchProductDetails(
+            { ...nextSelectionState, metalType: skuMetalValue },
+            {
+              resetSelection: false,
+              designOverride: resolvedDesignId,
+              relatedDesignOverride: resolvedRelatedDesignId,
+              filterMeta: {
+                filterType: "metalType",
+                filterId: skuMetalValue,
+              },
+            }
+          );
+          return;
+        }
+
         setProduct(nextProduct);
         replaceDetailsUrl(nextProduct);
         const bannerProductId = data.product?.products_id;
@@ -1177,12 +1302,23 @@ const JewelryDetails = () => {
         setProductOptions(nextProductOptions);
         setOptionSelection((prev) => autoHealOptionSelection(prev, nextProductOptions));
         setSelection(nextSelectionState);
-        const nextDesignId = data.product?.design_id || data.product?.designId || designIdRef.current || "";
+        const nextDesignId =
+          data.product?.design_id || data.product?.designId || designIdRef.current || "";
         const nextRelatedDesignId =
           data.product?.related_design_id ||
           data.product?.relatedDesignId ||
           relatedDesignIdRef.current ||
           "";
+        const cachePayload = {
+          selection: nextSelectionState,
+          designId: nextDesignId || "",
+          relatedDesignId: nextRelatedDesignId || "",
+        };
+        writeSelectionCache(sku, cachePayload);
+        const seoSlug = normalizeSeoSlug(nextProduct?.products_seo_url);
+        if (seoSlug && seoSlug !== sku) {
+          writeSelectionCache(seoSlug, cachePayload);
+        }
         setDesignId(nextDesignId || "");
         designIdRef.current = nextDesignId || "";
         setRelatedDesignId(nextRelatedDesignId || "");
@@ -1411,10 +1547,30 @@ const JewelryDetails = () => {
       return;
     }
     if (!sku) return;
-    fetchProductDetails(buildInitialSelections(filterOptions), {
-      resetSelection: true,
-      designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+    const cached = readSelectionCache(sku);
+    const cachedSelection =
+      cached && typeof cached === "object" ? cached.selection || cached : null;
+    const hasCachedSelection =
+      cachedSelection &&
+      typeof cachedSelection === "object" &&
+      Object.keys(cachedSelection).length > 0;
+    const cachedDesignId =
+      cached?.designId || cached?.design_id || "";
+    const cachedRelatedDesignId =
+      cached?.relatedDesignId || cached?.related_design_id || "";
+    const seedSelection = hasCachedSelection
+      ? cachedSelection
+      : buildInitialSelections(filterOptions);
+    fetchProductDetails(seedSelection, {
+      resetSelection: !hasCachedSelection,
+      designOverride:
+        cachedDesignId ||
+        designIdRef.current ||
+        designId ||
+        product?.design_id ||
+        product?.designId,
       relatedDesignOverride:
+        cachedRelatedDesignId ||
         relatedDesignIdRef.current ||
         relatedDesignId ||
         product?.related_design_id ||
@@ -1500,7 +1656,7 @@ const JewelryDetails = () => {
   }, [product?.products_id, isAuthenticated]);
 
   const displaySku = product?.products_style_no || sku || "";
-  const displayTitle = product?.products_name || "";
+  const displayTitle = product?.products_style_type || "";
   const displayDescription = product?.products_description || "";
   const diamondQualityOptions = filterDiamondQualities(
     filterOptions.diamond_qualities || [],
