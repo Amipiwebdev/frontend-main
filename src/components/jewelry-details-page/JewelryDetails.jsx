@@ -697,7 +697,7 @@ const selectionFromProduct = (product = {}) => {
       product.sptmt_metal_type_id ?? product.metal_type_id ?? product.metalType
     ),
     diamondOrigin: normalizeOptionValue(
-      product.center_stone_type_id ?? product.diamondOrigin
+      product.center_stone_dcst_id ?? product.center_stone_type_id ?? product.diamondOrigin
     ),
     diamondQuality: normalizeOptionValue(
       product.diamond_quality_id ?? product.diamondQuality
@@ -2455,20 +2455,20 @@ const JewelryDetails = () => {
                       muted
                       playsInline
                       className="jd-media-player"
-                      width={600}
+                      width={800}
                     />
                   ) : activeMediaItem.type === "video_link" ? (
                     <iframe
                       src={activeMediaItem.src}
                       title={displayTitle}
                       className="jd-media-player"
-                      width={600}
+                      width={800}
                       height={420}
                       allow="autoplay; fullscreen; picture-in-picture"
                       allowFullScreen
                     />
                   ) : (
-                    <img src={activeMediaItem.src} alt={displayTitle} className="jd-media-img" width={600} />
+                    <img src={activeMediaItem.src} alt={displayTitle} className="jd-media-img" width={800} />
                   )
                 ) : (
                   <div className="jd-media-placeholder">
@@ -2743,7 +2743,7 @@ const JewelryDetails = () => {
                     </span>
                   </div>
                   <ul className="jd-actions">
-                <li>
+                <li>                 
                   <button
                     type="button"
                     className="jd-action-btn"
