@@ -789,11 +789,17 @@ const deriveSelection = (options, product, currentSelection = {}, preferProductV
 };
 
 // ---------------------- ACCORDION COMPONENT ----------------------
-const Accordion = ({ title, value, children }) => {
+const Accordion = ({ title, titleText, value, children }) => {
   const [open, setOpen] = useState(false);
 
   // ✅ title text se class banegi
-  const normalizedTitle = String(title || "").trim();
+  const resolvedTitleText =
+    typeof titleText === "string" && titleText.trim()
+      ? titleText
+      : typeof title === "string"
+        ? title
+        : "";
+  const normalizedTitle = String(resolvedTitleText || "").trim();
   const slugOverride =
     normalizedTitle.toLowerCase() === "quality" ? "diamond-quality" : "";
   const slug =
@@ -1858,9 +1864,41 @@ const JewelryDetails = () => {
     };
   };
 
+  const getCustomOptionSelectedLabel = (meta) => {
+    if (!meta || Number(meta.optionType) !== 3) return "";
+    const selectedId = normalizeValueId(meta.selectedValue);
+    if (!selectedId) return "";
+    const match =
+      meta.optionValues.find(
+        (value) =>
+          normalizeValueId(value?.value_id ?? value?.id ?? value?.value) === selectedId
+      ) || null;
+    if (!match) return "";
+    return (
+      normalizeOptionText(match?.value_name ?? match?.label ?? match?.name ?? match?.value) ||
+      ""
+    );
+  };
+
   const inlineCustomOptionMeta = inlineCustomOption
     ? getCustomOptionMeta(inlineCustomOption)
     : null;
+  const customOptionsHeaderMeta =
+    !inlineCustomOptionMeta && customOptions.length === 1
+      ? getCustomOptionMeta(customOptions[0])
+      : null;
+  const customOptionsHeaderValue = customOptionsHeaderMeta
+    ? getCustomOptionSelectedLabel(customOptionsHeaderMeta)
+    : "";
+  const customOptionsTitleText = customOptionsHeaderMeta?.optionLabel || "Custom Options";
+  const customOptionsTitleNode = customOptionsHeaderMeta ? (
+    <>
+      {customOptionsHeaderMeta.optionLabel}
+      {!customOptionsHeaderMeta.isCompulsory ? null : <span className="jd-required"> *</span>}
+    </>
+  ) : (
+    "Custom Options"
+  );
 
   const renderCustomOption = (option) => {
     const meta = getCustomOptionMeta(option);
@@ -2649,7 +2687,7 @@ const JewelryDetails = () => {
                     <div className="jd-acc-header open">
                       <div className="jd-acc-left">
                         <span className="jd-acc-title">
-                          Custom Options
+                          {inlineCustomOptionMeta.optionLabel}
                           {!inlineCustomOptionMeta.isCompulsory ? null : (
                             <span className="jd-required"> *</span>
                           )}
@@ -2698,7 +2736,11 @@ const JewelryDetails = () => {
                     ) : null}
                   </div>
                 ) : (
-                  <Accordion title="Custom Options" value="">
+                  <Accordion
+                    title={customOptionsTitleNode}
+                    titleText={customOptionsTitleText}
+                    value={customOptionsHeaderValue}
+                  >
                     <div className="jd-custom-options">
                       {customOptions.map((option) => renderCustomOption(option))}
                     </div>
