@@ -77,6 +77,7 @@ const FALLBACK_FILTER_VALUES = {
   origins: [],
   diamond_qualities: [],
   ring_sizes: CUSTOM_OPTIONS.map((value) => ({ value_id: value, value_name: value })),
+  variant_products: [],
 };
 
 const FILTER_GROUPS = [
@@ -320,6 +321,9 @@ const buildFilterOptions = (apiFilters) => ({
     FALLBACK_FILTER_VALUES.diamond_qualities
   ),
   ring_sizes: toOptionList(apiFilters?.ring_sizes, FALLBACK_FILTER_VALUES.ring_sizes),
+  variant_products: Array.isArray(apiFilters?.variant_products)
+    ? apiFilters.variant_products
+    : FALLBACK_FILTER_VALUES.variant_products,
 });
 
 const normalizeValueId = (value) => {
@@ -343,6 +347,81 @@ const findOptionById = (productOptions = [], id) => {
   );
 };
 
+const getOptionNameKey = (option) => {
+  const text = normalizeOptionText(
+    option?.options_name ??
+      option?.option_name ??
+      option?.name ??
+      option?.title ??
+      option?.label
+  );
+  return text.trim().toLowerCase();
+};
+
+const findOptionByNameAndType = (productOptions = [], { optionType, matchers } = {}) => {
+  const options = Array.isArray(productOptions) ? productOptions : [];
+  const typeValue = optionType === undefined || optionType === null ? null : Number(optionType);
+  const matcherList = Array.isArray(matchers) ? matchers : matchers ? [matchers] : [];
+
+  return (
+    options.find((option) => {
+      if (typeValue !== null && Number(option?.options_type) !== typeValue) return false;
+      const nameKey = getOptionNameKey(option);
+      if (!nameKey) return false;
+      return matcherList.some((matcher) => {
+        if (!matcher) return false;
+        if (matcher instanceof RegExp) {
+          if (matcher.global) matcher.lastIndex = 0;
+          return matcher.test(nameKey);
+        }
+        const matcherText = normalizeOptionText(matcher).trim().toLowerCase();
+        return matcherText ? nameKey === matcherText : false;
+      });
+    }) || null
+  );
+};
+
+const findRingSizeOption = (productOptions = []) =>
+  findOptionById(productOptions, 2) ||
+  findOptionByNameAndType(productOptions, {
+    optionType: 0,
+    matchers: [/^ring\s*size$/i, /ring\s*size/i],
+  });
+
+const findCustomOptionsOption = (productOptions = []) =>
+  findOptionById(productOptions, 1) ||
+  findOptionByNameAndType(productOptions, {
+    optionType: 0,
+    matchers: [/^custom\s*options$/i],
+  });
+
+const findBackOption = (productOptions = []) =>
+  findOptionById(productOptions, 7) ||
+  findOptionByNameAndType(productOptions, {
+    optionType: 3,
+    matchers: [/^back$/i],
+  });
+
+const getSpecialOptionIds = (productOptions = []) => {
+  const ringOption = findRingSizeOption(productOptions);
+  const customOption = findCustomOptionsOption(productOptions);
+  const backOption = findBackOption(productOptions);
+
+  const ringSizeOptionId = normalizeValueId(ringOption?.options_id) || "2";
+  const customOptionsId = normalizeValueId(customOption?.options_id) || "1";
+  const backOptionId = normalizeValueId(backOption?.options_id) || "7";
+
+  return { ringSizeOptionId, customOptionsId, backOptionId };
+};
+
+const isBackOptionCandidate = (option, backOptionId) => {
+  const optionId = normalizeValueId(option?.options_id);
+  if (backOptionId && optionId === backOptionId) return true;
+  const nameKey = getOptionNameKey(option);
+  return nameKey === "back" || nameKey.includes("back");
+};
+
+
 const getOptionValueMap = (option) => {
   const map = new Map();
   const values = Array.isArray(option?.values) ? option.values : [];
@@ -356,21 +435,23 @@ const getOptionValueMap = (option) => {
 const autoHealOptionSelection = (prev = {}, productOptions = []) => {
   const next = {};
   const options = Array.isArray(productOptions) ? productOptions : [];
+  const { ringSizeOptionId, backOptionId } = getSpecialOptionIds(productOptions);
 
   for (const option of options) {
     const optionId = normalizeValueId(option?.options_id);
-    if (!optionId || optionId === "2") continue;
+    if (!optionId || optionId === ringSizeOptionId) continue;
     const optionType = Number(option?.options_type);
     const values = Array.isArray(option?.values) ? option.values : [];
     const hasSingleValue = values.length === 1;
     const isCompulsory = Number(option?.is_compulsory) === 1;
+    const isBackOption = optionType === 3 && isBackOptionCandidate(option, backOptionId);
 
     if (optionType === 0 || optionType === 3) {
       const valueMap = getOptionValueMap(option);
       const selected = normalizeValueId(prev?.[optionId]);
       if (selected && valueMap.has(selected)) {
         next[optionId] = selected;
-      } else if ((isCompulsory || hasSingleValue) && values.length) {
+      } else if ((isCompulsory || hasSingleValue || isBackOption) && values.length) {
         next[optionId] = normalizeValueId(
           values[0]?.value_id ?? values[0]?.id ?? values[0]?.value
         );
@@ -411,7 +492,7 @@ const autoHealOptionSelection = (prev = {}, productOptions = []) => {
 
 const getRingSizeRow = (productOptions = [], filterOptions = {}, selection = {}) => {
   const selectionId = normalizeValueId(selection?.ringSize);
-  const ringOption = findOptionById(productOptions, 2);
+  const ringOption = findRingSizeOption(productOptions);
   const ringValues =
     ringOption &&
     Number(ringOption.options_type) === 0 &&
@@ -443,10 +524,11 @@ const getRingSizeRow = (productOptions = [], filterOptions = {}, selection = {})
 const getSelectedRows = (productOptions = [], optionSelection = {}) => {
   const rows = [];
   const options = Array.isArray(productOptions) ? productOptions : [];
+  const { ringSizeOptionId } = getSpecialOptionIds(productOptions);
 
   for (const option of options) {
     const optionId = normalizeValueId(option?.options_id);
-    if (!optionId || optionId === "2") continue;
+    if (!optionId || optionId === ringSizeOptionId) continue;
     const optionType = Number(option?.options_type);
     const valueMap = getOptionValueMap(option);
 
@@ -816,7 +898,7 @@ const Accordion = ({ title, titleText, value, children }) => {
         className={`jd-acc-header ${open ? "open" : ""}`}
         onClick={() => setOpen(!open)}
       >
-        <div className="jd-acc-left">
+        {/* <div className="jd-acc-left">
           <span className="jd-acc-title">{title}</span>
           <span className="jd-acc-value">{value} </span>
         </div>
@@ -831,7 +913,20 @@ const Accordion = ({ title, titleText, value, children }) => {
               <path d="M5 8l5 5 5-5" />
             </svg>
           )}
-        </span>
+        </span> */}
+        <div className="jd-acc-left">
+          <span className="jd-acc-title">{title}</span>
+ 
+          <span className="jd-acc-value">
+            <span className="jd-acc-value-text">{value}</span>
+ 
+            <span className="jd-acc-arrowcap" aria-hidden="true">
+              <svg className="jd-acc-arrow" viewBox="0 0 20 20">
+                <path d="M5 8l5 5 5-5" />
+              </svg>
+            </span>
+          </span>
+        </div>
       </button>
 
       {open && <div className="jd-acc-body">{children}</div>}
@@ -910,7 +1005,9 @@ const FilterGroup = ({ group, options, value, onSelect, label, showDiamondType =
 
 // ---------------------- MAIN COMPONENT ----------------------
 const JewelryDetails = () => {
-  const { sku, productid } = useParams();
+  const params = useParams();
+  const { sku, productid } = params;
+  const routeProduct = params.product || "jewelry";
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS);
@@ -1414,6 +1511,12 @@ const JewelryDetails = () => {
     });
   };
 
+  const handleDesignIdKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    handleDesignIdApply();
+  };
+
   const handleQuantityChange = (e) => {
     const rawValue = e.target.value;
     const numericValue = Number(rawValue);
@@ -1669,7 +1772,9 @@ const JewelryDetails = () => {
     selection.diamondOrigin,
     filterOptions.origins || []
   );
-  const ringOption = findOptionById(productOptions, 2);
+  const { ringSizeOptionId, customOptionsId, backOptionId } =
+    getSpecialOptionIds(productOptions);
+  const ringOption = findRingSizeOption(productOptions);
   const ringOptionValues =
     ringOption &&
     Number(ringOption.options_type) === 0 &&
@@ -1696,6 +1801,44 @@ const JewelryDetails = () => {
         })
       : filterOptions.ring_sizes || [];
   const hasRingSizeOptions = ringSizeOptions.length > 0;
+  const variantProducts = Array.isArray(filterOptions?.variant_products)
+    ? filterOptions.variant_products
+    : [];
+  const useVariantRingSizeSelect = ringSizeOptions.length === 1 && variantProducts.length > 1;
+  const variantRingSizeOptions = useVariantRingSizeSelect
+    ? variantProducts
+        .map((item) => {
+          const value = normalizeValueId(item?.products_id);
+          if (!value) return null;
+          const sizeValue = item?.default_size;
+          const label =
+            sizeValue === undefined ||
+            sizeValue === null ||
+            sizeValue === "" ||
+            sizeValue === 0 ||
+            sizeValue === "0"
+              ? "All Sizes"
+              : String(sizeValue);
+          return { value, label, id: value };
+        })
+        .filter(Boolean)
+    : [];
+  const ringSizeSelectOptions = useVariantRingSizeSelect
+    ? variantRingSizeOptions
+    : ringSizeOptions;
+  const ringSizeSelectValue = useVariantRingSizeSelect
+    ? normalizeValueId(product?.products_id ?? productid)
+    : selection.ringSize;
+  const handleRingSizeSelectChange = (e) => {
+    if (!useVariantRingSizeSelect) {
+      handleRingSizeChange(e);
+      return;
+    }
+    const nextProductId = normalizeValueId(e.target.value);
+    const currentId = normalizeValueId(product?.products_id ?? productid);
+    if (!nextProductId || nextProductId === currentId) return;
+    navigate(`/details/${routeProduct}/${sku}/${nextProductId}`);
+  };
 
   const getSelectedOption = (selectionKey) => {
     const group = FILTER_GROUPS.find((g) => g.key === selectionKey);
@@ -1731,11 +1874,18 @@ const JewelryDetails = () => {
     selection.diamondQuality ||
     "";
   const ringSizeLabel = hasRingSizeOptions
-    ? ringSizeOptions.find(
-        (opt) => normalizeValueId(opt.value ?? opt.id) === normalizeValueId(selection.ringSize)
-      )?.label ||
-      selection.ringSize ||
-      ""
+    ? (useVariantRingSizeSelect
+        ? variantRingSizeOptions.find(
+            (opt) =>
+              normalizeValueId(opt.value ?? opt.id) ===
+              normalizeValueId(product?.products_id ?? productid)
+          )?.label || ""
+        : ringSizeOptions.find(
+            (opt) =>
+              normalizeValueId(opt.value ?? opt.id) === normalizeValueId(selection.ringSize)
+          )?.label ||
+          selection.ringSize ||
+          "")
     : "";
   const formatInches = (val) => {
     if (val === undefined || val === null || val === "") return "";
@@ -1768,11 +1918,11 @@ const JewelryDetails = () => {
     );
   };
   const sizeOption = (Array.isArray(productOptions) ? productOptions : []).find(
-    (option) => normalizeValueId(option?.options_id) === "1"
+    (option) => normalizeValueId(option?.options_id) === customOptionsId
   );
   const sizeOptionId = normalizeValueId(sizeOption?.options_id);
   const sizeOptionValues = Array.isArray(sizeOption?.values) ? sizeOption.values : [];
-  const hasCustomSizeOption = sizeOptionId === "1";
+  const hasCustomSizeOption = sizeOptionId === customOptionsId;
   const sizeOptionSelectedId =
     sizeOptionId && optionSelection?.[sizeOptionId] !== undefined
       ? optionSelection[sizeOptionId]
@@ -1819,17 +1969,17 @@ const JewelryDetails = () => {
   const showSizeRows = hasCustomSizeOption || hasRingSizeOptions;
   const customOptions = (Array.isArray(productOptions) ? productOptions : []).filter((option) => {
     const optionId = normalizeValueId(option?.options_id);
-    return optionId && optionId !== "2";
+    return optionId && optionId !== ringSizeOptionId;
   });
   const inlineCustomOption =
     customOptions.find((option) => {
       const optionId = normalizeValueId(option?.options_id);
-      return optionId === "1" && Number(option?.options_type) === 0;
+      return optionId === customOptionsId && Number(option?.options_type) === 0;
     }) || null;
   const customOptionsRest = inlineCustomOption
     ? customOptions.filter((option) => {
         const optionId = normalizeValueId(option?.options_id);
-        return !(optionId === "1" && Number(option?.options_type) === 0);
+        return !(optionId === customOptionsId && Number(option?.options_type) === 0);
       })
     : customOptions;
 
@@ -1900,6 +2050,27 @@ const JewelryDetails = () => {
     "Custom Options"
   );
 
+  const handleBackOptionSelection = (option, value) => {
+    const optionId = normalizeValueId(option?.options_id);
+    const valueId = normalizeValueId(value?.value_id ?? value?.id ?? value?.value ?? value);
+    handleOptionSelectionChange(optionId, valueId);
+
+    const optionType = Number(option?.options_type);
+    const isBackOption = optionType === 3 && isBackOptionCandidate(option, backOptionId);
+    if (!isBackOption) return;
+
+    const productIds = Array.isArray(value?.product_ids) ? value.product_ids : [];
+    if (!productIds.length) return;
+
+    const currentId = normalizeValueId(product?.products_id ?? productid);
+    let nextId =
+      productIds.find((id) => normalizeValueId(id) === currentId) ?? productIds[0];
+    const nextIdValue = normalizeValueId(nextId);
+    if (!nextIdValue || nextIdValue === currentId) return;
+
+    navigate(`/details/${routeProduct}/${sku}/${nextIdValue}`);
+  };
+
   const renderCustomOption = (option) => {
     const meta = getCustomOptionMeta(option);
     if (!meta) return null;
@@ -1912,8 +2083,8 @@ const JewelryDetails = () => {
       selectedValue,
       selectedValues,
     } = meta;
-    const isBackOption = optionId === "7" && optionType === 3;
-    const showBlankOption = !isCompulsory && optionValues.length > 1;
+    const isBackOption = optionType === 3 && isBackOptionCandidate(option, backOptionId);
+    const showBlankOption = !isBackOption && !isCompulsory && optionValues.length > 1;
 
     return (
       <div
@@ -1955,7 +2126,7 @@ const JewelryDetails = () => {
                     name={`option-${optionId}`}
                     value=""
                     checked={!selectedValue}
-                    onChange={() => handleOptionSelectionChange(optionId, "")}
+                    onChange={() => handleBackOptionSelection(option, "")}
                   />
                   <span>Select</span>
                 </label>
@@ -1974,7 +2145,7 @@ const JewelryDetails = () => {
                         name={`option-${optionId}`}
                         value={valueId}
                         checked={selectedValue === valueId}
-                        onChange={() => handleOptionSelectionChange(optionId, valueId)}
+                        onChange={() => handleBackOptionSelection(option, value)}
                       />
                       <div className="jd-option-card">
                         {optionImage ? (
@@ -1997,7 +2168,7 @@ const JewelryDetails = () => {
                       name={`option-${optionId}`}
                       value={valueId}
                       checked={selectedValue === valueId}
-                      onChange={() => handleOptionSelectionChange(optionId, valueId)}
+                      onChange={() => handleBackOptionSelection(option, value)}
                     />
                     {optionImage ? (
                       <img
@@ -2583,6 +2754,7 @@ const JewelryDetails = () => {
                     className="form-control jd-design-input"
                     value={designId}
                     onChange={handleDesignIdChange}
+                    onKeyDown={handleDesignIdKeyDown}
                     placeholder="Enter design id"
                   />
                   <input
@@ -2591,8 +2763,16 @@ const JewelryDetails = () => {
                     className="form-control jd-design-input"
                     value={relatedDesignId}
                     onChange={handleRelatedDesignIdChange}
+                    onKeyDown={handleDesignIdKeyDown}
                     placeholder="Enter related design id"
                   />
+                  <button
+                    type="button"
+                    className="jd-link-button"
+                    onClick={handleDesignIdApply}
+                  >
+                    Apply
+                  </button>
                 </div>
                
               </div>
@@ -2664,10 +2844,10 @@ const JewelryDetails = () => {
                     {/* RIGHT DROPDOWN */}
                     <select
                       className="jd-acc-select"
-                      value={selection.ringSize}
-                      onChange={handleRingSizeChange}
+                      value={ringSizeSelectValue}
+                      onChange={handleRingSizeSelectChange}
                     >
-                      {(ringSizeOptions || []).map((opt) => {
+                      {(ringSizeSelectOptions || []).map((opt) => {
                         const optValue = opt.value ?? opt.id;
                         const optLabel = opt.label ?? opt.name ?? String(optValue ?? "");
                         return (

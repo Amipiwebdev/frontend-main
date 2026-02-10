@@ -5,7 +5,7 @@
   margin-bottom: 0px;
   background: #fff;
 }
-
+ 
 /* Header */
 .jd-acc-header {
   width: 100%;
@@ -19,16 +19,27 @@
   cursor: pointer;
   gap: 10px;
 }
-
+ 
 /* LEFT GROUP (Title + Value) */
+// .jd-acc-left {
+//       display: flex;
+//     align-items: center;
+//     gap: 12px;
+//     justify-content: space-between;
+//     width: 100%;
+// }
+ 
 .jd-acc-left {
-      display: flex;
-    align-items: center;
-    gap: 12px;
-    justify-content: space-between;
-    width: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-
+ 
+.jd-acc-value-text {
+  white-space: nowrap;
+}
+ 
 .jd-acc-title {
   font-weight: 700;
     color: #2c3b5c;
@@ -36,12 +47,12 @@
     flex-shrink: 0;
     text-transform: uppercase;
 }
-
+ 
 /* VALUE PILL */
 .jd-acc-value {
       margin-left: auto;
     padding: 4px 10px;
-    border-radius: 12px;
+    border-radius: 50px;
     border: 1px solid #e1e6f2;
     background: #ffffff;
     color: #2c3b5c;
@@ -53,7 +64,48 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
+ 
+// .jd-acc-value {
+//   display: inline-flex;
+//   align-items: center;
+//   gap: 8px;
+//   flex-shrink: 0;
+//   white-space: nowrap;
+// }
+ 
+ 
+/* right side “select-like” cap */
+.jd-acc-arrowcap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 7px;
+}
+ 
+/* arrow icon */
+.jd-acc-arrow {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: #2c3b5c;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+ 
+/* closed state: down arrow */
+.jd-acc-header .jd-acc-arrow {
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+ 
+/* open state: up arrow (ring size jaisa feel) */
+.jd-acc-header.open .jd-acc-arrow {
+  transform: rotate(180deg);
+}
+ 
 .jd-acc-value.jd-acc-value-select {
   padding: 0;
   border: 0;
@@ -70,14 +122,14 @@
   align-items: center;
   flex-direction: column;
 }
-
+ 
 .jd-pill-icon {
   width: 18px;
   height: 18px;
   object-fit: contain;
   display: inline-block;
 }
-
+ 
 .jd-pill-row img {
     height: 80px;
     width: 80px;
@@ -85,7 +137,7 @@
     object-fit: cover;
     border-radius: 10px 10px 0 0;
 }
-
+ 
 .jd-pill-text {
   line-height: 1;
 }
@@ -93,7 +145,7 @@
 .jd-acc-icon svg {
   transition: transform 0.25s ease;
 }
-
+ 
 .jd-acc-header.open .jd-acc-icon svg {
   transform: rotate(180deg);
 }
