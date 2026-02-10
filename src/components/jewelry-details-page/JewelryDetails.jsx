@@ -2493,20 +2493,20 @@ const JewelryDetails = () => {
                       muted
                       playsInline
                       className="jd-media-player"
-                      width={800}
+                      width={600}
                     />
                   ) : activeMediaItem.type === "video_link" ? (
                     <iframe
                       src={activeMediaItem.src}
                       title={displayTitle}
                       className="jd-media-player"
-                      width={800}
+                      width={600}
                       height={420}
                       allow="autoplay; fullscreen; picture-in-picture"
                       allowFullScreen
                     />
                   ) : (
-                    <img src={activeMediaItem.src} alt={displayTitle} className="jd-media-img" width={800} />
+                    <img src={activeMediaItem.src} alt={displayTitle} className="jd-media-img" width={600} />
                   )
                 ) : (
                   <div className="jd-media-placeholder">
@@ -2579,7 +2579,7 @@ const JewelryDetails = () => {
                 <div className="jd-design-inputs">
                   <input
                     id="jd-design-id"
-                    type="hidden"
+                    type="text"
                     className="form-control jd-design-input"
                     value={designId}
                     onChange={handleDesignIdChange}
@@ -2587,7 +2587,7 @@ const JewelryDetails = () => {
                   />
                   <input
                     id="jd-related-design-id"
-                    type="hidden"
+                    type="text"
                     className="form-control jd-design-input"
                     value={relatedDesignId}
                     onChange={handleRelatedDesignIdChange}
