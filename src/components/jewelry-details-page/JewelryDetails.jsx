@@ -871,8 +871,12 @@ const deriveSelection = (options, product, currentSelection = {}, preferProductV
 };
 
 // ---------------------- ACCORDION COMPONENT ----------------------
-const Accordion = ({ title, titleText, value, children }) => {
+const Accordion = ({ title, titleText, value, children, disabled = false }) => {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (disabled && open) setOpen(false);
+  }, [disabled, open]);
 
   // ✅ title text se class banegi
   const resolvedTitleText =
@@ -896,7 +900,12 @@ const Accordion = ({ title, titleText, value, children }) => {
       <button
         type="button"
         className={`jd-acc-header ${open ? "open" : ""}`}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (disabled) return;
+          setOpen(!open);
+        }}
+        disabled={disabled}
+        aria-disabled={disabled}
       >
         {/* <div className="jd-acc-left">
           <span className="jd-acc-title">{title}</span>
@@ -2783,24 +2792,26 @@ const JewelryDetails = () => {
               {/* FILTER ACCORDIONS */}
               {FILTER_GROUPS.map((group) => {
                 if (group.key === "diamondOrigin") return null;
-                const groupOptions =
-                  group.key === "diamondQuality"
-                    ? diamondQualityOptions
-                    : filterOptions[group.sourceKey] || [];
-                const originOptions = group.key === "diamondQuality" ? filterOptions.origins || [] : [];
-                const showOriginOptions = group.key === "diamondQuality" && originOptions.length > 1;
-                const showQualityOptions =
-                  group.key === "diamondQuality" ? groupOptions.length > 0 : groupOptions.length > 1;
-                if (group.key === "diamondQuality") {
-                  if (!originOptions.length && !groupOptions.length) return null;
-                } else if (groupOptions.length <= 1) {
-                  return null;
-                }
+                const isQuality = group.key === "diamondQuality";
+                const groupOptions = isQuality
+                  ? diamondQualityOptions
+                  : filterOptions[group.sourceKey] || [];
+                const originOptions = isQuality ? filterOptions.origins || [] : [];
+                const showOriginOptions = isQuality && originOptions.length > 1;
+                const showQualityOptions = isQuality ? groupOptions.length > 0 : groupOptions.length > 1;
+                const hasOptions = isQuality
+                  ? originOptions.length > 0 || groupOptions.length > 0
+                  : groupOptions.length > 0;
+                if (!hasOptions) return null;
+                const isDisabled = isQuality
+                  ? originOptions.length <= 1 && groupOptions.length <= 1
+                  : groupOptions.length <= 1;
                 return (
                   <Accordion
                     key={group.key}
                     title={group.label}
                     value={getSelectedSummary(group.key) || selection[group.key]}
+                    disabled={isDisabled}
                   >
                     {group.key === "diamondQuality" ? (
                       <>
