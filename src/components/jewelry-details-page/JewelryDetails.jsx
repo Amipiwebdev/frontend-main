@@ -929,11 +929,13 @@ const Accordion = ({ title, titleText, value, children, disabled = false }) => {
           <span className="jd-acc-value">
             <span className="jd-acc-value-text">{value}</span>
  
-            <span className="jd-acc-arrowcap" aria-hidden="true">
-              <svg className="jd-acc-arrow" viewBox="0 0 20 20">
-                <path d="M5 8l5 5 5-5" />
-              </svg>
-            </span>
+            {disabled ? null : (
+              <span className="jd-acc-arrowcap" aria-hidden="true">
+                <svg className="jd-acc-arrow" viewBox="0 0 20 20">
+                  <path d="M5 8l5 5 5-5" />
+                </svg>
+              </span>
+            )}
           </span>
         </div>
       </button>
