@@ -1817,10 +1817,12 @@ const JewelryDetails = () => {
     : [];
   const useVariantRingSizeSelect = ringSizeOptions.length === 1 && variantProducts.length > 1;
   const variantRingSizeOptions = useVariantRingSizeSelect
-    ? variantProducts
-        .map((item) => {
+    ? (() => {
+        const seen = new Set();
+        const deduped = [];
+        for (const item of variantProducts) {
           const value = normalizeValueId(item?.products_id);
-          if (!value) return null;
+          if (!value) continue;
           const sizeValue = item?.default_size;
           const label =
             sizeValue === undefined ||
@@ -1830,9 +1832,12 @@ const JewelryDetails = () => {
             sizeValue === "0"
               ? "All Sizes"
               : String(sizeValue);
-          return { value, label, id: value };
-        })
-        .filter(Boolean)
+          if (seen.has(label)) continue;
+          seen.add(label);
+          deduped.push({ value, label, id: value });
+        }
+        return deduped;
+      })()
     : [];
   const ringSizeSelectOptions = useVariantRingSizeSelect
     ? variantRingSizeOptions
@@ -2761,7 +2766,7 @@ const JewelryDetails = () => {
                 <div className="jd-design-inputs">
                   <input
                     id="jd-design-id"
-                    type="text"
+                    type="hidden"
                     className="form-control jd-design-input"
                     value={designId}
                     onChange={handleDesignIdChange}
@@ -2770,20 +2775,20 @@ const JewelryDetails = () => {
                   />
                   <input
                     id="jd-related-design-id"
-                    type="text"
+                    type="hidden"
                     className="form-control jd-design-input"
                     value={relatedDesignId}
                     onChange={handleRelatedDesignIdChange}
                     onKeyDown={handleDesignIdKeyDown}
                     placeholder="Enter related design id"
                   />
-                  <button
+                  {/* <button
                     type="button"
                     className="jd-link-button"
                     onClick={handleDesignIdApply}
                   >
                     Apply
-                  </button>
+                  </button> */}
                 </div>
                
               </div>

@@ -904,7 +904,7 @@ button.jd-pill.is-active {
   }
 
   .jd-detail-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -1010,6 +1010,7 @@ button.jd-pill.is-active {
 @media (max-width: 768px) {
   .jd-acc-title { font-size: 13px; }
   .jd-acc-value { max-width: 70%; }
+  .jewelry-details-page .jd-quantity{    grid-template-columns: 1fr 1fr !important;}
 }
 
 /* Mobile */
@@ -1019,10 +1020,10 @@ button.jd-pill.is-active {
     align-items: flex-start;
   }
 
-  .jd-acc-left{
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-start;
+ .jd-acc-left{
+    // flex-direction: column;
+    align-items: center;
+        justify-content: space-between;
     gap: 6px;
   }
 
@@ -1057,7 +1058,7 @@ button.jd-pill.is-active {
     gap: 8px;
   }
   .jd-pill{
-    flex: 0 0 calc(50% - 4px);
+    flex: 0 0 calc(30% - 4px);
   }
   .jd-pill-text{
     width: 100%;
@@ -1162,4 +1163,175 @@ button.jd-pill.is-active {
  
 .jd-help svg path {
     fill: #2c3b5c;
+}
+
+/* =========================
+   RESPONSIVE FIXES
+   ========================= */
+ 
+.jewelry-details-page {
+  .jd-hero.container {
+    overflow-x: hidden;
+  }
+ 
+  .jd-upper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+ 
+  .jd-media,
+  .jd-config {
+    min-width: 0; /* important to prevent overflow */
+  }
+ 
+  .jd-media-primary {
+    width: 100%;
+  }
+ 
+  .jd-media-player,
+  .jd-media-img,
+  .jd-media-placeholder-img {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100%;
+    display: block;
+    object-fit: contain;
+  }
+ 
+  /* thumbnails row */
+  .jd-media-thumbs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 10px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+ 
+  .jd-thumb {
+    flex: 0 0 auto;
+  }
+ 
+  /* top row (sku + reset) */
+  .jd-reset-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+ 
+  .jd-link-button {
+    white-space: nowrap;
+  }
+ 
+  /* design inputs */
+  .jd-design-row {
+    width: 100%;
+  }
+ 
+  .jd-design-inputs {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+ 
+  .jd-design-input {
+    flex: 1 1 220px;
+    min-width: 180px;
+  }
+ 
+  /* quantity row and actions responsive */
+  .jd-quantity-row {
+    width: 100%;
+  }
+ 
+  .jd-quantity {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+ 
+  .jd-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+ 
+  .jd-add {
+    width: 100%;
+  }
+}
+ 
+/* =========================
+   BREAKPOINTS
+   ========================= */
+ 
+@media (max-width: 991px) {
+  .jewelry-details-page {
+    .jd-upper {
+      grid-template-columns: 1fr; /* ✅ stack */
+    }
+ 
+    .jd-media {
+      order: 1;
+    }
+ 
+    .jd-config {
+      order: 2;
+    }
+ 
+    /* thumbs still scroll nicely */
+    .jd-media-thumbs {
+      padding-bottom: 6px;
+    }
+  }
+}
+ 
+@media (max-width: 575px) {
+  .jewelry-details-page {
+    .jd-hero.container {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+ 
+    .jd-title {
+      font-size: 20px;
+      line-height: 1.2;
+    }
+ 
+    .jd-subtitle {
+      font-size: 13px;
+    }
+ 
+    /* Make buttons not float/overlap */
+    .jd-reset-row {
+      align-items: flex-start;
+    }
+ 
+    .jd-link-button {
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+ 
+    .jd-thumb {
+      border-radius: 10px;
+    }
+  }
+}
+ 
+@media (max-width: 991px) {
+  .jewelry-details-page .jd-link-button {
+    position: static !important;
+    float: none !important;
+  }
+}
+ 
+@media (max-width: 575px) {
+  .jewelry-details-page .jd-media-primary {
+    padding: 10px;
+  }
 }
