@@ -680,6 +680,81 @@ button.jd-pill.is-active {
   flex-wrap: wrap;
 }
 
+.coupon-box {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.coupon-box .border {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+}
+
+.coupon-box .cpn-title {
+  margin: 0;
+  background: #1f2c4a;
+  color: #fed700;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-transform: uppercase;
+  padding: 9px 12px;
+  border-radius: 10px 10px 0 0;
+}
+
+.coupon-box .cpn-border {
+  margin: 0;
+  background: #fff;
+  color: #2c3b5c;
+  border: 1px solid #fed700;
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.coupon-box input.bg {
+  flex: 1 1 220px;
+  min-width: 180px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #c1c2c5;
+  padding: 0 12px;
+  color: #2c3b5c;
+  background: #fff;
+}
+
+.coupon-box input.redeem-button {
+  flex: 0 0 auto;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #1f2c4a;
+  background: #1f2c4a;
+  color: #fed700;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.coupon-box .alert {
+  width: 100%;
+  margin: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.coupon-box .alert-success {
+  background: #ecfdf3;
+  border: 1px solid #abefc6;
+  color: #067647;
+}
+
 .jd-price {
   font-size: 28px;
   font-weight: bold;

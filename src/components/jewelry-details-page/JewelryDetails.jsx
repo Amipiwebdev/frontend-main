@@ -139,6 +139,15 @@ const writeSelectionCache = (skuValue, payload) => {
   } catch {}
 };
 
+const decodeHtmlEntities = (input) => {
+  const html = input === undefined || input === null ? "" : String(input);
+  if (!html) return "";
+  if (typeof window === "undefined" || !window.document) return html;
+  const textarea = window.document.createElement("textarea");
+  textarea.innerHTML = html;
+  return textarea.value;
+};
+
 const normalizeOptionText = (input) => {
   if (input === undefined || input === null) return "";
   if (typeof input === "string" || typeof input === "number" || typeof input === "boolean") {
@@ -2414,8 +2423,13 @@ const JewelryDetails = () => {
     effectiveJewelryPriceLevel !== 3 &&
     crossTotalPriceValue !== null &&
     crossPrice !== "";
-  const couponAdjustedTotal =
-    couponApplied && couponTotal !== null ? couponTotal : totalPriceValue;
+  const couponAdjustedTotal = couponApplied
+    ? couponTotal !== null
+      ? couponTotal
+      : totalPriceValue !== null && couponDiscount !== null
+      ? totalPriceValue - couponDiscount
+      : totalPriceValue
+    : totalPriceValue;
   const couponDisplayPrice =
     couponAdjustedTotal !== null ? formatPrice(couponAdjustedTotal) : "";
   const availabilityView = buildAvailabilityView(availability);
@@ -2450,15 +2464,44 @@ const JewelryDetails = () => {
     try {
       setCouponLoading(true);
       const { data } = await apiSession.post("/api/coupon/apply", payload);
+      const checkoutData =
+        data?.CheckoutData && typeof data.CheckoutData === "object" ? data.CheckoutData : null;
+      const statusValue =
+        checkoutData?.coupon_status ?? data?.coupon_status ?? data?.status;
+      const statusKey = String(statusValue ?? "").trim().toLowerCase();
+      const explicitSuccess =
+        statusValue === true ||
+        statusValue === 1 ||
+        statusValue === "1" ||
+        statusKey === "success" ||
+        statusKey === "true" ||
+        statusKey === "yes" ||
+        statusKey === "applied";
+      const explicitFailure =
+        statusValue === false ||
+        statusValue === 0 ||
+        statusValue === "0" ||
+        statusKey === "error" ||
+        statusKey === "failed" ||
+        statusKey === "invalid" ||
+        statusKey === "no";
+      const responseMessage =
+        checkoutData?.coupon_msg ??
+        data?.coupon_msg ??
+        data?.message ??
+        data?.error ??
+        "";
       const discountValue = toNumberIfPresent(
-        data?.coupon_discount ??
+        checkoutData?.coupon_amount ??
+          data?.coupon_discount ??
           data?.discount ??
           data?.couponDiscount ??
           data?.discount_amount ??
           data?.discountAmount
       );
       const totalValue = toNumberIfPresent(
-        data?.coupon_total ??
+        checkoutData?.final_price ??
+          data?.coupon_total ??
           data?.total ??
           data?.total_price ??
           data?.couponTotal ??
@@ -2477,19 +2520,32 @@ const JewelryDetails = () => {
           : totalPriceValue !== null && resolvedTotal !== null
           ? totalPriceValue - resolvedTotal
           : null;
-      const discountText = resolvedDiscount !== null ? formatPrice(resolvedDiscount) : "";
+      const hasPricingResult = resolvedTotal !== null || resolvedDiscount !== null;
+      const isSuccess = explicitSuccess || (!explicitFailure && hasPricingResult);
 
-      setCouponApplied(true);
-      setCouponDiscount(resolvedDiscount);
-      setCouponTotal(resolvedTotal);
-      setCouponSuccess(
-        `Yay! You saved ${discountText || "$0.00"} with this coupon.`
-      );
-      setCouponError("");
+      if (isSuccess) {
+        const discountText = resolvedDiscount !== null ? formatPrice(resolvedDiscount) : "";
+        setCouponApplied(true);
+        setCouponDiscount(resolvedDiscount);
+        setCouponTotal(resolvedTotal);
+        setCouponSuccess(
+          responseMessage || `Yay! You saved ${discountText || "$0.00"} with this coupon.`
+        );
+        setCouponError("");
+      } else {
+        setCouponError(responseMessage || "Unable to apply coupon.");
+        setCouponSuccess("");
+        setCouponApplied(false);
+        setCouponDiscount(null);
+        setCouponTotal(null);
+      }
     } catch (err) {
+      const errData = err?.response?.data;
       const message =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
+        errData?.CheckoutData?.coupon_msg ??
+        errData?.coupon_msg ??
+        errData?.message ??
+        errData?.error ??
         "Unable to apply coupon.";
       setCouponError(message);
       setCouponSuccess("");
@@ -3068,7 +3124,12 @@ const JewelryDetails = () => {
                   {couponBanner ? (
                     <div className="border" id="coupon_amt_div">
                       <p className="cpn-title">{couponBanner.coupon_name}</p>
-                      <p className="cpn-border">{couponBanner.coupon_description}</p>
+                      <p
+                        className="cpn-border"
+                        dangerouslySetInnerHTML={{
+                          __html: decodeHtmlEntities(couponBanner?.coupon_description || ""),
+                        }}
+                      />
                     </div>
                   ) : null}
                   <input
