@@ -2545,13 +2545,13 @@ const Bands = React.memo(function Bands() {
                             {/* View details */}
                             <li className="common-btn svg-design">
                               <a
-                                href={`https://www.amipi.com/${product.products_seo_url || ""}`}
+                                 href={`/details/${(product.products_seo_url || "").replace(/^\/+/, "")}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 title="View Full Details"
                               >
                                 <div className="band-cart-btn">
-                                  <i className="fa fa-cog" aria-hidden="true"></i>
+                                  <i className="fa fa-eye" aria-hidden="true"></i>
                                 </div>
                               </a>
                             </li>

@@ -3149,13 +3149,9 @@ const JewelryDetails = () => {
                     disabled={couponLoading}
                   />
                   {couponApplied ? (
-                    <button
-                      type="button"
-                      className="jd-link-button"
-                      onClick={handleCouponClear}
-                    >
-                      Clear
-                    </button>
+                    <>
+                      
+                    </>
                   ) : null}
                   <div
                     id="CheckOut_Error"
