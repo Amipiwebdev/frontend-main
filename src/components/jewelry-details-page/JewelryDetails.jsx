@@ -1277,8 +1277,9 @@ const JewelryDetails = () => {
     const seoPath = normalizeSeoPath(nextProduct?.products_seo_url);
     if (!seoPath) return;
     let nextPath = `/details/${seoPath}`;
-    if (productid && !nextPath.endsWith(`/${productid}`)) {
-      nextPath = `${nextPath}/${productid}`;
+    const nextProductId = normalizeValueId(nextProduct?.products_id ?? productid);
+    if (nextProductId && !nextPath.endsWith(`/${nextProductId}`)) {
+      nextPath = `${nextPath}/${nextProductId}`;
     }
     if (window.location.pathname === nextPath) return;
     skipNextSkuFetchRef.current = true;
@@ -1294,7 +1295,13 @@ const JewelryDetails = () => {
 
   const fetchProductDetails = (
     nextSelection = selection,
-    { resetSelection = false, designOverride, relatedDesignOverride, filterMeta } = {}
+    {
+      resetSelection = false,
+      designOverride,
+      relatedDesignOverride,
+      filterMeta,
+      forceProductId = false,
+    } = {}
   ) => {
     if (!sku) return;
     const resolvedDesignId =
@@ -1318,8 +1325,14 @@ const JewelryDetails = () => {
     setLoading(true);
     setError("");
 
+    const resolvedProductId = normalizeValueId(productid);
+    const productDetailsPath =
+      forceProductId && resolvedProductId
+        ? `/product-details/jewelry/${sku}/${resolvedProductId}`
+        : `/product-details/jewelry/${sku}`;
+
     api
-      .get(`/product-details/jewelry/${sku}${productid ? `/${productid}` : ""}`, { params: requestParams })
+      .get(productDetailsPath, { params: requestParams })
       .then((res) => {
         if (requestId !== requestIdRef.current) return;
         const data = res.data || {};
@@ -1388,6 +1401,7 @@ const JewelryDetails = () => {
               resetSelection: false,
               designOverride: resolvedDesignId,
               relatedDesignOverride: resolvedRelatedDesignId,
+              forceProductId,
               filterMeta: {
                 filterType: "metalType",
                 filterId: skuMetalValue,
@@ -1471,6 +1485,7 @@ const JewelryDetails = () => {
         relatedDesignId ||
         product?.related_design_id ||
         product?.relatedDesignId,
+      forceProductId: false,
       filterMeta: {
         filterType: getFilterType(key),
         filterId: value,
@@ -1484,12 +1499,26 @@ const JewelryDetails = () => {
       (ringSizeOptions || []).find(
         (opt) => normalizeValueId(opt.value ?? opt.id) === normalizeValueId(targetValue)
       ) || null;
+    const ringSizeId = option ? option.value ?? option.id : targetValue;
     const nextSelection = {
       ...selection,
-      ringSize: option ? option.value ?? option.id : targetValue,
+      ringSize: ringSizeId,
     };
     setSelection(nextSelection);
     setRingOptionSelected(option);
+    fetchProductDetails(nextSelection, {
+      designOverride: designIdRef.current || designId || product?.design_id || product?.designId,
+      relatedDesignOverride:
+        relatedDesignIdRef.current ||
+        relatedDesignId ||
+        product?.related_design_id ||
+        product?.relatedDesignId,
+      forceProductId: false,
+      filterMeta: {
+        filterType: "RingSize",
+        filterId: ringSizeId,
+      },
+    });
   };
 
   const handleOptionSelectionChange = (optionId, value) => {
@@ -1568,6 +1597,7 @@ const JewelryDetails = () => {
         relatedDesignId ||
         product?.related_design_id ||
         product?.relatedDesignId,
+      forceProductId: false,
     });
   };
 
@@ -1704,6 +1734,7 @@ const JewelryDetails = () => {
         relatedDesignId ||
         product?.related_design_id ||
         product?.relatedDesignId,
+      forceProductId: true,
     });
   }, [sku, productid]);
 
