@@ -434,208 +434,124 @@ function Lightbox({ items, index, onClose, onPrev, onNext }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*     Infinity carousel that repeats from the start if short          */
+/*   Active media stage + thumbnail list (no slider)                  */
 /* ------------------------------------------------------------------ */
 
 function GalleryCarousel({ items, onOpen, height = 520, minSlides = 1 }) {
-  const [perSlide, setPerSlide] = useState(2);
+  void minSlides;
+
+  const mediaItems = useMemo(() => (Array.isArray(items) ? items : []), [items]);
+  const mediaKey = useMemo(
+    () => mediaItems.map((item) => `${item.type || "image"}:${item.src || ""}`).join("|"),
+    [mediaItems]
+  );
+
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    const handle = () => setPerSlide(window.innerWidth < 768 ? 1 : 1);
-    handle();
-    window.addEventListener("resize", handle);
-    return () => window.removeEventListener("resize", handle);
-  }, []);
-
-  const slides = useMemo(() => {
-    if (!Array.isArray(items) || items.length === 0) return [];
-
-    const nPer = Math.max(1, Math.min(perSlide, items.length));
-    const targetLen = Math.max(items.length, nPer * minSlides);
-
-    const padded = Array.from({ length: targetLen }, (_, i) => ({
-      ...items[i % items.length],
-      __origIndex: i % items.length,
-    }));
-
-    const arr = [];
-    for (let i = 0; i < padded.length; i += nPer) {
-      arr.push(padded.slice(i, i + nPer));
+    if (!mediaItems.length) {
+      setActiveIndex(0);
+      return;
     }
-    return arr;
-  }, [items, perSlide, minSlides]);
+    const firstImageIndex = mediaItems.findIndex((item) => item.type !== "video");
+    setActiveIndex(firstImageIndex >= 0 ? firstImageIndex : 0);
+  }, [mediaKey, mediaItems]);
 
-  const [idx, setIdx] = useState(0);
-  const total = slides.length;
+  const activeItem = mediaItems[activeIndex] || null;
 
-  useEffect(() => {
-    if (total === 0) setIdx(0);
-    else if (idx > total - 1) setIdx(0);
-  }, [total, idx]);
+  const handleMainOpen = useCallback(() => {
+    if (!mediaItems.length) return;
+    onOpen?.(activeIndex);
+  }, [activeIndex, mediaItems.length, onOpen]);
 
-  if (!items?.length) {
-    return <div className="gallery-image-link" style={{ background: "#f5f5f8", height }} />;
+  if (!mediaItems.length) {
+    return (
+      <div className="gallery-media-shell">
+        <div className="gallery-main-stage" style={{ minHeight: height }}>
+          <div className="gallery-image-link" style={{ background: "#f5f5f8", height: "100%", width: "100%" }} />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div style={{ position: "relative", overflow: "hidden" }}>
-      <div
-        style={{
-          display: "flex",
-          width: `${Math.max(total, 1) * 100}%`,
-          transform: `translateX(-${idx * (100 / Math.max(total, 1))}%)`,
-          transition: "transform .35s ease",
-        }}
+    <div className="gallery-media-shell">
+      <button
+        type="button"
+        className="gallery-image-link gallery-main-trigger"
+        title={activeItem?.type === "video" ? "View video" : "View image"}
+        onClick={handleMainOpen}
       >
-        {slides.map((slide, s) => (
-          <div key={s} style={{ width: `${100 / Math.max(total, 1)}%` }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${perSlide}, 1fr)`,
-                gap: 0,
-                height,
-                alignItems: "stretch",
-              }}
+        <div className="gallery-main-stage" style={{ minHeight: height }}>
+          {activeItem?.type === "video" ? (
+            <SafeVideo
+              src={activeItem.src}
+              controls={false}
+              className="gallery-image gallery-main-media"
+              style={{ background: "#000", pointerEvents: "none" }}
+              autoPlay
+              muted
+              loop
+            />
+          ) : (
+            <SafeImage
+              src={activeItem?.src}
+              alt="Product view"
+              className="gallery-image gallery-main-media"
+              style={{ background: "#fff" }}
+              width={activeItem?.width || DEFAULT_IMAGE_WIDTH}
+              height={activeItem?.height || DEFAULT_IMAGE_HEIGHT}
+              sizes={activeItem?.sizes || GALLERY_IMAGE_SIZES}
+              srcSet={activeItem?.srcSet || undefined}
+            />
+          )}
+        </div>
+      </button>
+
+      <div className="gallery-thumb-row" role="list" aria-label="Available media">
+        {mediaItems.map((item, i) => {
+          const isActive = i === activeIndex;
+          const thumbSrc = item.type === "video" ? item.poster || "" : item.src;
+
+          return (
+            <button
+              key={`${item.type}-${item.src}-${i}`}
+              type="button"
+              role="listitem"
+              className={`gallery-image-link gallery-thumb-btn ${isActive ? "is-active" : ""}`}
+              onClick={() => setActiveIndex(i)}
+              aria-label={`Select ${item.type === "video" ? "video" : "image"} ${i + 1}`}
+              aria-pressed={isActive}
+              title={item.type === "video" ? "Select video" : "Select image"}
             >
-              {slide.map((item, i) => {
-                const open = () => onOpen(item.__origIndex ?? 0);
-
-                const commonBtnStyle = {
-                  background: "transparent",
-                  border: 0,
-                  padding: 0,
-                  height: "100%",
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                };
-
-                const gridPos =
-                  perSlide === 3
-                    ? slide.length === 1
-                      ? { gridColumn: "2 / span 1" }
-                      : { gridColumn: `${i + 1} / span 1` }
-                    : {};
-
-                return item.type === "video" ? (
-                  <button
-                    key={`v-${s}-${i}`}
-                    type="button"
-                    className="gallery-image-link"
-                    title="View video"
-                    onClick={open}
-                    style={{ ...commonBtnStyle, ...gridPos }}
-                  >
-                    <SafeVideo
-                      src={item.src}
-                      controls={false}
-                      className="gallery-image"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        background: "#000",
-                        pointerEvents: "none",
-                      }}
-                    />
-                  </button>
+              <div className="gallery-thumb-media-wrap">
+                {thumbSrc ? (
+                  <SafeImage
+                    src={thumbSrc}
+                    alt={`Product ${item.type} thumbnail ${i + 1}`}
+                    className="gallery-image gallery-thumb-media"
+                    width={96}
+                    height={96}
+                    loading="lazy"
+                    sizes="96px"
+                    srcSet={toSingleSrcSet(thumbSrc)}
+                  />
                 ) : (
-                  <button
-                    key={`i-${s}-${i}`}
-                    type="button"
-                    className="gallery-image-link"
-                    title="View image"
-                    onClick={open}
-                    style={{ ...commonBtnStyle, ...gridPos }}
-                  >
-                    <SafeImage
-                      src={item.src}
-                      alt="Product view"
-                      className="gallery-image"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                        background: "#fff",
-                      }}
-                    />
-                  </button>
-                );
-              })}
+                  <span className="gallery-thumb-empty" aria-hidden="true" />
+                )}
 
-              {perSlide === 3 && slide.length === 2 && (
-                <div
-                  key={`blank-3rd-${s}`}
-                  aria-hidden="true"
-                  style={{
-                    gridColumn: "3 / span 1",
-                    height: "100%",
-                    width: "100%",
-                    background: "transparent",
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
-
-              {perSlide === 3 && slide.length === 1 && (
-                <>
-                  <div
-                    key={`blank-left-${s}`}
-                    aria-hidden="true"
-                    style={{
-                      gridColumn: "1 / span 1",
-                      height: "100%",
-                      width: "100%",
-                      background: "transparent",
-                      pointerEvents: "none",
-                    }}
-                  />
-                  <div
-                    key={`blank-right-${s}`}
-                    aria-hidden="true"
-                    style={{
-                      gridColumn: "3 / span 1",
-                      height: "100%",
-                      width: "100%",
-                      background: "transparent",
-                      pointerEvents: "none",
-                    }}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        ))}
+                {item.type === "video" ? (
+                  <span className="gallery-thumb-play" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </span>
+                ) : null}
+              </div>
+            </button>
+          );
+        })}
       </div>
-
-      {total > 1 && (
-        <>
-          <button
-            type="button"
-            aria-label="Previous images"
-            onClick={() => setIdx((i) => (i - 1 + total) % total)}
-            className="previous-btn"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM199 303L279 223C288.4 213.6 303.6 213.6 312.9 223C322.2 232.4 322.3 247.6 312.9 256.9L273.9 295.9L424 295.9C437.3 295.9 448 306.6 448 319.9C448 333.2 437.3 343.9 424 343.9L273.9 343.9L312.9 382.9C322.3 392.3 322.3 407.5 312.9 416.8C303.5 426.1 288.3 426.2 279 416.8L199 336.8C189.6 327.4 189.6 312.2 199 302.9z" />
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            aria-label="Next images"
-            onClick={() => setIdx((i) => (i + 1) % total)}
-            className="next-btn"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-              <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM361 417C351.6 426.4 336.4 426.4 327.1 417C317.8 407.6 317.7 392.4 327.1 383.1L366.1 344.1L216 344.1C202.7 344.1 192 333.4 192 320.1C192 306.8 202.7 296.1 216 296.1L366.1 296.1L327.1 257.1C317.7 247.7 317.7 232.5 327.1 223.2C336.5 213.9 351.7 213.8 361 223.2L441 303.2C450.4 312.6 450.4 327.8 441 337.1L361 417.1z" />
-            </svg>
-          </button>
-        </>
-      )}
     </div>
   );
 }
@@ -1756,15 +1672,15 @@ const BandsNew = React.memo(function BandsNew() {
     <div className="bands-page">
       {/* ✅ Scoped CSS only for this page */}
       <style>{`
-        .bands-page .custom-container{max-width:1280px;margin:0 auto;padding:0 12px}
+        .bands-page .custom-container{max-width:1600px;margin:0 auto;padding:0 12px}
         .bands-page h1{font-family: "DM Sans", sans-serif;font-weight:800;color:#223052;margin:10px 0 6px}
         .bands-page h2{font-family: "DM Sans", sans-serif;font-weight:600;color:#223052;margin:0 0 10px;font-size:16px}
 
         /* ✅ NEW LAYOUT */
         .bands-page .bands-layout{
           display:grid;
-          grid-template-columns: 1.35fr 0.65fr;
-          gap:18px;
+          grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+          gap:24px;
           align-items:start;
         }
         @media(max-width: 991px){
@@ -1779,6 +1695,116 @@ const BandsNew = React.memo(function BandsNew() {
           box-shadow:0 4px 12px rgba(34,48,82,.06);
         }
         .bands-page .bands-left-inner{padding:12px}
+        .bands-page .gallery-media-shell{
+          display:flex;
+          flex-direction:column;
+          gap:14px;
+        }
+        .bands-page .gallery-main-trigger{
+          width:100%;
+          border:0;
+          padding:0;
+          background:transparent;
+          border-radius:14px;
+          overflow:hidden;
+          cursor:pointer;
+        }
+        .bands-page .gallery-main-stage{
+          width:100%;
+          min-height:520px;
+          background:#f1f2f4;
+          border:1px solid #e2e6ef;
+          border-radius:14px;
+          padding:18px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          overflow:hidden;
+          aspect-ratio:1/1;
+        }
+        .bands-page .gallery-main-media{
+          width:100%;
+          height:100%;
+          object-fit:contain;
+        }
+        .bands-page .gallery-thumb-row{
+          display:flex;
+          gap:10px;
+          overflow-x:auto;
+          padding-bottom:4px;
+          scrollbar-width:thin;
+        }
+        .bands-page .gallery-thumb-btn{
+          width:96px;
+          min-width:96px;
+          height:96px;
+          border:1px solid #d4d9e6;
+          border-radius:12px;
+          padding:0;
+          background:#fff;
+          cursor:pointer;
+          position:relative;
+          overflow:hidden;
+        }
+        .bands-page .gallery-thumb-btn.is-active{
+          border-color:#2c3b5c;
+          box-shadow:0 5px 14px rgba(44,59,92,.2);
+        }
+        .bands-page .gallery-thumb-media-wrap{
+          width:100%;
+          height:100%;
+          position:relative;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background:#fff;
+        }
+        .bands-page .gallery-thumb-media{
+          width:100%;
+          height:100%;
+          object-fit:contain;
+          background:#fff;
+        }
+        .bands-page .gallery-thumb-empty{
+          width:100%;
+          height:100%;
+          background:#f5f5f8;
+          display:block;
+        }
+        .bands-page .gallery-thumb-play{
+          position:absolute;
+          top:50%;
+          left:50%;
+          transform:translate(-50%, -50%);
+          width:28px;
+          height:28px;
+          border-radius:50%;
+          background:rgba(255,255,255,.9);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 4px 10px rgba(0,0,0,.18);
+        }
+        .bands-page .gallery-thumb-play svg{
+          width:14px;
+          height:14px;
+          fill:#2c3b5c;
+          margin-left:1px;
+        }
+        @media(max-width: 991px){
+          .bands-page .gallery-main-stage{min-height:420px}
+        }
+        @media(max-width: 575px){
+          .bands-page .gallery-main-stage{
+            min-height:320px;
+            padding:12px;
+          }
+          .bands-page .gallery-thumb-btn{
+            width:84px;
+            min-width:84px;
+            height:84px;
+          }
+        }
 
         .bands-page .bands-right{
           position:sticky;
