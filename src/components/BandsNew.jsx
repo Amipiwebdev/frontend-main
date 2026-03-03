@@ -569,28 +569,59 @@ function AccordionShell({ id, title, openId, setOpenId, selectedLabel, children 
         <header className="bands-acc-head" onClick={() => setOpenId(open ? null : id)}>
           <div className="bands-acc-title-row">
             <div className="bands-acc-title">{title}</div>
+
             {selectedLabel ? (
               <div className="bands-acc-chip" title={selectedLabel}>
-                {selectedLabel}
+                <span className="bands-acc-chip-text">{selectedLabel}</span>
+
+                {/* ✅ Arrow NOW inside the white bubble */}
+                <button
+                  type="button"
+                  className="bands-acc-toggle bands-acc-toggle-inchip"
+                  aria-expanded={open}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M6 9l6 6 6-6"
+                      stroke="#223052"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                        transformOrigin: "12px 12px",
+                      }}
+                    />
+                  </svg>
+                </button>
               </div>
-            ) : null}
+            ) : (
+              // agar selectedLabel nahi hai to bhi right side arrow (optional)
+              <button
+                type="button"
+                className="bands-acc-toggle"
+                aria-expanded={open}
+                onClick={(e) => e.preventDefault()}
+              >
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="#223052"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                      transformOrigin: "12px 12px",
+                    }}
+                  />
+                </svg>
+              </button>
+            )}
           </div>
-          <button type="button" className="bands-acc-toggle" aria-expanded={open} onClick={(e) => e.preventDefault()}>
-            <svg viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 9l6 6 6-6"
-                stroke="#223052"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{
-                  transform: open ? "rotate(180deg)" : "rotate(0deg)",
-                  transformOrigin: "12px 12px",
-                }}
-              />
-            </svg>
-          </button>
         </header>
+
         <div
           className="bands-acc-body"
           style={{
@@ -1672,6 +1703,8 @@ const BandsNew = React.memo(function BandsNew() {
     <div className="bands-page">
       {/* ✅ Scoped CSS only for this page */}
       <style>{`
+     
+      .filter-card span.filter-label{border-top:0}
         .bands-page .custom-container{max-width:1600px;margin:0 auto;padding:0 12px}
         .bands-page h1{font-family: "DM Sans", sans-serif;font-weight:800;color:#223052;margin:10px 0 6px}
         .bands-page h2{font-family: "DM Sans", sans-serif;font-weight:600;color:#223052;margin:0 0 10px;font-size:16px}
@@ -1679,9 +1712,12 @@ const BandsNew = React.memo(function BandsNew() {
         /* ✅ NEW LAYOUT */
         .bands-page .bands-layout{
           display:grid;
-          grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr);
           gap:24px;
           align-items:start;
+          border-radius: 16px;
+          padding: 32px;
+          box-shadow: 0 14px 40px #2635541f;
         }
         @media(max-width: 991px){
           .bands-page .bands-layout{grid-template-columns:1fr}
@@ -1689,10 +1725,10 @@ const BandsNew = React.memo(function BandsNew() {
 
         .bands-page .bands-left{
           background:#fff;
-          border:1px solid #e6e9f2;
+          // border:1px solid #e6e9f2;
           border-radius:14px;
           overflow:hidden;
-          box-shadow:0 4px 12px rgba(34,48,82,.06);
+          // box-shadow:0 4px 12px rgba(34,48,82,.06);
         }
         .bands-page .bands-left-inner{padding:12px}
         .bands-page .gallery-media-shell{
@@ -1712,10 +1748,10 @@ const BandsNew = React.memo(function BandsNew() {
         .bands-page .gallery-main-stage{
           width:100%;
           min-height:520px;
-          background:#f1f2f4;
-          border:1px solid #e2e6ef;
+          // background:#f1f2f4;
+          // border:1px solid #e2e6ef;
           border-radius:14px;
-          padding:18px;
+          // padding:18px;
           display:flex;
           align-items:center;
           justify-content:center;
@@ -1817,42 +1853,74 @@ const BandsNew = React.memo(function BandsNew() {
 
         /* ✅ Accordion styles scoped */
         .bands-page .bands-acc-card{
-          border:1px solid #e6e9f2;
-          border-radius:14px;
-          background:#fff;
-          box-shadow:0 4px 12px rgba(34,48,82,.06);
-          margin-bottom:12px;
-          overflow:hidden;
+          border: 1px solid #c1c2c5;
+    border-radius: 16px;
+    margin-bottom: 0;
+    background: #fff;
+    margin-bottom:12px
         }
         .bands-page .bands-acc-head{
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:8px;
-          padding:10px 12px;
-          cursor:pointer;
-          background:#f3f4f7;
+             width: 100%;
+    padding: 5px 10px;
+    background: #f1f1f1;
+    border: none;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    gap: 10px;
         }
-        .bands-page .bands-acc-title-row{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+        .bands-page .bands-acc-title-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex:1;
+  min-width:0;
+}
         .bands-page .bands-acc-title{font-weight:800;letter-spacing:.4px;color:#223052;font-size:13px;flex-shrink:0}
         .bands-page .bands-acc-chip{
-          margin-left:auto;
-          padding:4px 10px;
-          border-radius:999px;
-          border:1px solid #e1e6f2;
-          background:#fff;
-          color:#223052;
-          font-size:12px;
-          font-weight:800;
-          max-width:55%;
-          white-space:nowrap;
-          overflow:hidden;
-          text-overflow:ellipsis;
-        }
-        .bands-page .bands-acc-toggle{border:0;background:transparent;line-height:0;padding:0;border-radius:8px}
-        .bands-page .bands-acc-toggle svg{width:18px;height:18px}
+  margin-left:auto;
+  padding:4px 6px 4px 10px; /* right padding thoda kam, kyunki arrow chip me hai */
+  border-radius:999px;
+  border:1px solid #e1e6f2;
+  background:#fff;
+  color:#223052;
+  font-size:12px;
+  font-weight:800;
+  max-width:55%;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+  .bands-page .bands-acc-toggle-inchip{
+  padding:2px;
+  cursor:pointer;
+}
+
+.bands-page .bands-acc-chip-text{
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+
+        .bands-page .bands-acc-toggle{
+  border:0;
+  background:transparent;
+  line-height:0;
+  padding:0;
+  border-radius:8px;
+  flex-shrink:0;
+}
+        .bands-page .bands-acc-toggle svg{
+  width:18px;
+  height:18px;
+}
         .bands-page .bands-acc-body{overflow:hidden;transition:max-height .3s ease,padding .2s ease}
-        .bands-page .bands-acc-body-inner{padding:10px}
+        .bands-page .bands-acc-body-inner{padding:0 10px}
 
         /* ✅ Filter cards kept same */
         .bands-page .filter-options{display:flex;flex-wrap:wrap;gap:10px}
@@ -1861,7 +1929,7 @@ const BandsNew = React.memo(function BandsNew() {
           border:1px solid #e6e9f2;
           border-radius:12px;
           background:#fff;
-          padding:8px;
+          // padding:8px;
           cursor:pointer;
           display:flex;
           flex-direction:column;
@@ -1869,6 +1937,10 @@ const BandsNew = React.memo(function BandsNew() {
           gap:6px;
           transition:all .15s ease;
         }
+          button.filter-card.metal-pill.selected span.filter-label {
+    background: transparent !important;
+    color: #2c3b5c;
+}
         .bands-page .filter-card.selected{
           border-color:#2c3b5c;
           box-shadow:0 6px 16px rgba(44,59,92,.18);
@@ -1898,7 +1970,14 @@ const BandsNew = React.memo(function BandsNew() {
           flex-direction:column;
           gap:12px;
         }
-
+.selection-card{padding:10px}
+.band-heading-type{min-height: 95px;}
+.bands-page h2{margin-bottom:0}
+.details{text-align:center;}
+.stone-tab-panel{    padding: 5px;
+    background: #FFF;
+    border-radius: 10px;
+    text-align: center;}
         /* keep your existing class names safe */
       `}</style>
 
@@ -2047,23 +2126,18 @@ const BandsNew = React.memo(function BandsNew() {
                   <div className="filter-options">
                     {data.metals.map((m) => (
                       <button
-                        key={m.dmt_id || m.id}
-                        type="button"
-                        className={"filter-card" + (selected.metal === (m.dmt_id || m.id) ? " selected" : "")}
-                        onClick={() => handleMetalChange(m.dmt_id || m.id)}
-                        title={m.dmt_name}
-                      >
-                        <div
-                          style={{
-                            width: "100%",
-                            height: 64,
-                            borderRadius: 10,
-                            background: m.color_code,
-                            boxShadow: "0 2px 10px #22305213",
-                          }}
-                        />
-                        <span className="filter-label">{m.dmt_tooltip || m.dmt_name}</span>
-                      </button>
+  key={m.dmt_id || m.id}
+  type="button"
+  className={"filter-card metal-pill" + (selected.metal === (m.dmt_id || m.id) ? " selected" : "")}
+  onClick={() => handleMetalChange(m.dmt_id || m.id)}
+  title={m.dmt_name}
+  style={{
+    background: m.color_code,
+    boxShadow: "0 2px 10px #22305213",
+  }}
+>
+  <span className="filter-label">{m.dmt_tooltip || m.dmt_name}</span>
+</button>
                     ))}
                   </div>
                 </AccordionShell>

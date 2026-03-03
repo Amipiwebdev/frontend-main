@@ -1,7 +1,4 @@
 // src/components/Home.jsx
-// ✅ Hero slider API + ✅ Testimonials slider API
-// ✅ No hardcoded hero text/overlay
-// ✅ Existing functionality safe (fallbacks included)
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -9,119 +6,39 @@ import { Autoplay, Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
 
-import SliderOneImg from "../images/banner/banner_1.jpg";
-import SliderTwoImg from "../images/banner/banner_2.jpg";
-
 import Header from "./common/Header";
 import Footer from "./common/Footer";
 import Topbar from "./common/Topbar";
 
+import SliderOneImg from "../images/banner/banner_1.jpg";
+import SliderTwoImg from "../images/banner/banner_2.jpg";
+
 import { api } from "../apiClient";
 
-// ✅ fallback hero slides (only image)
 const FALLBACK_HERO_SLIDES = [
   { id: "local-1", image: SliderOneImg, link: null },
   { id: "local-2", image: SliderTwoImg, link: null },
 ];
 
-// ✅ fallback testimonials (optional)
-const FALLBACK_TESTIMONIALS = [];
-
-// ------- Your existing data (unchanged) -------
-const searchFilters = [
-  {
-    label: "Shape",
-    icon: "fa-gem",
-    options: ["Round", "Cushion", "Emerald", "Princess", "Radiant", "Oval", "Pear", "Asscher", "Heart"],
-  },
-  {
-    label: "Carat Weight",
-    icon: "fa-balance-scale",
-    options: ["0.50", "0.75", "1.00", "1.25", "1.50", "2.00", "3.00"],
-  },
-  {
-    label: "Cut",
-    icon: "fa-cut",
-    options: ["EX", "VG", "G", "F"],
-  },
-  {
-    label: "Color",
-    icon: "fa-palette",
-    options: ["D", "E", "F", "G", "H", "I", "J", "K", "L"],
-  },
-  {
-    label: "Clarity",
-    icon: "fa-star",
-    options: ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2"],
-  },
-];
-
-const tradeShowHighlight = {
-  title: "RJO",
-  location: "Sheraton Downtown Phoenix",
-  date: "February 20 - 23, 2026",
-  booth: "Booth TBD",
+// ✅ category copy (TOP LEVEL - NOT inside useEffect)
+const CATEGORY_COPY = {
+  "WEDDING BANDS": "Wedding bands, your way—solid gold, diamonds and everything in between.",
+  "ONE-OF-A-KINDS": "Featuring unique and hand-sourced gemstones from all over the world.",
+  "BEST SELLERS": "From solid gold staples to diamond jewelry, browse our most-loved pieces.",
+  "ENGAGEMENT RINGS": "From lab-grown to antique diamonds, explore our unique engagement designs.",
+  "EARRINGS": "From studs to statement earrings—find your next favorite pair.",
+  "BRACELETS & BANGLES": "Stackable classics and bold pieces for every day.",
+  "STUDS": "Diamond studs for every style—classic, bold, and timeless.",
 };
 
-const philosophyPoints = [
-  {
-    title: "It is the Amipi way",
-    description: "We show up for the retailer: no hidden fees, no surprises & we work as an extension of your team.",
-    icon: "fa-hand-holding-heart",
-  },
-  {
-    title: "We say it like it is",
-    description: "You get only the essential, useful information to help you buy and sell quickly.",
-    icon: "fa-bullhorn",
-  },
-  {
-    title: "Transparent fixed pricing",
-    description: "No need to haggle. Honest, consistent pricing across every order.",
-    icon: "fa-scale-balanced",
-  },
-  {
-    title: "Clear terms & conditions",
-    description: "Expect clarity on policies, shipping and returns every single time.",
-    icon: "fa-file-lines",
-  },
-  {
-    title: "We know how to say sorry",
-    description: "If we make a mistake, we fix it fast, apologize and make the situation right.",
-    icon: "fa-face-smile",
-  },
-  {
-    title: "No bull",
-    description: "We stand for what we sell. We treat partners with respect and never waste your time.",
-    icon: "fa-shield-halved",
-  },
-];
-
-const sellSteps = [
-  {
-    step: 1,
-    title: "Shop it around",
-    description: "Get a feel for the market and what you want for your diamond or jewelry.",
-    icon: "fa-magnifying-glass-dollar",
-  },
-  {
-    step: 2,
-    title: "Offer us your final price",
-    description: "Share your number. We respond quickly with our best, no-bull offer.",
-    icon: "fa-hand-holding-dollar",
-  },
-  {
-    step: 3,
-    title: "Ship and get paid",
-    description: "Send it in with prepaid, insured labels. We pay fast once inspected.",
-    icon: "fa-truck-fast",
-  },
-];
-
-// ------- helpers -------
 const StarRating = ({ value }) => (
   <div className="star-rating" aria-label={`Rated ${value} out of 5`}>
     {Array.from({ length: 5 }).map((_, index) => (
-      <i key={index} className={`${index < value ? "fas" : "far"} fa-star`} aria-hidden="true"></i>
+      <i
+        key={index}
+        className={`${index < value ? "fas" : "far"} fa-star`}
+        aria-hidden="true"
+      />
     ))}
   </div>
 );
@@ -146,10 +63,19 @@ function initialsFromName(name) {
     .toUpperCase();
 }
 
-// ------- Component -------
+const toTitleCase = (str = "") =>
+  str
+    .toLowerCase()
+    .split(" ")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
+    .join(" ");
+
+const safeHref = (cat) => cat?.url || cat?.link || "#";
+
 const Home = () => {
   const [heroSlides, setHeroSlides] = useState(FALLBACK_HERO_SLIDES);
-  const [testimonials, setTestimonials] = useState(FALLBACK_TESTIMONIALS);
+  const [categories, setCategories] = useState([]);
+  const [testimonials, setTestimonials] = useState([]);
 
   const device = useMemo(() => (window.innerWidth < 768 ? "mobile" : "desktop"), []);
 
@@ -161,7 +87,7 @@ const Home = () => {
       .then((res) => {
         const blocks = res?.data?.blocks || [];
 
-        // ✅ HERO SLIDER
+        // ✅ Slider
         const sliderBlock = blocks.find((b) => b?.key === "slider");
         const slides = Array.isArray(sliderBlock?.data) ? sliderBlock.data : [];
 
@@ -178,7 +104,24 @@ const Home = () => {
           setHeroSlides(FALLBACK_HERO_SLIDES);
         }
 
-        // ✅ TESTIMONIALS
+        // ✅ Categories
+        const catBlock = blocks.find((b) => b?.key === "categories");
+        const catRows = Array.isArray(catBlock?.data) ? catBlock.data : [];
+
+        setCategories(
+          catRows
+            .filter((c) => c?.title)
+            .map((c) => ({
+              id: c.id,
+              title: c.title,
+              image: c.image,      // API image (bigger)
+              thumb: c.thumb,      // API thumb
+              link: normalizeLink(c.link),
+              url: normalizeLink(c.url),
+            }))
+        );
+
+        // ✅ Testimonials
         const testiBlock = blocks.find((b) => b?.key === "testimonials");
         const testiRows = Array.isArray(testiBlock?.data) ? testiBlock.data : [];
 
@@ -194,12 +137,13 @@ const Home = () => {
             }))
           );
         } else {
-          setTestimonials(FALLBACK_TESTIMONIALS);
+          setTestimonials([]);
         }
       })
       .catch(() => {
         setHeroSlides(FALLBACK_HERO_SLIDES);
-        setTestimonials(FALLBACK_TESTIMONIALS);
+        setCategories([]);
+        setTestimonials([]);
       });
   }, [device]);
 
@@ -208,7 +152,7 @@ const Home = () => {
       <Topbar />
       <Header />
 
-      {/* ✅ HERO SLIDER (ONLY IMAGE, NO TEXT, NO OVERLAY) */}
+      {/* ✅ HERO SLIDER (ONLY IMAGE) */}
       <section className="hero-section">
         <Swiper
           spaceBetween={0}
@@ -226,124 +170,48 @@ const Home = () => {
                   backgroundImage: `url("${encodeURI(slide.image)}")`,
                   cursor: slide.link ? "pointer" : "default",
                 }}
-                onClick={() => {
-                  if (!slide.link) return;
-                  window.location.href = slide.link;
-                }}
+                onClick={() => slide.link && (window.location.href = slide.link)}
               />
             </SwiperSlide>
           ))}
         </Swiper>
       </section>
 
-      {/* ✅ KEEP YOUR OTHER SECTIONS (unchanged) */}
-      <section className="diamond-search">
+      {/* ✅ CATEGORIES (Image Cards like screenshot) */}
+      <section className="home-categories-v2">
         <div className="custom-container">
-          <h2 className="section-title">
-            Start Your <span className="text-highlight">Diamond Search</span> Here
-          </h2>
-          <div className="search-grid">
-            {searchFilters.map((filter) => (
-              <div key={filter.label} className="search-card">
-                <div className="search-card-head">
-                  <span className="icon-pill">
-                    <i className={`fas ${filter.icon}`} aria-hidden="true"></i>
-                  </span>
-                  <span className="filter-label">{filter.label}</span>
-                </div>
-                <div className="option-row">
-                  {filter.options.map((item) => (
-                    <span key={item} className="option-chip">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="search-actions">
-            <button className="cta-button ghost">Search Earth Mined Diamonds</button>
-            <button className="cta-button">Search Lab Grown Diamonds</button>
+          <div className="home-categories-v2__grid">
+            {categories.map((cat) => {
+              const href = safeHref(cat);
+              const clickable = href && href !== "#";
+              const title = toTitleCase(cat.title || "Category");
+              const desc = CATEGORY_COPY[(cat.title || "").toUpperCase()] || "Explore our curated selection.";
+              const imgSrc = cat.image || cat.thumb;
+
+              return (
+                <a
+                  key={cat.id}
+                  href={href}
+                  className={`home-categories-v2__card ${clickable ? "" : "is-disabled"}`}
+                  onClick={(e) => {
+                    if (!clickable) e.preventDefault();
+                  }}
+                  aria-disabled={!clickable}
+                >
+                  <div className="home-categories-v2__media">
+                    <img src={imgSrc} alt={title} loading="lazy" decoding="async" />
+                  </div>
+
+                  <h3 className="home-categories-v2__title">{title}</h3>
+                  {/* <p className="home-categories-v2__desc">{desc}</p> */}
+                </a>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      <section
-        className="trade-show-section"
-        style={{
-          backgroundImage: `linear-gradient(180deg, rgba(13,21,46,0.65), rgba(13,21,46,0.65)), url(${SliderTwoImg})`,
-        }}
-      >
-        <div className="custom-container">
-          <p className="section-kicker">Upcoming Trade Shows</p>
-          <h2 className="section-title light">
-            Come find out what the <span className="text-highlight">No-Bull Philosophy</span> is
-          </h2>
-          <p className="section-subtitle">See for yourself how we can help you make some money.</p>
-          <div className="trade-card">
-            <div className="trade-badge">{tradeShowHighlight.title}</div>
-            <div className="trade-details">
-              <h3>{tradeShowHighlight.location}</h3>
-              <p>{tradeShowHighlight.date}</p>
-              <p className="muted">{tradeShowHighlight.booth}</p>
-            </div>
-            <button className="cta-button">Schedule Appointment</button>
-          </div>
-        </div>
-      </section>
-
-      <section className="philosophy-section">
-        <div className="custom-container">
-          <h2 className="section-title">
-            Experience The <span className="text-highlight">No Bull Philosophy</span>
-          </h2>
-          <div className="philosophy-grid">
-            {philosophyPoints.map((item) => (
-              <div key={item.title} className="philosophy-card">
-                <div className="philosophy-icon">
-                  <i className={`fas ${item.icon}`} aria-hidden="true"></i>
-                </div>
-                <div>
-                  <h4>{item.title}</h4>
-                  <p>{item.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="sell-section">
-        <div className="custom-container">
-          <h2 className="section-title">
-            Sell <span className="text-highlight">To Us</span>
-          </h2>
-          <p className="section-subtitle">
-            Selling your diamonds and jewelry to Amipi is straightforward. Expect a quick, easy, no-bull experience.
-          </p>
-          <div className="sell-grid">
-            {sellSteps.map((step) => (
-              <div key={step.step} className="sell-card">
-                <div className="step-number">{step.step}</div>
-                <div className="sell-card-body">
-                  <h4>{step.title}</h4>
-                  <p>{step.description}</p>
-                </div>
-                <div className="sell-icon">
-                  <i className={`fas ${step.icon}`} aria-hidden="true"></i>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="sell-cta">
-            <h3>Start selling now!</h3>
-            <p>We are here to help if you need it.</p>
-            <button className="cta-button">Get Started</button>
-          </div>
-        </div>
-      </section>
-
-      {/* ✅ TESTIMONIAL SLIDER (API Driven) */}
+      {/* ✅ TESTIMONIALS SLIDER */}
       <section className="testimonial-section">
         <div className="custom-container">
           <div className="testimonial-head">
