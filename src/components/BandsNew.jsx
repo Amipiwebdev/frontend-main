@@ -150,7 +150,38 @@ function RingSizeSelect2({ options, value, onChange, loading, disabled }) {
     </>
   );
 }
+/* ================= Ring Size Pills (same functionality, UI like Stone Size) ================= */
+function RingSizePills({ options, value, onChange, loading, disabled }) {
+  const list = useMemo(() => Array.isArray(options) ? options : [], [options]);
 
+  return (
+    <div className={`stable-wrap ${loading ? "is-loading" : ""}`}>
+      {loading && (
+        <div className="block-overlay">
+          <div className="spinner" />
+        </div>
+      )}
+
+      <div className={`pill-grid ${disabled ? "is-disabled" : ""}`}>
+        {list.map((opt) => {
+          const isSel = opt.value_id === value;
+          return (
+            <button
+              key={opt.value_id}
+              type="button"
+              className={`pill-option ${isSel ? "is-selected" : ""}`}
+              onClick={() => onChange(opt.value_id)}
+              disabled={disabled}
+              title={opt.value_name}
+            >
+              {opt.value_name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 function getPricingParams() {
   let user = null;
   try {
@@ -269,7 +300,24 @@ function pickFirstAvailable(val, allowed) {
   if (val && allowed.includes(val)) return val;
   return allowed[0];
 }
+/* ✅ Prefer Earth Mined for quality (no other behavior changed) */
+function pickPreferredQuality(currentId, qualityRows = []) {
+  if (!Array.isArray(qualityRows) || !qualityRows.length) return null;
 
+  // current id valid hai to wahi rakho
+  const hasCurrent = qualityRows.some((q) => (q.dqg_id || q.id) === currentId);
+  if (currentId && hasCurrent) return currentId;
+
+  // Earth Mined prefer
+  const earth = qualityRows.find((q) => {
+    const origin = String(q.dqg_origin || q.origin || "").trim().toLowerCase();
+    return origin === "earth mined";
+  });
+  if (earth) return earth.dqg_id || earth.id;
+
+  // fallback first
+  return qualityRows[0].dqg_id || qualityRows[0].id;
+}
 function toAbsoluteMediaUrl(type, input) {
   const raw =
     typeof input === "string"
@@ -1082,34 +1130,70 @@ const BandsNew = React.memo(function BandsNew() {
   }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, allowed.metals]);
 
   /* 6) Metal => Quality */
-  useEffect(() => {
-    let isActive = true;
-    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal)
-      return undefined;
-    api
-      .get(`/qualities`, {
-        params: {
-          stoneType: selected.stoneType,
-          design: selected.design,
-          shape: selected.shape,
-          settingStyle: selected.settingStyle,
-          metal: selected.metal,
-        },
-      })
-      .then((res) => {
-        if (!isActive) return;
-        const allowedIds = allowed.qualities;
-        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
-        setData((d) => ({ ...d, qualities: filtered }));
-        setSelected((sel) => ({
-          ...sel,
-          quality: pickFirstAvailable(sel.quality, filtered.map((x) => x.id)),
-        }));
-      });
-    return () => {
-      isActive = false;
-    };
-  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, allowed.qualities]);
+  // useEffect(() => {
+  //   let isActive = true;
+  //   if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal)
+  //     return undefined;
+  //   api
+  //     .get(`/qualities`, {
+  //       params: {
+  //         stoneType: selected.stoneType,
+  //         design: selected.design,
+  //         shape: selected.shape,
+  //         settingStyle: selected.settingStyle,
+  //         metal: selected.metal,
+  //       },
+  //     })
+  //     .then((res) => {
+  //       if (!isActive) return;
+  //       const allowedIds = allowed.qualities;
+  //       const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
+  //       setData((d) => ({ ...d, qualities: filtered }));
+  //       setSelected((sel) => ({
+  //         ...sel,
+  //         quality: pickFirstAvailable(sel.quality, filtered.map((x) => x.id)),
+  //       }));
+  //     });
+  //   return () => {
+  //     isActive = false;
+  //   };
+  // }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, allowed.qualities]);
+
+/* 6) Metal => Quality */
+useEffect(() => {
+  let isActive = true;
+  if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal)
+    return undefined;
+
+  api
+    .get(`/qualities`, {
+      params: {
+        stoneType: selected.stoneType,
+        design: selected.design,
+        shape: selected.shape,
+        settingStyle: selected.settingStyle,
+        metal: selected.metal,
+      },
+    })
+    .then((res) => {
+      if (!isActive) return;
+      const allowedIds = allowed.qualities;
+
+      // ✅ keep same flow, only fix id matching + Earth Mined preference
+      const filtered = (res.data || []).filter((q) => allowedIds.includes(q.dqg_id || q.id));
+
+      setData((d) => ({ ...d, qualities: filtered }));
+
+      setSelected((sel) => ({
+        ...sel,
+        quality: pickPreferredQuality(sel.quality, filtered),
+      }));
+    });
+
+  return () => {
+    isActive = false;
+  };
+}, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, allowed.qualities]);
 
   const selectedStoneType = useMemo(
     () => data.stoneTypes.find((st) => (st.pst_id || st.id) === selected.stoneType),
@@ -1439,11 +1523,7 @@ const BandsNew = React.memo(function BandsNew() {
     const metalLabel = selectedMetal?.dmt_name || selectedMetal?.name || selectedMetal?.dmt_tooltip || "";
     const qualityAlias = selectedQuality?.dqg_alias || selectedQuality?.dqg_name || selectedQuality?.name || "";
     const qualityOrigin = selectedQuality?.dqg_origin || selectedQuality?.origin || "";
-    const qualityLabel = qualityAlias
-      ? qualityOrigin
-        ? `${qualityAlias} - ${qualityOrigin}`
-        : qualityAlias
-      : qualityOrigin || "";
+    const qualityLabel = qualityOrigin || qualityAlias || "";
 
     return {
       stoneType: selectedStoneType?.pst_description || selectedStoneType?.pst_name || selectedStoneType?.name || "",
@@ -1704,15 +1784,15 @@ const BandsNew = React.memo(function BandsNew() {
       {/* ✅ Scoped CSS only for this page */}
       <style>{`
      
-      .filter-card span.filter-label{border-top:0}
+      // .filter-card span.filter-label{border-top:0}
         .bands-page .custom-container{max-width:1600px;margin:0 auto;padding:0 12px}
-        .bands-page h1{font-family: "DM Sans", sans-serif;font-weight:800;color:#223052;margin:10px 0 6px}
-        .bands-page h2{font-family: "DM Sans", sans-serif;font-weight:600;color:#223052;margin:0 0 10px;font-size:16px}
+        .bands-page h1{font-weight:800;color:#223052;margin:10px 0 6px}
+        .bands-page h2{font-weight:600;color:#223052;margin:0 0 10px;font-size:16px}
 
         /* ✅ NEW LAYOUT */
         .bands-page .bands-layout{
           display:grid;
-          grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr);
+          grid-template-columns:minmax(0, 1.1fr) minmax(0, 1fr);
           gap:24px;
           align-items:start;
           border-radius: 16px;
@@ -1827,6 +1907,10 @@ const BandsNew = React.memo(function BandsNew() {
           fill:#2c3b5c;
           margin-left:1px;
         }
+          button.filter-card.selected span.one-span.filter-label {
+    background: transparent !important;
+    color: #2c3b5c !important;
+}
         @media(max-width: 991px){
           .bands-page .gallery-main-stage{min-height:420px}
         }
@@ -1904,6 +1988,7 @@ const BandsNew = React.memo(function BandsNew() {
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  font-size:14px
 }
 
 
@@ -1925,7 +2010,7 @@ const BandsNew = React.memo(function BandsNew() {
         /* ✅ Filter cards kept same */
         .bands-page .filter-options{display:flex;flex-wrap:wrap;gap:10px}
         .bands-page .filter-card{
-          width:92px;
+          width:78px;
           border:1px solid #e6e9f2;
           border-radius:12px;
           background:#fff;
@@ -1934,7 +2019,7 @@ const BandsNew = React.memo(function BandsNew() {
           display:flex;
           flex-direction:column;
           align-items:center;
-          gap:6px;
+          gap:0px;
           transition:all .15s ease;
         }
           button.filter-card.metal-pill.selected span.filter-label {
@@ -1946,9 +2031,14 @@ const BandsNew = React.memo(function BandsNew() {
           box-shadow:0 6px 16px rgba(44,59,92,.18);
           transform:translateY(-1px);
         }
-        .bands-page .filter-card img{width:64px;height:64px;object-fit:contain}
+        .bands-page .filter-card img{width:80px;height:80px;object-fit:cover}
         .bands-page .filter-label{font-size:12px;font-weight:800;color:#223052;text-align:center;line-height:1.1}
-
+        .bands-page .one-span{font-size:12px;font-weight:800;color:#223052;text-align:center;line-height:1.1;width: 100%;
+    border-radius: 7px;
+    padding: 3px;}
+.stone-quality button.filter-card {
+    gap: 0;
+}
         .bands-page .stable-wrap{position:relative}
         .bands-page .stable-wrap.is-loading{min-height:60px}
         .bands-page .block-overlay{
@@ -1979,6 +2069,55 @@ const BandsNew = React.memo(function BandsNew() {
     border-radius: 10px;
     text-align: center;}
         /* keep your existing class names safe */
+
+/* ✅ Pill grid shared for Stone Size + Ring Size */
+.bands-page .pill-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  padding: 6px 4px;
+}
+
+.bands-page .pill-grid.is-disabled{
+  opacity:.6;
+  pointer-events:none;
+}
+
+.bands-page .pill-option{
+  border:1px solid #d9dfef !important;
+  background:#ffffff !important;
+  border-radius:999px !important;
+  height:34px !important;
+  padding:0 18px !important;
+  font-size:12px !important;
+  font-weight:800 !important;
+  color:#223052 !important;
+  cursor:pointer;
+  box-shadow: 0 3px 12px rgba(34,48,82,.10);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+}
+
+.bands-page .pill-option:hover{
+  border-color:#2c3b5c !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(34,48,82,.14);
+}
+
+.bands-page .pill-option.is-selected{
+  background:#2c3b5c !important;
+  border-color:#2c3b5c !important;
+  color:#fed700 !important;
+  box-shadow: 0 8px 22px rgba(44,59,92,.22);
+  transform: translateY(-1px);
+}
+
+.bands-page .pill-option:disabled{
+  cursor:not-allowed;
+}
+.stone-size .filter-card span.filter-label {
+    border: 0;
+}
+
       `}</style>
 
       <Topbar />
@@ -2150,7 +2289,7 @@ const BandsNew = React.memo(function BandsNew() {
                   openId={openId}
                   setOpenId={setOpenId}
                 >
-                  <div className="filter-options">
+                  <div className="filter-options stone-quality">
                     {data.qualities.map((q) => (
                       <button
                         key={q.dqg_id || q.id}
@@ -2158,8 +2297,8 @@ const BandsNew = React.memo(function BandsNew() {
                         className={"filter-card" + (selected.quality === (q.dqg_id || q.id) ? " selected" : "")}
                         onClick={() => handleQualityChange(q.dqg_id || q.id)}
                       >
-                        <span className="filter-label">{q.dqg_alias || q.name}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#223052" }}>
+                        <span className="one-span filter-label">{q.dqg_alias || q.name}</span>
+                        <span className="sec-span filter-label">
                           {q.dqg_origin || q.origin}
                         </span>
                       </button>
@@ -2175,7 +2314,7 @@ const BandsNew = React.memo(function BandsNew() {
                   openId={openId}
                   setOpenId={setOpenId}
                 >
-                  <div className="filter-options">
+                  <div className="filter-options stone-size">
                     {data.diamondSizes.map((size) => (
                       <button
                         key={String(size)}
@@ -2205,7 +2344,14 @@ const BandsNew = React.memo(function BandsNew() {
                         <div className="spinner" />
                       </div>
                     )}
-                    <RingSizeSelect2
+                    {/* <RingSizeSelect2
+                      options={ringOptions}
+                      value={selected.ringSize}
+                      loading={optionsLoading}
+                      disabled={!ringOptions.length}
+                      onChange={handleRingSizeChange}
+                    /> */}
+                    <RingSizePills
                       options={ringOptions}
                       value={selected.ringSize}
                       loading={optionsLoading}

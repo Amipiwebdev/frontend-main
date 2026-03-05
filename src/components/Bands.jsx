@@ -420,6 +420,17 @@ function pickFirstAvailable(val, allowed) {
   return allowed[0];
 }
 
+
+/** Unwrap API response when SQL debug mode wraps payload as { data, debug_sql } */
+function unwrapApi(res) {
+  const d = res?.data;
+  if (d && typeof d === "object" && !Array.isArray(d) && Object.prototype.hasOwnProperty.call(d, "data")) {
+    return d.data;
+  }
+  return d;
+}
+
+
 /** Resolve any image/video ref to an absolute URL used by the CDN */
 function toAbsoluteMediaUrl(type, input) {
   const raw =
@@ -1136,7 +1147,8 @@ const Bands = React.memo(function Bands() {
       .get(`/catnav/${SEO_URL}`)
       .then(async (res) => {
         if (!isActive) return;
-        const nav = res.data?.[0] || {};
+        const navPayload = unwrapApi(res);
+        const nav = navPayload?.[0] || {};
 
         setPageTitle(nav.category_navigation_title || "Bands");
         setPageHeaderText(String(nav.category_navigation_header_text || "").trim());
@@ -1230,12 +1242,12 @@ const Bands = React.memo(function Bands() {
 
         if (!isActive) return;
         setData({
-          stoneTypes: stoneTypesRes.data || [],
-          designs: designsRes.data || [],
-          shapes: shapesRes.data || [],
-          settingStyles: settingStylesRes.data || [],
-          metals: metalsRes.data || [],
-          qualities: qualitiesRes.data || [],
+          stoneTypes: unwrapApi(stoneTypesRes) || [],
+          designs: unwrapApi(designsRes) || [],
+          shapes: unwrapApi(shapesRes) || [],
+          settingStyles: unwrapApi(settingStylesRes) || [],
+          metals: unwrapApi(metalsRes) || [],
+          qualities: unwrapApi(qualitiesRes) || [],
           diamondSizes: [],
         });
 
@@ -1264,7 +1276,8 @@ const Bands = React.memo(function Bands() {
     api.get(`/designs`, { params: { stoneType: selected.stoneType } }).then((res) => {
       if (!isActive) return;
       const allowedIds = allowed.designs;
-      const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
+      const payload = unwrapApi(res);
+      const filtered = (Array.isArray(payload) ? payload : []).filter((d) => allowedIds.includes(d.id));
       setData((d) => ({ ...d, designs: filtered }));
       setSelected((sel) => ({
         ...sel,
@@ -1285,7 +1298,8 @@ const Bands = React.memo(function Bands() {
       .then((res) => {
         if (!isActive) return;
         const allowedIds = allowed.shapes;
-        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
+        const payload = unwrapApi(res);
+        const filtered = (Array.isArray(payload) ? payload : []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, shapes: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -1308,7 +1322,8 @@ const Bands = React.memo(function Bands() {
       .then((res) => {
         if (!isActive) return;
         const allowedIds = allowed.settingStyles;
-        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
+        const payload = unwrapApi(res);
+        const filtered = (Array.isArray(payload) ? payload : []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, settingStyles: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -1336,7 +1351,8 @@ const Bands = React.memo(function Bands() {
       .then((res) => {
         if (!isActive) return;
         const allowedIds = allowed.metals;
-        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
+        const payload = unwrapApi(res);
+        const filtered = (Array.isArray(payload) ? payload : []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, metals: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -1366,7 +1382,8 @@ const Bands = React.memo(function Bands() {
       .then((res) => {
         if (!isActive) return;
         const allowedIds = allowed.qualities;
-        const filtered = (res.data || []).filter((d) => allowedIds.includes(d.id));
+        const payload = unwrapApi(res);
+        const filtered = (Array.isArray(payload) ? payload : []).filter((d) => allowedIds.includes(d.id));
         setData((d) => ({ ...d, qualities: filtered }));
         setSelected((sel) => ({
           ...sel,
@@ -1447,7 +1464,8 @@ const Bands = React.memo(function Bands() {
       })
       .then((res) => {
         if (!isActive) return;
-        const rows = Array.isArray(res.data) ? res.data : [];
+        const payload = unwrapApi(res);
+        const rows = Array.isArray(payload) ? payload : [];
 
         let sizes = rows.map((r) => {
           if (typeof r === "object" && r !== null) {
@@ -1479,9 +1497,20 @@ const Bands = React.memo(function Bands() {
 
   /* 8) After diamond size – fetch ring size options from filters */
   useEffect(() => {
-    let isActive = true;
+    let cancelled = false;
     if (!bootstrapDone) return undefined;
-    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal || !selected.quality || !selected.diamondSize) {
+
+    const ready =
+      selected.stoneType &&
+      selected.design &&
+      selected.shape &&
+      selected.settingStyle &&
+      selected.metal &&
+      selected.quality &&
+      selected.diamondSize;
+
+    if (!ready) {
+      setOptionsLoading(false);
       setRingOptions((prev) => (prev.length ? [] : prev));
       setSelected((sel) => {
         if (sel.ringSize === null) return sel;
@@ -1502,41 +1531,84 @@ const Bands = React.memo(function Bands() {
       vendors: vendorParam || "",
     };
 
-    api.get("/ring-size-options", { params }).then((res) => {
-      if (!isActive) return;
-      const opts = Array.isArray(res.data) ? res.data : [];
-      setRingOptions((prev) => {
-        const same =
-          prev.length === opts.length &&
-          prev.every(
-            (opt, idx) =>
-              opt.value_id === opts[idx]?.value_id &&
-              opt.value_name === opts[idx]?.value_name &&
-              opt.options_symbol === opts[idx]?.options_symbol &&
-              opt.options_price === opts[idx]?.options_price &&
-              opt.estimated_weight === opts[idx]?.estimated_weight &&
-              opt.estimated_symbol === opts[idx]?.estimated_symbol
-          );
-        return same ? prev : opts;
+    setOptionsLoading(true);
+
+    api
+      .get("/ring-size-options", { params })
+      .then((res) => {
+        if (cancelled) return;
+        const payload = unwrapApi(res);
+        const opts = Array.isArray(payload) ? payload : [];
+
+        setRingOptions((prev) => {
+          const same =
+            prev.length === opts.length &&
+            prev.every(
+              (opt, idx) =>
+                opt.value_id === opts[idx]?.value_id &&
+                opt.value_name === opts[idx]?.value_name &&
+                opt.options_symbol === opts[idx]?.options_symbol &&
+                opt.options_price === opts[idx]?.options_price &&
+                opt.estimated_weight === opts[idx]?.estimated_weight &&
+                opt.estimated_symbol === opts[idx]?.estimated_symbol
+            );
+          return same ? prev : opts;
+        });
+
+        setSelected((sel) => {
+          const found = opts.find((x) => x.value_id === sel.ringSize);
+          const nextRingSize = found ? found.value_id : opts?.[0]?.value_id || null;
+          if (sel.ringSize === nextRingSize) return sel;
+          return { ...sel, ringSize: nextRingSize };
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRingOptions([]);
+        setSelected((sel) => {
+          if (sel.ringSize === null) return sel;
+          return { ...sel, ringSize: null };
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setOptionsLoading(false);
       });
-      setSelected((sel) => {
-        const found = opts.find((x) => x.value_id === sel.ringSize);
-        const nextRingSize = found ? found.value_id : opts?.[0]?.value_id || null;
-        if (sel.ringSize === nextRingSize) return sel;
-        return { ...sel, ringSize: nextRingSize };
-      });
-    });
 
     return () => {
-      isActive = false;
+      cancelled = true;
     };
-  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, selected.quality, selected.diamondSize, sizeUnit, vendorParam, bootstrapDone]);
+  }, [
+    selected.stoneType,
+    selected.design,
+    selected.shape,
+    selected.settingStyle,
+    selected.metal,
+    selected.quality,
+    selected.diamondSize,
+    sizeUnit,
+    vendorParam,
+    bootstrapDone,
+  ]);
 
   /* 9) All filters + ring size – Product */
   useEffect(() => {
-    if (!bootstrapDone) return;
-    if (!selected.stoneType || !selected.design || !selected.shape || !selected.settingStyle || !selected.metal || !selected.quality || !selected.diamondSize || !selected.ringSize) {
-      return;
+    let cancelled = false;
+    if (!bootstrapDone) return undefined;
+
+    const ready =
+      selected.stoneType &&
+      selected.design &&
+      selected.shape &&
+      selected.settingStyle &&
+      selected.metal &&
+      selected.quality &&
+      selected.diamondSize &&
+      selected.ringSize;
+
+    if (!ready) {
+      setProductLoading(false);
+      setProduct(null);
+      return undefined;
     }
 
     const pricing = getPricingParams();
@@ -1554,16 +1626,44 @@ const Bands = React.memo(function Bands() {
       ...pricing,
     };
 
-    let cancelled = false;
     setProductLoading(true);
+
     api
       .get(`/productnew`, { params })
-      .then((res) => !cancelled && setProduct(res.data || null))
-      .finally(() => !cancelled && setProductLoading(false));
+      .then((res) => {
+        if (cancelled) return;
+        const payload = unwrapApi(res);
+        const p = payload;
+
+        const isEmptyObj =
+          p && typeof p === "object" && !Array.isArray(p) && Object.keys(p).length === 0;
+
+        setProduct(!p || isEmptyObj ? null : p);
+      })
+      .catch(() => {
+        if (!cancelled) setProduct(null);
+      })
+      .finally(() => {
+        if (!cancelled) setProductLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [selected.stoneType, selected.design, selected.shape, selected.settingStyle, selected.metal, selected.quality, selected.diamondSize, selected.ringSize, sizeUnit, vendorParam, authVersion, bootstrapDone]);
+  }, [
+    selected.stoneType,
+    selected.design,
+    selected.shape,
+    selected.settingStyle,
+    selected.metal,
+    selected.quality,
+    selected.diamondSize,
+    selected.ringSize,
+    sizeUnit,
+    vendorParam,
+    authVersion,
+    bootstrapDone,
+  ]);
 
   /* 10) Estimates for pcs / carat / price w.r.t ring size */
   useEffect(() => {
@@ -1831,7 +1931,10 @@ const Bands = React.memo(function Bands() {
           },
           headers: { Accept: "application/json" },
         })
-        .then((res) => setIsWishlisted(Boolean(res.data?.wishlisted)))
+        .then((res) => {
+          const payload = unwrapApi(res);
+          setIsWishlisted(Boolean(payload?.wishlisted));
+        })
         .catch(() => setIsWishlisted(false));
     });
 
@@ -1900,7 +2003,10 @@ const Bands = React.memo(function Bands() {
           params: { products_id: product.products_id, customers_id, parent_retailer_id },
           headers: { Accept: "application/json" },
         })
-        .then((res) => setIsInCart(getCartCheckState(res.data)))
+        .then((res) => {
+          const payload = unwrapApi(res);
+          setIsInCart(getCartCheckState(payload));
+        })
         .catch(() => setIsInCart(false));
     });
 
