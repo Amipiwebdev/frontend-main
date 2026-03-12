@@ -14,8 +14,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/bands" element={<Bands />} />
-          <Route path="/bands-new" element={<BandsNew />} />
+          <Route path="/bands-new" element={<Bands />} />
+          <Route path="/bands" element={<BandsNew />} />
           <Route path="/bracelets" element={<Bracelets />} />
           <Route path="/details/jewelry/:sku" element={<JewelryDetails />} />
           <Route path="/details/jewelry/:sku/:productid" element={<JewelryDetails />} />
