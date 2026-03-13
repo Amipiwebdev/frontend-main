@@ -5070,9 +5070,9 @@ button.btn.btn-link span {
   margin: 0;
 }
 
-.text-highlight {
-  color: #d4af37;
-}
+// .text-highlight {
+//   color: #c1282d;
+// }
 
 .view-all-link {
   color: #111;
@@ -5296,12 +5296,14 @@ button.btn.btn-link span {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: #d4af37;
-  color: #111;
+  background: #c1282d;
+  color: #FFFFFF;
   font-size: 11px;
   font-weight: 700;
   padding: 6px 10px;
   border-radius: 999px;
+  width: 60px;
+  height: 30px;
 }
 
 .ds-card__body {
@@ -5312,7 +5314,7 @@ button.btn.btn-link span {
   font-size: 16px;
   font-weight: 700;
   line-height: 1.35;
-  min-height: 44px;
+  min-height: 20px;
   margin-bottom: 10px;
 }
 
@@ -5329,10 +5331,14 @@ button.btn.btn-link span {
 }
 
 .ds-card__price {
-  font-size: 18px;
-  font-weight: 700;
-  color: #111;
-  margin-top: 10px;
+    font-size: 18px;
+    color: #FFF;
+    margin-top: 10px;
+    background: #c1282d;
+    max-width: 120px;
+    text-align: center;
+    font-weight: normal;
+    border-radius: 10px;
 }
 
 /* TESTIMONIALS */
@@ -5401,7 +5407,7 @@ button.btn.btn-link span {
 .star-rating {
   display: flex;
   gap: 4px;
-  color: #d4af37;
+  color: #c1282d;
   margin-bottom: 14px;
 }
 

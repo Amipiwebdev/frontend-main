@@ -19,12 +19,17 @@ const FALLBACK_HERO_SLIDES = [
 ];
 
 const CATEGORY_COPY = {
-  "WEDDING BANDS": "Wedding bands, your way—solid gold, diamonds and everything in between.",
-  "ONE-OF-A-KINDS": "Featuring unique and hand-sourced gemstones from all over the world.",
-  "BEST SELLERS": "From solid gold staples to diamond jewelry, browse our most-loved pieces.",
-  "ENGAGEMENT RINGS": "From lab-grown to antique diamonds, explore our unique engagement designs.",
+  "WEDDING BANDS":
+    "Wedding bands, your way—solid gold, diamonds and everything in between.",
+  "ONE-OF-A-KINDS":
+    "Featuring unique and hand-sourced gemstones from all over the world.",
+  "BEST SELLERS":
+    "From solid gold staples to diamond jewelry, browse our most-loved pieces.",
+  "ENGAGEMENT RINGS":
+    "From lab-grown to antique diamonds, explore our unique engagement designs.",
   EARRINGS: "From studs to statement earrings—find your next favorite pair.",
-  "BRACELETS & BANGLES": "Stackable classics and bold pieces for every day.",
+  "BRACELETS & BANGLES":
+    "Stackable classics and bold pieces for every day.",
   STUDS: "Diamond studs for every style—classic, bold, and timeless.",
 };
 
@@ -79,12 +84,36 @@ const formatMoney = (value) => {
   }).format(n);
 };
 
+function normalizeAssetUrl(url) {
+  if (!url) return url;
+
+  let out = String(url).trim();
+  if (!out) return out;
+
+  // double-encoded slash fix
+  // while (out.includes("%252F")) {
+  //   out = out.replace(/%252F/gi, "%2F");
+  // }
+
+  // // direct image path: /ampvd/v16/... or /ampvd/v17/... => /ampvd/...
+  // out = out.replace(/\/ampvd\/v\d+\//gi, "/ampvd/");
+
+  // // thumb query path encoded: img=ampvd%2Fv16%2F... => img=ampvd%2F...
+  // out = out.replace(/img=ampvd%2Fv\d+%2F/gi, "img=ampvd%2F");
+
+  // // thumb query raw slash version
+  // out = out.replace(/img=ampvd\/v\d+\//gi, "img=ampvd/");
+
+  return out;
+}
+
 const Home = () => {
   const [heroSlides, setHeroSlides] = useState(FALLBACK_HERO_SLIDES);
   const [categories, setCategories] = useState([]);
   const [jewelleryTabs, setJewelleryTabs] = useState([]);
   const [activeJewelleryTab, setActiveJewelleryTab] = useState(0);
   const [diamondDeals, setDiamondDeals] = useState([]);
+  const [htmlSections, setHtmlSections] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
 
   const device = useMemo(
@@ -109,9 +138,10 @@ const Home = () => {
             .filter((s) => s?.image)
             .map((s) => ({
               id: s.id,
-              image: s.image,
+              image: normalizeAssetUrl(s.image),
               link: normalizeLink(s.link),
             }));
+
           setHeroSlides(mappedSlides.length ? mappedSlides : FALLBACK_HERO_SLIDES);
         } else {
           setHeroSlides(FALLBACK_HERO_SLIDES);
@@ -127,8 +157,8 @@ const Home = () => {
             .map((c) => ({
               id: c.id,
               title: c.title,
-              image: c.image,
-              thumb: c.thumb,
+              image: normalizeAssetUrl(c.image),
+              thumb: normalizeAssetUrl(c.thumb),
               link: normalizeLink(c.link),
               url: normalizeLink(c.url),
             }))
@@ -136,7 +166,9 @@ const Home = () => {
 
         // JEWELLERY SUPER DEALS
         const jewelleryBlock = blocks.find((b) => b?.key === "super_deal_jewellery");
-        const jewelleryRows = Array.isArray(jewelleryBlock?.data) ? jewelleryBlock.data : [];
+        const jewelleryRows = Array.isArray(jewelleryBlock?.data)
+          ? jewelleryBlock.data
+          : [];
 
         const mappedJewelleryTabs = jewelleryRows.map((tab) => ({
           categoryId: tab.category_id,
@@ -148,13 +180,18 @@ const Home = () => {
                 id: item.id,
                 name: item.name || item.model || "Product",
                 model: item.model || null,
-                image: item.thumb || item.image || "https://amipi.com/images/image-not-availbale.jpg",
+                image: normalizeAssetUrl(
+                  item.thumb ||
+                    item.image ||
+                    "https://www.amipi.com/product_thumb.php?img=images/image-not-availbale.jpg&w=240&h=200"
+                ),
                 link: normalizeLink(item.url || item.link),
                 promotion: item.product_promotion || null,
                 price: item.price,
                 showPrice: Number(item.show_price || 0) === 1,
                 isNew: Number(item.is_new || 0) === 1,
-                loginRequiredForPrice: Number(item.login_required_for_price || 0) === 1,
+                loginRequiredForPrice:
+                  Number(item.login_required_for_price || 0) === 1,
               }))
             : [],
         }));
@@ -172,7 +209,7 @@ const Home = () => {
             .map((d) => ({
               id: d.id,
               link: normalizeLink(d.url || d.link),
-              image: d.thumb || d.image,
+              image: normalizeAssetUrl(d.thumb || d.image),
               shape: d.shape_name,
               carat: d.carat_weight,
               color: d.color_name,
@@ -191,6 +228,19 @@ const Home = () => {
               pricePerCarat: d.price_per_carat ?? null,
               diamondType: d.diamond_type ?? null,
             }))
+        );
+
+        // HTML SECTIONS
+        const htmlBlock = blocks.find((b) => b?.key === "html_sections");
+        const htmlRows = Array.isArray(htmlBlock?.data) ? htmlBlock.data : [];
+
+        setHtmlSections(
+          htmlRows.filter((row) => row?.html).map((row, index) => ({
+            id: `${row.key || "html"}-${row.page_id || index}`,
+            key: row.key || null,
+            pageId: row.page_id || null,
+            html: row.html,
+          }))
         );
 
         // TESTIMONIALS
@@ -218,12 +268,14 @@ const Home = () => {
         setJewelleryTabs([]);
         setActiveJewelleryTab(0);
         setDiamondDeals([]);
+        setHtmlSections([]);
         setTestimonials([]);
       });
   }, [device]);
 
   const activeJewelleryItems =
-    jewelleryTabs[activeJewelleryTab] && Array.isArray(jewelleryTabs[activeJewelleryTab].items)
+    jewelleryTabs[activeJewelleryTab] &&
+    Array.isArray(jewelleryTabs[activeJewelleryTab].items)
       ? jewelleryTabs[activeJewelleryTab].items
       : [];
 
@@ -286,7 +338,9 @@ const Home = () => {
                 <a
                   key={cat.id}
                   href={href}
-                  className={`home-categories-v2__card ${clickable ? "" : "is-disabled"}`}
+                  className={`home-categories-v2__card ${
+                    clickable ? "" : "is-disabled"
+                  }`}
                   onClick={(e) => {
                     if (!clickable) e.preventDefault();
                   }}
@@ -442,9 +496,9 @@ const Home = () => {
               const href = d.link || "#";
               const clickable = href !== "#";
 
-              const title = `${d.shape || ""} ${(Number(d.carat) || 0).toFixed(2)}ct ${
-                d.color || ""
-              } ${d.clarity || ""}`.trim();
+              const title = `${d.shape || ""} ${(Number(d.carat) || 0).toFixed(
+                2
+              )}ct ${d.color || ""} ${d.clarity || ""}`.trim();
 
               const showMoney = d.showPrice && d.price !== null;
 
@@ -499,6 +553,19 @@ const Home = () => {
         </div>
       </section>
 
+      {/* HTML SECTIONS */}
+      {!!htmlSections.length && (
+        <section className="home-html-sections">
+          {htmlSections.map((section) => (
+            <div
+              key={section.id}
+              className="home-html-sections__block"
+              dangerouslySetInnerHTML={{ __html: section.html }}
+            />
+          ))}
+        </section>
+      )}
+
       {/* TESTIMONIALS */}
       <section className="testimonial-section">
         <div className="custom-container">
@@ -506,7 +573,8 @@ const Home = () => {
             <div>
               <p className="section-kicker">Testimonials</p>
               <h2 className="section-title">
-                Customers <span className="text-highlight">Love Working</span> With Us
+                Customers <span className="text-highlight">Love Working</span>{" "}
+                With Us
               </h2>
             </div>
             <div className="testimonial-nav-note">
