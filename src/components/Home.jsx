@@ -1,9 +1,3 @@
-// src/components/Home.jsx
-// ✅ Hero Slider + ✅ Categories (v2 cards) + ✅ Diamond Super Deals + ✅ Testimonials (API Driven)
-// ✅ Topbar/Header/Footer intact
-// ✅ No extra sections
-// ✅ Safe fallbacks (nothing breaks if API empty)
-
 import React, { useEffect, useMemo, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination } from "swiper/modules";
@@ -88,10 +82,15 @@ const formatMoney = (value) => {
 const Home = () => {
   const [heroSlides, setHeroSlides] = useState(FALLBACK_HERO_SLIDES);
   const [categories, setCategories] = useState([]);
+  const [jewelleryTabs, setJewelleryTabs] = useState([]);
+  const [activeJewelleryTab, setActiveJewelleryTab] = useState(0);
   const [diamondDeals, setDiamondDeals] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
 
-  const device = useMemo(() => (window.innerWidth < 768 ? "mobile" : "desktop"), []);
+  const device = useMemo(
+    () => (window.innerWidth < 768 ? "mobile" : "desktop"),
+    []
+  );
 
   useEffect(() => {
     const retailerId = localStorage.getItem("parentRetailerId") || 0;
@@ -101,9 +100,10 @@ const Home = () => {
       .then((res) => {
         const blocks = res?.data?.blocks || [];
 
-        // ✅ Slider
+        // HERO SLIDER
         const sliderBlock = blocks.find((b) => b?.key === "slider");
         const slides = Array.isArray(sliderBlock?.data) ? sliderBlock.data : [];
+
         if (slides.length) {
           const mappedSlides = slides
             .filter((s) => s?.image)
@@ -117,9 +117,10 @@ const Home = () => {
           setHeroSlides(FALLBACK_HERO_SLIDES);
         }
 
-        // ✅ Categories
+        // CATEGORIES
         const catBlock = blocks.find((b) => b?.key === "categories");
         const catRows = Array.isArray(catBlock?.data) ? catBlock.data : [];
+
         setCategories(
           catRows
             .filter((c) => c?.title)
@@ -133,9 +134,38 @@ const Home = () => {
             }))
         );
 
-        // ✅ Diamond Super Deals
+        // JEWELLERY SUPER DEALS
+        const jewelleryBlock = blocks.find((b) => b?.key === "super_deal_jewellery");
+        const jewelleryRows = Array.isArray(jewelleryBlock?.data) ? jewelleryBlock.data : [];
+
+        const mappedJewelleryTabs = jewelleryRows.map((tab) => ({
+          categoryId: tab.category_id,
+          categoryName: tab.category_name || "Category",
+          categorySlug: tab.category_slug || "",
+          shopAllLink: normalizeLink(tab.shop_all_link),
+          items: Array.isArray(tab.items)
+            ? tab.items.map((item) => ({
+                id: item.id,
+                name: item.name || item.model || "Product",
+                model: item.model || null,
+                image: item.thumb || item.image || "https://amipi.com/images/image-not-availbale.jpg",
+                link: normalizeLink(item.url || item.link),
+                promotion: item.product_promotion || null,
+                price: item.price,
+                showPrice: Number(item.show_price || 0) === 1,
+                isNew: Number(item.is_new || 0) === 1,
+                loginRequiredForPrice: Number(item.login_required_for_price || 0) === 1,
+              }))
+            : [],
+        }));
+
+        setJewelleryTabs(mappedJewelleryTabs);
+        setActiveJewelleryTab(0);
+
+        // DIAMOND SUPER DEALS
         const dealBlock = blocks.find((b) => b?.key === "super_deal_diamond");
         const dealRows = Array.isArray(dealBlock?.data) ? dealBlock.data : [];
+
         setDiamondDeals(
           dealRows
             .filter((d) => d?.id)
@@ -157,18 +187,16 @@ const Home = () => {
               isNew: Number(d.is_new_diamond || 0) === 1,
               discount: d.discount_percent,
               showPrice: Number(d.show_price || 0) === 1,
-              // controller might return these:
               price: d.price ?? null,
-              pricePerCарат: d.price_per_carat ?? null,
-              msrpTotal: d.msrp_total ?? null,
-              msrpPerCt: d.msrp_price_per_carat ?? null,
+              pricePerCarat: d.price_per_carat ?? null,
               diamondType: d.diamond_type ?? null,
             }))
         );
 
-        // ✅ Testimonials
+        // TESTIMONIALS
         const testiBlock = blocks.find((b) => b?.key === "testimonials");
         const testiRows = Array.isArray(testiBlock?.data) ? testiBlock.data : [];
+
         if (testiRows.length) {
           setTestimonials(
             testiRows.map((t) => ({
@@ -187,17 +215,24 @@ const Home = () => {
       .catch(() => {
         setHeroSlides(FALLBACK_HERO_SLIDES);
         setCategories([]);
+        setJewelleryTabs([]);
+        setActiveJewelleryTab(0);
         setDiamondDeals([]);
         setTestimonials([]);
       });
   }, [device]);
+
+  const activeJewelleryItems =
+    jewelleryTabs[activeJewelleryTab] && Array.isArray(jewelleryTabs[activeJewelleryTab].items)
+      ? jewelleryTabs[activeJewelleryTab].items
+      : [];
 
   return (
     <div className="home-page">
       <Topbar />
       <Header />
 
-      {/* ✅ HERO SLIDER (ONLY IMAGE) */}
+      {/* HERO */}
       <section className="hero-section">
         <Swiper
           spaceBetween={0}
@@ -205,33 +240,46 @@ const Home = () => {
           loop={heroSlides.length > 1}
           modules={[Autoplay, Pagination]}
           pagination={{ clickable: true }}
-          autoplay={heroSlides.length > 1 ? { delay: 6500, disableOnInteraction: false } : false}
+          autoplay={
+            heroSlides.length > 1
+              ? { delay: 6500, disableOnInteraction: false }
+              : false
+          }
         >
           {heroSlides.map((slide) => (
             <SwiperSlide key={slide.id}>
               <div
                 className="hero-slide"
                 style={{
-                  backgroundImage: `url("${encodeURI(slide.image)}")`,
+                  backgroundImage: `url("${slide.image}")`,
                   cursor: slide.link ? "pointer" : "default",
                 }}
-                onClick={() => slide.link && (window.location.href = slide.link)}
+                onClick={() => {
+                  if (slide.link) window.location.href = slide.link;
+                }}
               />
             </SwiperSlide>
           ))}
         </Swiper>
       </section>
 
-      {/* ✅ CATEGORIES (v2 cards like screenshot) */}
+      {/* CATEGORIES */}
       <section className="home-categories-v2">
         <div className="custom-container">
+          <div className="section-head">
+            <h2 className="section-title">
+              Shop <span className="text-highlight">Categories</span>
+            </h2>
+          </div>
+
           <div className="home-categories-v2__grid">
             {categories.map((cat) => {
               const href = safeHref(cat);
               const clickable = href && href !== "#";
               const title = toTitleCase(cat.title || "Category");
               const desc =
-                CATEGORY_COPY[(cat.title || "").toUpperCase()] || "Explore our curated selection.";
+                CATEGORY_COPY[(cat.title || "").toUpperCase()] ||
+                "Explore our curated selection.";
               const imgSrc = cat.image || cat.thumb;
 
               return (
@@ -255,14 +303,113 @@ const Home = () => {
           </div>
 
           {!categories.length && (
-            <div style={{ opacity: 0.7, marginTop: 10, fontSize: 14 }}>
-              No categories available.
-            </div>
+            <div className="empty-state">No categories available.</div>
           )}
         </div>
       </section>
 
-      {/* ✅ DIAMOND SUPER DEALS (Slider) */}
+      {/* JEWELLERY SUPER DEALS */}
+      <section className="jewellery-superdeals">
+        <div className="custom-container">
+          <div className="section-head">
+            <h2 className="section-title">
+              Jewellery <span className="text-highlight">Superdeals</span>
+            </h2>
+
+            {jewelleryTabs[activeJewelleryTab]?.shopAllLink ? (
+              <a
+                className="view-all-link"
+                href={jewelleryTabs[activeJewelleryTab].shopAllLink}
+              >
+                Shop all
+              </a>
+            ) : null}
+          </div>
+
+          {!!jewelleryTabs.length && (
+            <div className="jewellery-tabs">
+              {jewelleryTabs.map((tab, index) => (
+                <button
+                  key={tab.categoryId || tab.categorySlug || index}
+                  type="button"
+                  className={`jewellery-tab-btn ${
+                    activeJewelleryTab === index ? "is-active" : ""
+                  }`}
+                  onClick={() => setActiveJewelleryTab(index)}
+                >
+                  {tab.categoryName}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!!activeJewelleryItems.length && (
+            <Swiper
+              className="jewellery-superdeals-swiper"
+              spaceBetween={18}
+              slidesPerView={1}
+              loop={activeJewelleryItems.length > 1}
+              modules={[Autoplay, Pagination]}
+              pagination={{ clickable: true }}
+              autoplay={
+                activeJewelleryItems.length > 1
+                  ? { delay: 5500, disableOnInteraction: false }
+                  : false
+              }
+              breakpoints={{
+                576: { slidesPerView: 2 },
+                992: { slidesPerView: 3 },
+                1200: { slidesPerView: 4 },
+              }}
+            >
+              {activeJewelleryItems.map((item) => {
+                const href = item.link || "#";
+                const clickable = href !== "#";
+
+                return (
+                  <SwiperSlide key={item.id}>
+                    <a
+                      href={href}
+                      className={`jsd-card ${clickable ? "" : "is-disabled"}`}
+                      onClick={(e) => {
+                        if (!clickable) e.preventDefault();
+                      }}
+                      aria-disabled={!clickable}
+                    >
+                      <div className="jsd-card__img">
+                        <img src={item.image} alt={item.name} loading="lazy" />
+                        {item.isNew ? <span className="jsd-badge">NEW</span> : null}
+                      </div>
+
+                      <div className="jsd-card__body">
+                        <div className="jsd-card__title">{item.name}</div>
+
+                        {item.promotion ? (
+                          <div className="jsd-card__promo">{item.promotion}</div>
+                        ) : null}
+
+                        <div className="jsd-card__price">
+                          {item.showPrice && item.price !== null
+                            ? formatMoney(item.price)
+                            : item.loginRequiredForPrice
+                            ? "Login to view price"
+                            : "Call for price"}
+                        </div>
+                      </div>
+                    </a>
+                  </SwiperSlide>
+                );
+              })}
+            </Swiper>
+          )}
+
+          {!jewelleryTabs.length && (
+            <div className="empty-state">No jewellery superdeals available.</div>
+          )}
+        </div>
+      </section>
+
+      {/* DIAMOND SUPER DEALS */}
       <section className="diamond-superdeals">
         <div className="custom-container">
           <div className="section-head">
@@ -280,7 +427,11 @@ const Home = () => {
             loop={diamondDeals.length > 1}
             modules={[Autoplay, Pagination]}
             pagination={{ clickable: true }}
-            autoplay={diamondDeals.length > 1 ? { delay: 6000, disableOnInteraction: false } : false}
+            autoplay={
+              diamondDeals.length > 1
+                ? { delay: 6000, disableOnInteraction: false }
+                : false
+            }
             breakpoints={{
               576: { slidesPerView: 2 },
               992: { slidesPerView: 3 },
@@ -295,11 +446,7 @@ const Home = () => {
                 d.color || ""
               } ${d.clarity || ""}`.trim();
 
-              // prefer real price, else fallback msrp, else CALL
-              const priceValue =
-                d.price ?? d.msrpTotal ?? null;
-
-              const showMoney = d.showPrice && priceValue !== null;
+              const showMoney = d.showPrice && d.price !== null;
 
               return (
                 <SwiperSlide key={d.id}>
@@ -312,10 +459,12 @@ const Home = () => {
                     aria-disabled={!clickable}
                   >
                     <div className="ds-card__img">
-                      <img src={encodeURI(d.image)} alt={title} loading="lazy" />
+                      <img src={d.image} alt={title} loading="lazy" />
                       {d.isNew ? <span className="ds-badge">NEW</span> : null}
                       {typeof d.discount === "number" ? (
-                        <span className="ds-discount">{Number(d.discount).toFixed(2)}%</span>
+                        <span className="ds-discount">
+                          {Number(d.discount).toFixed(2)}%
+                        </span>
                       ) : null}
                     </div>
 
@@ -323,7 +472,9 @@ const Home = () => {
                       <div className="ds-card__title">{title}</div>
 
                       <div className="ds-card__meta">
-                        {[d.cut, d.polish, d.symmetry, d.fluorescence].filter(Boolean).join(" • ")}
+                        {[d.cut, d.polish, d.symmetry, d.fluorescence]
+                          .filter(Boolean)
+                          .join(" • ")}
                       </div>
 
                       <div className="ds-card__meta2">
@@ -333,7 +484,7 @@ const Home = () => {
                       </div>
 
                       <div className="ds-card__price">
-                        {showMoney ? formatMoney(priceValue) : "Call for price"}
+                        {showMoney ? formatMoney(d.price) : "Call for price"}
                       </div>
                     </div>
                   </a>
@@ -343,14 +494,12 @@ const Home = () => {
           </Swiper>
 
           {!diamondDeals.length && (
-            <div style={{ opacity: 0.7, marginTop: 10, fontSize: 14 }}>
-              No superdeals available.
-            </div>
+            <div className="empty-state">No diamond superdeals available.</div>
           )}
         </div>
       </section>
 
-      {/* ✅ TESTIMONIALS SLIDER */}
+      {/* TESTIMONIALS */}
       <section className="testimonial-section">
         <div className="custom-container">
           <div className="testimonial-head">
@@ -360,7 +509,9 @@ const Home = () => {
                 Customers <span className="text-highlight">Love Working</span> With Us
               </h2>
             </div>
-            <div className="testimonial-nav-note">Slide through to see what partners are saying.</div>
+            <div className="testimonial-nav-note">
+              Slide through to see what partners are saying.
+            </div>
           </div>
 
           <Swiper
@@ -369,7 +520,11 @@ const Home = () => {
             loop={testimonials.length > 1}
             modules={[Autoplay, Pagination]}
             pagination={{ clickable: true }}
-            autoplay={testimonials.length > 1 ? { delay: 7000, disableOnInteraction: false } : false}
+            autoplay={
+              testimonials.length > 1
+                ? { delay: 7000, disableOnInteraction: false }
+                : false
+            }
             breakpoints={{
               768: { slidesPerView: 2 },
               1200: { slidesPerView: 3 },
@@ -401,9 +556,7 @@ const Home = () => {
           </Swiper>
 
           {!testimonials.length && (
-            <div style={{ opacity: 0.7, marginTop: 10, fontSize: 14 }}>
-              No testimonials available.
-            </div>
+            <div className="empty-state">No testimonials available.</div>
           )}
         </div>
       </section>

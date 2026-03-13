@@ -4694,3 +4694,783 @@ button.btn.btn-link span {
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* =========================
+   HOME CATEGORIES V2
+========================= */
+.home-categories-v2 {
+  padding: 40px 0 20px;
+}
+
+.home-categories-v2__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.home-categories-v2__card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.home-categories-v2__card:hover {
+  transform: translateY(-4px);
+}
+
+.home-categories-v2__card.is-disabled {
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.home-categories-v2__media {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: #f4f4f4;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.home-categories-v2__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-categories-v2__title {
+  margin: 0 0 10px;
+  font-size: 20px;
+  line-height: 1.2;
+  text-align: center;
+  color: #1f2f5f;
+  font-weight: 500;
+}
+
+.home-categories-v2__desc {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: center;
+  color: #333;
+}
+
+/* =========================
+   HTML SECTIONS
+========================= */
+.home-html-sections {
+  padding: 20px 0 10px;
+}
+
+.home-html-block {
+  margin-bottom: 20px;
+}
+
+.home-html-block img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* =========================
+   JEWELRY SUPER DEALS
+========================= */
+.jewelry-superdeals {
+  padding: 45px 0 30px;
+}
+
+.jewelry-superdeals__tabs {
+  margin-bottom: 28px;
+}
+
+.jewelry-superdeals__tab {
+  min-width: 120px;
+  border: 1px solid #d9d9d9;
+  background: #f7f7f7;
+  color: #666;
+  font-size: 16px;
+  line-height: 1;
+  padding: 12px 18px;
+  transition: all 0.25s ease;
+}
+
+.jewelry-superdeals__tab:hover {
+  background: #fff;
+  color: #1f2f5f;
+}
+
+.jewelry-superdeals__tab.is-active {
+  background: #fff;
+  color: #1f2f5f;
+  border-color: #1f2f5f;
+  box-shadow: inset 0 -2px 0 #1f2f5f;
+}
+
+.jsd-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  height: 100%;
+}
+
+.jsd-card__image {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: #f7f7f7;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.jsd-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.jsd-card:hover .jsd-card__image img {
+  transform: scale(1.03);
+}
+
+.jsd-card .cta-button,
+.jsd-card .ghost {
+  text-decoration: none;
+}
+
+.jsd-card .jsd-model {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #9b8d73;
+  margin-bottom: 8px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.jsd-card .jsd-name {
+  font-size: 22px;
+  line-height: 1.35;
+  margin-bottom: 10px;
+  text-align: center;
+  color: #1f2f5f;
+  min-height: 60px;
+}
+
+.jsd-card .jsd-stars {
+  font-size: 24px;
+  line-height: 1;
+  margin-bottom: 10px;
+  text-align: center;
+  color: #b8b8b8;
+}
+
+.jsd-card .jsd-price {
+  font-size: 18px;
+  font-weight: 500;
+  text-align: center;
+  color: #1f2f5f;
+}
+
+/* =========================
+   DIAMOND SUPER DEALS
+========================= */
+.diamond-superdeals {
+  padding: 45px 0 35px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.view-all-link {
+  color: #1f2f5f;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.view-all-link:hover {
+  text-decoration: underline;
+}
+
+.ds-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  border: 1px solid #ececec;
+  padding: 14px;
+  height: 100%;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.ds-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.ds-card.is-disabled {
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.ds-card__img {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #f7f7f7;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.ds-card__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.ds-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #1f2f5f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 8px;
+  border-radius: 20px;
+}
+
+.ds-discount {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: #ffe14a;
+  color: #000;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 8px;
+}
+
+.ds-card__title {
+  font-size: 18px;
+  line-height: 1.35;
+  margin-bottom: 8px;
+  color: #1f2f5f;
+  font-weight: 600;
+}
+
+.ds-card__meta,
+.ds-card__meta2 {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.ds-card__meta2 span {
+  display: block;
+}
+
+.ds-card__price {
+  font-size: 19px;
+  font-weight: 700;
+  color: #c62828;
+  margin-top: 8px;
+}
+
+/* =========================
+   SWIPER spacing helpers
+========================= */
+.jewelry-superdeals .swiper,
+.diamond-superdeals .swiper,
+.testimonial-section .swiper {
+  padding-bottom: 40px;
+}
+
+.jewelry-superdeals .swiper-pagination,
+.diamond-superdeals .swiper-pagination,
+.testimonial-section .swiper-pagination {
+  bottom: 0 !important;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 1199px) {
+  .home-categories-v2__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .home-categories-v2 {
+    padding: 30px 0 10px;
+  }
+
+  .home-categories-v2__grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .jewelry-superdeals__tab {
+    min-width: auto;
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+
+  .home-categories-v2__title,
+  .ds-card__title {
+    font-size: 18px;
+  }
+
+  .jsd-card .jsd-name {
+    font-size: 18px;
+    min-height: auto;
+  }
+
+  .ds-card__price,
+  .jsd-card .jsd-price {
+    font-size: 17px;
+  }
+}
+
+
+.hero-section {
+  position: relative;
+}
+
+.hero-slide {
+  width: 100%;
+  min-height: 520px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.section-title {
+  margin: 0;
+}
+
+.text-highlight {
+  color: #d4af37;
+}
+
+.view-all-link {
+  color: #111;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.view-all-link:hover {
+  text-decoration: underline;
+}
+
+.empty-state {
+  opacity: 0.7;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+/* CATEGORY SECTION */
+.home-categories-v2 {
+  padding: 60px 0;
+}
+
+.home-categories-v2__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.home-categories-v2__card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.home-categories-v2__card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.1);
+}
+
+.home-categories-v2__card.is-disabled {
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.home-categories-v2__media {
+  aspect-ratio: 1 / 1;
+  background: #f8f8f8;
+  overflow: hidden;
+}
+
+.home-categories-v2__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-categories-v2__title {
+  margin: 16px 16px 8px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.home-categories-v2__desc {
+  margin: 0 16px 18px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #555;
+}
+
+/* JEWELLERY SUPER DEALS */
+.jewellery-superdeals {
+  padding: 20px 0 60px;
+}
+
+.jewellery-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.jewellery-tab-btn {
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #111;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.jewellery-tab-btn:hover {
+  border-color: #111;
+}
+
+.jewellery-tab-btn.is-active {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.jsd-card {
+  display: block;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  height: 100%;
+}
+
+.jsd-card.is-disabled {
+  pointer-events: none;
+}
+
+.jsd-card__img {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #f8f8f8;
+}
+
+.jsd-card__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.jsd-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: #111;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.jsd-card__body {
+  padding: 16px;
+}
+
+.jsd-card__title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  min-height: 44px;
+  margin-bottom: 10px;
+}
+
+.jsd-card__promo {
+  font-size: 13px;
+  color: #777;
+  line-height: 1.5;
+  min-height: 38px;
+  margin-bottom: 10px;
+}
+
+.jsd-card__price {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+}
+
+/* DIAMOND SUPER DEALS */
+.diamond-superdeals {
+  padding: 10px 0 60px;
+}
+
+.ds-card {
+  display: block;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  height: 100%;
+}
+
+.ds-card.is-disabled {
+  pointer-events: none;
+}
+
+.ds-card__img {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #f8f8f8;
+}
+
+.ds-card__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ds-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: #111;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.ds-discount {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #d4af37;
+  color: #111;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.ds-card__body {
+  padding: 16px;
+}
+
+.ds-card__title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  min-height: 44px;
+  margin-bottom: 10px;
+}
+
+.ds-card__meta,
+.ds-card__meta2 {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.ds-card__meta2 span {
+  display: block;
+}
+
+.ds-card__price {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+  margin-top: 10px;
+}
+
+/* TESTIMONIALS */
+.testimonial-section {
+  padding: 60px 0 70px;
+}
+
+.testimonial-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.section-kicker {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  color: #777;
+  font-weight: 700;
+}
+
+.testimonial-nav-note {
+  font-size: 14px;
+  color: #777;
+}
+
+.testimonial-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  height: 100%;
+}
+
+.testimonial-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #111;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.testimonial-avatar.has-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.testimonial-message {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #444;
+  margin-bottom: 16px;
+  min-height: 120px;
+}
+
+.star-rating {
+  display: flex;
+  gap: 4px;
+  color: #d4af37;
+  margin-bottom: 14px;
+}
+
+.testimonial-author .author-name {
+  font-weight: 700;
+  color: #111;
+}
+
+.testimonial-author .author-title {
+  font-size: 14px;
+  color: #777;
+  margin-top: 4px;
+}
+
+/* SWIPER DOTS */
+.swiper-pagination-bullet {
+  width: 10px;
+  height: 10px;
+}
+
+.swiper-pagination-bullet-active {
+  background: #111 !important;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1199px) {
+  .home-categories-v2__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 991px) {
+  .hero-slide {
+    min-height: 420px;
+  }
+
+  .home-categories-v2__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .testimonial-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .hero-slide {
+    min-height: 280px;
+  }
+
+  .home-categories-v2,
+  .jewellery-superdeals,
+  .diamond-superdeals,
+  .testimonial-section {
+    padding: 40px 0;
+  }
+
+  .home-categories-v2__grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .testimonial-message {
+    min-height: auto;
+  }
+}
